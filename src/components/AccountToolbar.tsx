@@ -38,7 +38,7 @@ export function AccountToolbar() {
       <div
         role="toolbar"
         aria-label="Account controls"
-        className="surface-quiet flex items-center gap-0.5 p-1 pointer-events-auto max-w-full overflow-x-auto"
+        className="surface-quiet toolbar-compact scroll-x flex items-center gap-0.5 p-1 pointer-events-auto max-w-full"
       >
         <button type="button" className="btn btn-ghost btn-pill" onClick={returnToForest}>
           <span aria-hidden>←</span>
@@ -71,7 +71,8 @@ export function AccountToolbar() {
         {item("activity", "Activity")}
         <span className="w-px h-5 bg-line mx-1" aria-hidden />
         <button type="button" className="btn btn-ghost btn-pill" onClick={resetView} aria-label="Reset view">
-          Reset
+          <span className="hidden sm:inline">Reset</span>
+          <span className="sm:hidden" aria-hidden>↺</span>
         </button>
       </div>
     </div>

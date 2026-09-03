@@ -31,6 +31,10 @@ interface Shot {
   maxPolar: number;
   /** Shift target sideways (screen-right) so it is not hidden by a side panel. */
   panelOffset: number;
+  /** Compact layouts: a bottom sheet covers the lower half, so the subject moves up. */
+  sheetOpen?: boolean;
+  /** Extra pull-back applied when the sheet is open (default 1.2). */
+  sheetScale?: number;
 }
 
 function aspectFactor(aspect: number, strength = 0.7) {
@@ -52,6 +56,9 @@ export function CameraRig() {
   const view = useTerritoryStore((s) => s.view);
   const cameraResetNonce = useTerritoryStore((s) => s.cameraResetNonce);
   const reducedMotion = useTerritoryStore((s) => s.reducedMotion);
+  const isCompact = useTerritoryStore((s) => s.isCompact);
+  const navigatorOpen = useTerritoryStore((s) => s.navigatorOpen);
+  const forestCardOpen = useTerritoryStore((s) => !!s.selectedAccountId || !!s.selectedMarketId);
   const selectedIsMeeting = useTerritoryStore(
     (s) => !!s.selectedProspectId && s.prospectsById[s.selectedProspectId]?.relationshipStatus === "meeting",
   );
@@ -85,18 +92,31 @@ export function CameraRig() {
       aspect,
       isDesktop,
       prospectStatus: selectedIsMeeting ? "meeting" : undefined,
+      sheetOpen:
+        isCompact &&
+        (mode === "forest"
+          ? forestCardOpen
+          : view !== "tree" || !!selectedProspectId || !!selectedOpportunityId || !!focusBusinessUnitId || navigatorOpen),
     });
     if (!shot) return;
 
     const azimuth = shot.azimuth ?? controls.azimuthAngle;
     const polar = THREE.MathUtils.clamp(shot.polar, shot.minPolar, shot.maxPolar);
-    const offset = new THREE.Vector3().setFromSphericalCoords(shot.distance, polar, azimuth);
+    const distance = shot.sheetOpen ? shot.distance * (shot.sheetScale ?? 1.2) : shot.distance;
+    const offset = new THREE.Vector3().setFromSphericalCoords(distance, polar, azimuth);
     const target = shot.target.clone();
+
+    if (shot.sheetOpen) {
+      // Bottom sheet covers roughly the lower half: lift the subject into the
+      // visible upper region.
+      const visibleHalfHeight = Math.tan(THREE.MathUtils.degToRad(42 / 2)) * distance;
+      target.y -= visibleHalfHeight * 0.42;
+    }
 
     if (shot.panelOffset !== 0) {
       // Shift the composition so the subject sits left of a right-hand panel.
       const right = new THREE.Vector3(Math.cos(azimuth), 0, -Math.sin(azimuth));
-      const visibleHalfWidth = Math.tan(THREE.MathUtils.degToRad(42 / 2)) * shot.distance * aspect;
+      const visibleHalfWidth = Math.tan(THREE.MathUtils.degToRad(42 / 2)) * distance * aspect;
       target.addScaledVector(right, visibleHalfWidth * shot.panelOffset);
     }
     const position = target.clone().add(offset);
@@ -119,9 +139,30 @@ export function CameraRig() {
     isDesktop,
     reducedMotion,
     selectedIsMeeting,
+    isCompact,
+    navigatorOpen,
+    forestCardOpen,
   ]);
 
-  return <CameraControls ref={controlsRef} makeDefault />;
+  return (
+    <CameraControls
+      ref={controlsRef}
+      makeDefault
+      smoothTime={0.35}
+      draggingSmoothTime={0.18}
+      mouseButtons={{
+        left: CameraControlsImpl.ACTION.ROTATE,
+        middle: CameraControlsImpl.ACTION.DOLLY,
+        right: CameraControlsImpl.ACTION.NONE,
+        wheel: CameraControlsImpl.ACTION.DOLLY,
+      }}
+      touches={{
+        one: CameraControlsImpl.ACTION.TOUCH_ROTATE,
+        two: CameraControlsImpl.ACTION.TOUCH_DOLLY,
+        three: CameraControlsImpl.ACTION.NONE,
+      }}
+    />
+  );
 }
 
 interface ShotInput {
@@ -135,6 +176,7 @@ interface ShotInput {
   aspect: number;
   isDesktop: boolean;
   prospectStatus?: string;
+  sheetOpen?: boolean;
 }
 
 function computeShot(input: ShotInput): Shot | null {
@@ -144,14 +186,18 @@ function computeShot(input: ShotInput): Shot | null {
   if (input.mode === "forest" || !input.activeAccountId) {
     return {
       target: FOREST_TARGET,
-      distance: 205 * af,
-      polar: 1.33,
+      // Portrait: don't chase the full width of the grove; look down a little
+      // more so its depth reads on a tall screen instead.
+      distance: 205 * Math.min(af, 1.4),
+      polar: isDesktop ? 1.33 : 1.2,
       azimuth: 0.04,
       minDistance: 45,
       maxDistance: 420,
       minPolar: 0.6,
       maxPolar: 1.5,
       panelOffset: 0,
+      sheetOpen: input.sheetOpen,
+      sheetScale: 1,
     };
   }
 
@@ -166,11 +212,12 @@ function computeShot(input: ShotInput): Shot | null {
   // Frame the whole crown: vertical half-FOV is 21°, so the distance that
   // fits `top` with a little headroom is roughly (top / 2) / tan(21°).
   const fitHeight = (top * 0.7) / Math.tan(THREE.MathUtils.degToRad(21));
-  const fitWidth = (skeleton.canopyRadius * 1.25) / Math.tan(THREE.MathUtils.degToRad(21)) / Math.max(aspect * (1 - panel), 0.6);
+  const fitWidth = (skeleton.canopyRadius * 1.1) / Math.tan(THREE.MathUtils.degToRad(21)) / Math.max(aspect * (1 - panel), 0.5);
 
   const accountShot: Shot = {
     target: base.clone().add(new THREE.Vector3(0, top * 0.53, 0)),
-    distance: Math.max(fitHeight, fitWidth) * Math.min(af, 1.3),
+    distance: Math.max(fitHeight * Math.min(af, 1.3), fitWidth),
+    sheetOpen: input.sheetOpen,
     polar: 1.28,
     minDistance: 5,
     maxDistance: H * 4,
@@ -182,9 +229,9 @@ function computeShot(input: ShotInput): Shot | null {
   if (input.view === "roots") {
     return {
       ...accountShot,
-      target: base.clone().add(new THREE.Vector3(0, 0.5, 0)),
-      distance: Math.max(skeleton.trunkRadius * 17, 24) * af,
-      polar: 1.43,
+      target: base.clone().add(new THREE.Vector3(0, -H * 0.08, 0)),
+      distance: H * 1.1 * af,
+      polar: 1.18,
       maxPolar: 1.56,
       panelOffset: panel,
     };

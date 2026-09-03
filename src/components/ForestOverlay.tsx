@@ -65,7 +65,7 @@ function AccountStrip({ selectedAccountId }: { selectedAccountId: string | null 
   return (
     <nav
       aria-label="Strategic accounts"
-      className="self-center max-w-full overflow-x-auto scroll pointer-events-auto"
+      className="self-center max-w-full scroll-x pointer-events-auto"
     >
       <ul className="flex items-center gap-1 px-1 py-1 whitespace-nowrap">
         {accounts.map((a) => {
@@ -98,16 +98,18 @@ function AccountCard({ view }: { view: NonNullable<ReturnType<typeof useAccountV
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h2 className="text-[20px] font-semibold leading-tight tracking-tight">{account.name}</h2>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-[19px] md:text-[20px] font-semibold leading-tight tracking-tight">{account.name}</h2>
             <SeasonChip season={account.season} />
           </div>
           <p className="text-[12px] text-paper-40 mt-0.5">{account.sector}</p>
         </div>
         <div className="text-right flex-none">
-          <Eyebrow>Demo strategic score</Eyebrow>
+          <Eyebrow>
+            <span className="hidden sm:inline">Demo strategic </span>score
+          </Eyebrow>
           <div className="text-[24px] font-semibold tabular-nums leading-none mt-1">
             {score}
             <span className="text-[12px] text-paper-40 font-medium ml-1.5">{scoreBand(score)}</span>
@@ -115,13 +117,13 @@ function AccountCard({ view }: { view: NonNullable<ReturnType<typeof useAccountV
         </div>
       </div>
 
-      <p className="text-[13px] text-paper-60 leading-relaxed">{account.thesis}</p>
+      <p className="text-[13px] text-paper-60 leading-relaxed line-clamp-3 md:line-clamp-none">{account.thesis}</p>
 
-      <div className="grid grid-cols-[1fr_1.15fr_1fr_1.4fr] gap-3 text-[13px]">
+      <div className="grid grid-cols-4 gap-2 sm:gap-3 text-[13px]">
         <Mini label="Mapped" value={coverage.mapped} />
-        <Mini label="Penetration" value={formatPercent(coverage.penetration)} />
+        <Mini label="Coverage" title="Penetration" value={formatPercent(coverage.penetration)} />
         <Mini label="Meetings" value={coverage.meetings} />
-        <Mini label="Opportunities" value={live} />
+        <Mini label="Opps" title="Emerging opportunities" value={live} />
       </div>
 
       <div className="flex items-center justify-between gap-3 pt-1">
@@ -173,9 +175,9 @@ function MarketCard({ market }: { market: (typeof territory.market)[number] }) {
   );
 }
 
-function Mini({ label, value }: { label: string; value: string | number }) {
+function Mini({ label, value, title }: { label: string; value: string | number; title?: string }) {
   return (
-    <div className="flex flex-col min-w-0">
+    <div className="flex flex-col min-w-0" title={title}>
       <span className="eyebrow truncate">{label}</span>
       <span className="text-[15px] font-medium tabular-nums leading-tight mt-0.5">{value}</span>
     </div>

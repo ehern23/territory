@@ -216,11 +216,14 @@ function demoDate(rng: Rng, daysBackMax: number): string {
   return base.toISOString().slice(0, 10);
 }
 
-function uniqueName(rng: Rng, used: Set<string>): string {
-  for (let i = 0; i < 40; i++) {
-    const name = `${rng.pick(FIRST_NAMES)} ${rng.pick(LAST_NAMES)}`;
-    if (!used.has(name)) {
+function uniqueName(rng: Rng, used: Set<string>, teamFirsts?: Set<string>): string {
+  for (let i = 0; i < 80; i++) {
+    const first = rng.pick(FIRST_NAMES);
+    const last = rng.pick(LAST_NAMES);
+    const name = `${first} ${last}`;
+    if (!used.has(name) && (!teamFirsts || !teamFirsts.has(first))) {
       used.add(name);
+      teamFirsts?.add(first);
       return name;
     }
   }
@@ -239,9 +242,11 @@ function buildTeam(
   const teamId = `${accountId}.${bu.id}.${spec.id}`;
   const buId = `${accountId}.${bu.id}`;
   const prospects: Prospect[] = [];
+  const teamFirsts = new Set<string>();
 
   for (const rich of spec.rich ?? []) {
     usedNames.add(rich.name);
+    teamFirsts.add(rich.name.split(" ")[0] ?? rich.name);
     const status = rich.status ?? (rich.latent ? "unworked" : "unworked");
     prospects.push({
       id: `${accountId}.${rich.key}`,
@@ -274,7 +279,7 @@ function buildTeam(
       tmpl.influence >= 4 ? "high" : tmpl.influence >= 2 ? "medium" : "low";
     prospects.push({
       id: `${teamId}.p${i + 1}`,
-      name: uniqueName(rng, usedNames),
+      name: uniqueName(rng, usedNames, teamFirsts),
       title: tmpl.title,
       accountId,
       businessUnitId: buId,
@@ -298,7 +303,7 @@ function buildTeam(
     const tmpl = rng.pick(titles);
     prospects.push({
       id: `${teamId}.l${i + 1}`,
-      name: uniqueName(rng, usedNames),
+      name: uniqueName(rng, usedNames, teamFirsts),
       title: tmpl.title,
       accountId,
       businessUnitId: buId,

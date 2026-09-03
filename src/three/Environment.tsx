@@ -31,7 +31,10 @@ export function Ground() {
   const view = useTerritoryStore((s) => s.view);
   const mode = useTerritoryStore((s) => s.mode);
   const material = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: new THREE.Color(GROUND), roughness: 1, transparent: true, opacity: 1 }),
+    () =>
+      // No depth write: when the ground fades in Roots mode the roots beneath
+      // must show through regardless of draw order.
+      new THREE.MeshStandardMaterial({ color: new THREE.Color(GROUND), roughness: 1, transparent: true, opacity: 1, depthWrite: false }),
     [],
   );
   const poolTexture = useMemo(makeRadialTexture, []);

@@ -313,9 +313,11 @@ export function buildTreeSkeleton(input: TreeInput): TreeSkeleton {
     const branchPoint = seg.curve.getPointAt(t);
     const tangent = seg.curve.getTangentAt(t);
     const perp = new THREE.Vector3().crossVectors(tangent, UP).normalize();
+    // Hang clear of the limb: below its local radius plus a short stem.
+    const limbRadius = lerp(seg.radiusStart, seg.radiusEnd, t);
     const position = branchPoint
       .clone()
-      .add(new THREE.Vector3(0, -0.75, 0))
+      .add(new THREE.Vector3(0, -(limbRadius + 1.05), 0))
       .addScaledVector(perp, oRng.gauss() * 0.25);
     fruit.push({ opportunityId: opp.id, businessUnitId: opp.businessUnitId, position, branchPoint });
   }
@@ -331,22 +333,22 @@ export function buildTreeSkeleton(input: TreeInput): TreeSkeleton {
     const a = rootAngle0 + (i / rootCount) * Math.PI * 2 + rRng.gauss() * 0.18;
     const d = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
     const named = i < items.length;
-    const reach = trunkRadius * (named ? rRng.range(6.2, 8.2) : rRng.range(3.5, 5));
-    const depth = named ? rRng.range(3.2, 4.4) : rRng.range(1.8, 2.6);
+    const reach = height * (named ? rRng.range(0.24, 0.34) : rRng.range(0.12, 0.18));
+    const depth = height * (named ? rRng.range(0.12, 0.17) : rRng.range(0.06, 0.09));
     const side = new THREE.Vector3().crossVectors(d, UP);
     const pts = [
       new THREE.Vector3(0, 0.15, 0),
-      d.clone().multiplyScalar(trunkRadius * 1.6).setY(-0.35).addScaledVector(side, rRng.gauss() * 0.4),
-      d.clone().multiplyScalar(reach * 0.55).setY(-depth * 0.55).addScaledVector(side, rRng.gauss() * 0.9),
-      d.clone().multiplyScalar(reach).setY(-depth).addScaledVector(side, rRng.gauss() * 1.2),
+      d.clone().multiplyScalar(trunkRadius * 1.8).setY(-0.4).addScaledVector(side, rRng.gauss() * 0.5),
+      d.clone().multiplyScalar(reach * 0.5).setY(-depth * 0.6).addScaledVector(side, rRng.gauss() * 1.2),
+      d.clone().multiplyScalar(reach).setY(-depth).addScaledVector(side, rRng.gauss() * 1.6),
     ];
     const curve = makeCurve(pts);
     roots.push({
       id: `${account.id}.root.${i}`,
       kind: "root",
       curve,
-      radiusStart: trunkRadius * (named ? 0.42 : 0.26),
-      radiusEnd: named ? 0.14 : 0.05,
+      radiusStart: trunkRadius * (named ? 0.5 : 0.3),
+      radiusEnd: named ? 0.12 : 0.05,
       length: reach,
     });
     if (named) {

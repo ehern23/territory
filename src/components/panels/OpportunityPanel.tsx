@@ -13,11 +13,32 @@ export function OpportunityPanel({ view, opportunityId }: { view: AccountView; o
   const prospectsById = useTerritoryStore((s) => s.prospectsById);
 
   const state = view.opportunities.find((o) => o.opportunity.id === opportunityId);
-  if (!state || !state.maturity) return null;
+  if (!state) return null;
   const opp = state.opportunity;
   const bu = view.units.find((u) => u.unit.id === opp.businessUnitId);
   const champion = opp.championId ? prospectsById[opp.championId] : undefined;
   const stakeholders = opp.stakeholderIds.map((id) => prospectsById[id]).filter(Boolean);
+  if (!state.maturity) {
+    return (
+      <div className="flex flex-col gap-5">
+        <PanelHeader
+          eyebrow="Opportunity"
+          title={opp.name}
+          aside={
+            <>
+              <span className="text-[12.5px] text-paper-60">{bu?.unit.name}</span>
+              <EvidenceTag type={opp.evidenceType} />
+            </>
+          }
+          onClose={() => selectOpportunity(null)}
+        />
+        <p className="text-[13px] text-paper-60 leading-relaxed">
+          Not yet visible as fruit. Fruit appears when a second stakeholder engages — a commercial
+          surface, not a person.
+        </p>
+      </div>
+    );
+  }
   const rank = maturityRank(state.maturity);
 
   return (

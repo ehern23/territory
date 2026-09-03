@@ -241,6 +241,30 @@ body {
     border-radius: 3px;
   }
 
+  /* Horizontal chip strips: scroll silently, no visible bar. */
+  .scroll-x {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .scroll-x::-webkit-scrollbar {
+    display: none;
+  }
+  @media (max-width: 767px) {
+    .btn {
+      min-height: 44px;
+    }
+    .btn-sm {
+      min-height: 44px;
+      padding: 0 12px;
+    }
+    .toolbar-compact .btn {
+      padding: 0 12px;
+      min-height: 44px;
+    }
+  }
+
   /* 3D-anchored labels */
   .branch-label {
     display: inline-flex;

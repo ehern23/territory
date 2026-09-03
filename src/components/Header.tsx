@@ -82,9 +82,10 @@ export function Header() {
         )}
       </div>
 
-      <div className="hidden sm:flex flex-col items-end gap-1 pointer-events-auto">
-        <span className="eyebrow">Built with Cursor</span>
-        <span className="text-[11px] text-paper-20">Demo data · fictional people</span>
+      <div className="flex flex-col items-end gap-1 pointer-events-auto">
+        <span className="eyebrow hidden sm:inline">Built with Cursor</span>
+        <span className="text-[11px] text-paper-20 hidden sm:inline">Demo data · fictional people</span>
+        <span className="text-[10px] text-paper-20 sm:hidden tracking-[0.12em] uppercase">Demo</span>
       </div>
     </header>
   );

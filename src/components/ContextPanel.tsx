@@ -88,25 +88,22 @@ export function ContextPanel() {
     );
   }
 
-  // Side panel. The frame is persistent; only the content crossfades so that a
-  // stalled exit animation can never leave stale content on screen.
+  // Side panel. One content tree only — overlapping exit/enter layers were
+  // leaving stale account copy visible over the next surface.
   return (
     <aside
       className="surface absolute right-5 top-[84px] bottom-[20px] w-[372px] z-30 flex flex-col overflow-hidden"
       aria-live="polite"
     >
-      <AnimatePresence initial={false}>
-        <motion.div
-          key={key}
-          initial={reduce ? false : { opacity: 0, x: 10 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, transition: { duration: 0.1 } }}
-          transition={{ duration: 0.22, ease: [0.2, 0.8, 0.2, 1] }}
-          className="scroll absolute inset-0 p-5"
-        >
-          {content}
-        </motion.div>
-      </AnimatePresence>
+      <motion.div
+        key={key}
+        initial={reduce ? false : { opacity: 0, x: 8 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.2, ease: [0.2, 0.8, 0.2, 1] }}
+        className="scroll flex-1 p-5"
+      >
+        {content}
+      </motion.div>
     </aside>
   );
 }

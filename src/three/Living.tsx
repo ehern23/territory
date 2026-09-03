@@ -259,7 +259,8 @@ function MeetingMarker({
   useFrame((_, dt) => {
     const g = groupRef.current;
     if (!g) return;
-    appear.current = Math.min(1, appear.current + dt * 2.5);
+    const reduced = useTerritoryStore.getState().reducedMotion;
+    appear.current = reduced ? 1 : Math.min(1, appear.current + dt * 2.5);
     const s = appear.current * (selected ? 1.15 : 1);
     g.scale.set(s, s, s);
     ringMaterial.opacity = selected ? 0.75 : active ? 0.16 : 0.08;
