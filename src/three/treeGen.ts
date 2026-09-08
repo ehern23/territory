@@ -96,14 +96,14 @@ export interface TreeInput {
 }
 
 export function treeDimensions(account: Account) {
-  const height = 26 + 16 * account.scale.opportunity;
-  const trunkRadius = 0.55 + 0.5 * account.scale.enterprise;
+  const height = 36 + 18 * account.scale.opportunity;
+  const trunkRadius = 1.7 + 1.2 * account.scale.enterprise;
   return { height, trunkRadius };
 }
 
 function trunkRadiusAt(base: number, t: number): number {
-  const flare = 1 + 0.32 * (1 - smoothstep(0, 0.1, t));
-  const taper = 1 - 0.7 * t;
+  const flare = 1 + 0.48 * (1 - smoothstep(0, 0.14, t));
+  const taper = 1 - 0.52 * t;
   return base * flare * taper;
 }
 
@@ -135,13 +135,13 @@ function growBranch(
 ): THREE.Vector3[] {
   const pts = [start.clone()];
   const side = new THREE.Vector3().crossVectors(dir, UP).normalize();
-  const fractions = [0.28, 0.36, 0.36];
+  const fractions = [0.2, 0.26, 0.28, 0.26];
   let p = start.clone();
   let elev = elevation0;
   let heading = dir.clone();
   for (let i = 0; i < fractions.length; i++) {
     const step = length * fractions[i];
-    heading.applyAxisAngle(UP, rng.gauss() * 0.16).normalize();
+    heading.applyAxisAngle(UP, rng.gauss() * 0.22).normalize();
     const v = new THREE.Vector3()
       .addScaledVector(heading, Math.cos(elev))
       .addScaledVector(UP, Math.sin(elev))
@@ -150,7 +150,7 @@ function growBranch(
     v.addScaledVector(side, rng.gauss() * wobble * step);
     p = p.clone().add(v);
     pts.push(p);
-    elev += upsweep * (i + 1) * 0.5;
+    elev += upsweep * (i + 1) * 0.42;
   }
   return pts;
 }
@@ -160,18 +160,18 @@ export function buildTreeSkeleton(input: TreeInput): TreeSkeleton {
   const rng = createRng(account.seed);
   const { height, trunkRadius } = treeDimensions(account);
 
-  // Trunk: gently leaning, slightly irregular column.
+  // Trunk: a leaning, slightly irregular column with a heavy base.
   const trunkPts: THREE.Vector3[] = [];
   let lx = 0;
   let lz = 0;
-  const leanX = rng.gauss() * 0.05;
-  const leanZ = rng.gauss() * 0.05;
-  const levels = 6;
+  const leanX = rng.gauss() * 0.07;
+  const leanZ = rng.gauss() * 0.07;
+  const levels = 8;
   for (let i = 0; i <= levels; i++) {
     const f = i / levels;
     if (i > 0) {
-      lx += (leanX + rng.gauss() * 0.035) * (height / levels);
-      lz += (leanZ + rng.gauss() * 0.035) * (height / levels);
+      lx += (leanX + rng.gauss() * 0.04) * (height / levels);
+      lz += (leanZ + rng.gauss() * 0.04) * (height / levels);
     }
     trunkPts.push(new THREE.Vector3(lx, f * height, lz));
   }
@@ -180,8 +180,8 @@ export function buildTreeSkeleton(input: TreeInput): TreeSkeleton {
     id: `${account.id}.trunk`,
     kind: "trunk",
     curve: trunkCurve,
-    radiusStart: trunkRadius * 1.32,
-    radiusEnd: 0.04,
+    radiusStart: trunkRadius * 1.62,
+    radiusEnd: trunkRadius * 0.16,
     length: height,
   };
 
@@ -202,23 +202,23 @@ export function buildTreeSkeleton(input: TreeInput): TreeSkeleton {
 
   ordered.forEach((bu, i) => {
     const buRng = seededRng(account.seed, bu.id);
-    const f = clamp(0.36 + (0.6 * i) / Math.max(1, n - 1) + buRng.gauss() * 0.03, 0.3, 0.97);
-    const angle = angle0 + i * GOLDEN_ANGLE + buRng.gauss() * 0.3;
+    const f = clamp(0.28 + (0.64 * i) / Math.max(1, n - 1) + buRng.gauss() * 0.035, 0.22, 0.96);
+    const angle = angle0 + i * GOLDEN_ANGLE + buRng.gauss() * 0.42;
     const dir = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
     const dormant = bu.status === "dormant";
     const size = clamp(buCount(bu) / 16, 0.3, 1);
-    let length = height * (0.34 + 0.3 * size) * (1.08 - 0.4 * f);
-    if (dormant) length *= 0.78;
+    let length = height * (0.46 + 0.38 * size) * (1.12 - 0.36 * f);
+    if (dormant) length *= 0.74;
 
     const attach = trunkCurve.getPointAt(f);
     // Lower limbs reach out; upper limbs reach up. Dormant limbs sag.
-    const elevation = dormant ? buRng.range(0.12, 0.28) : buRng.range(0.3, 0.5) + f * 0.3;
-    const upsweep = dormant ? -0.08 : 0.13;
-    const pts = growBranch(buRng, attach, dir, length, elevation, upsweep, dormant ? 0.05 : 0.09);
+    const elevation = dormant ? buRng.range(0.04, 0.18) : buRng.range(0.22, 0.48) + f * 0.28;
+    const upsweep = dormant ? -0.14 : 0.16;
+    const pts = growBranch(buRng, attach, dir, length, elevation, upsweep, dormant ? 0.07 : 0.13);
     const curve = makeCurve(pts);
     // Leonardo's rule, loosely: limbs carry most of the parent's cross-section.
-    const radiusStart = clamp(trunkRadiusAt(trunkRadius, f) * 0.74, 0.3, 1.0) * (dormant ? 0.85 : 1);
-    const radiusEnd = dormant ? 0.06 : 0.1;
+    const radiusStart = clamp(trunkRadiusAt(trunkRadius, f) * 0.82, 0.65, 2.7) * (dormant ? 0.86 : 1);
+    const radiusEnd = dormant ? 0.09 : 0.16;
     const seg: BranchSegment = {
       id: `${bu.id}.branch`,
       kind: "bu",
@@ -246,22 +246,22 @@ export function buildTreeSkeleton(input: TreeInput): TreeSkeleton {
     const m = teams.length;
     teams.forEach((team, j) => {
       const tRng = seededRng(account.seed, team.id);
-      const t = clamp(0.34 + (0.58 * (j + 0.5)) / m + tRng.gauss() * 0.04, 0.25, 0.92);
-      const sideSign = (j % 2 === 0 ? 1 : -1) * (tRng.chance(0.15) ? -1 : 1);
+      const t = clamp(0.3 + (0.6 * (j + 0.5)) / m + tRng.gauss() * 0.05, 0.22, 0.92);
+      const sideSign = (j % 2 === 0 ? 1 : -1) * (tRng.chance(0.18) ? -1 : 1);
       const tangent = curve.getTangentAt(t).normalize();
       const perp = new THREE.Vector3().crossVectors(tangent, UP).normalize().multiplyScalar(sideSign);
       const teamDir = new THREE.Vector3()
-        .addScaledVector(horizontal(tangent), 0.55)
-        .addScaledVector(perp, 0.85)
+        .addScaledVector(horizontal(tangent), 0.48)
+        .addScaledVector(perp, 0.9)
         .normalize();
       const teamSize = clamp(team.prospects.length / 8, 0.3, 1);
-      let tLength = length * (0.42 + 0.34 * teamSize) * (1.15 - 0.45 * t);
-      if (dormant) tLength *= 0.8;
+      let tLength = length * (0.48 + 0.36 * teamSize) * (1.18 - 0.42 * t);
+      if (dormant) tLength *= 0.76;
       const start = curve.getPointAt(t);
-      const tElev = dormant ? tRng.range(0.02, 0.16) : tRng.range(0.18, 0.42);
-      const tPts = growBranch(tRng, start, teamDir, tLength, tElev, dormant ? -0.06 : 0.12, 0.1);
+      const tElev = dormant ? tRng.range(-0.02, 0.12) : tRng.range(0.16, 0.44);
+      const tPts = growBranch(tRng, start, teamDir, tLength, tElev, dormant ? -0.1 : 0.14, 0.12);
       const tCurve = makeCurve(tPts);
-      const rStart = clamp(lerp(radiusStart, radiusEnd, t) * 0.8, 0.12, 0.55);
+      const rStart = clamp(lerp(radiusStart, radiusEnd, t) * 0.82, 0.2, 1.05);
       const teamSeg: BranchSegment = {
         id: `${team.id}.branch`,
         kind: "team",
@@ -269,7 +269,7 @@ export function buildTreeSkeleton(input: TreeInput): TreeSkeleton {
         teamId: team.id,
         curve: tCurve,
         radiusStart: rStart,
-        radiusEnd: 0.045,
+        radiusEnd: 0.055,
         length: tLength,
       };
       branches.push(teamSeg);
@@ -291,15 +291,18 @@ export function buildTreeSkeleton(input: TreeInput): TreeSkeleton {
         tRng,
         { id: team.id, businessUnitId: bu.id, teamId: team.id },
         teamSeg,
-        (dormant ? 5 : 4) + Math.floor(team.prospects.length / 2),
+        (dormant ? 6 : 6) + Math.floor(team.prospects.length / 1.6),
         dormant,
         twigs,
       );
     });
 
     // Fine twigs on the limb itself give the silhouette some density.
-    addFineTwigs(buRng, { id: bu.id, businessUnitId: bu.id }, seg, dormant ? 7 : 5 + Math.round(3 * size), dormant, twigs);
+    addFineTwigs(buRng, { id: bu.id, businessUnitId: bu.id }, seg, dormant ? 8 : 7 + Math.round(4 * size), dormant, twigs);
+    addCharacterShoots(buRng, { id: bu.id, businessUnitId: bu.id }, seg, dormant, twigs);
   });
+
+  addTrunkShoots(rng, account, trunk, height, trunkRadius, twigs);
 
   // Fruit hangs from the business unit limb.
   const oppsByBu = new Map<string, number>();
@@ -313,45 +316,66 @@ export function buildTreeSkeleton(input: TreeInput): TreeSkeleton {
     const branchPoint = seg.curve.getPointAt(t);
     const tangent = seg.curve.getTangentAt(t);
     const perp = new THREE.Vector3().crossVectors(tangent, UP).normalize();
-    // Hang clear of the limb: below its local radius plus a short stem.
     const limbRadius = lerp(seg.radiusStart, seg.radiusEnd, t);
     const position = branchPoint
       .clone()
-      .add(new THREE.Vector3(0, -(limbRadius + 1.05), 0))
-      .addScaledVector(perp, oRng.gauss() * 0.25);
+      .add(new THREE.Vector3(0, -(limbRadius + 1.45), 0))
+      .addScaledVector(perp, oRng.gauss() * 0.28);
     fruit.push({ opportunityId: opp.id, businessUnitId: opp.businessUnitId, position, branchPoint });
   }
 
-  // Roots: one per intelligence item plus filler.
+  // Roots: one per intelligence item plus filler, forked so the plate reads as a system.
   const roots: BranchSegment[] = [];
   const rootAnchors: RootAnchor[] = [];
   const items = account.intelligence;
-  const rootCount = items.length + 4;
+  const rootCount = items.length + 5;
   const rootAngle0 = rng.range(0, Math.PI * 2);
   for (let i = 0; i < rootCount; i++) {
     const rRng = seededRng(account.seed, "root", i);
-    const a = rootAngle0 + (i / rootCount) * Math.PI * 2 + rRng.gauss() * 0.18;
+    const a = rootAngle0 + (i / rootCount) * Math.PI * 2 + rRng.gauss() * 0.2;
     const d = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
     const named = i < items.length;
-    const reach = height * (named ? rRng.range(0.24, 0.34) : rRng.range(0.12, 0.18));
-    const depth = height * (named ? rRng.range(0.12, 0.17) : rRng.range(0.06, 0.09));
+    const reach = height * (named ? rRng.range(0.34, 0.5) : rRng.range(0.16, 0.24));
+    const depth = height * (named ? rRng.range(0.18, 0.28) : rRng.range(0.08, 0.14));
     const side = new THREE.Vector3().crossVectors(d, UP);
     const pts = [
-      new THREE.Vector3(0, 0.15, 0),
-      d.clone().multiplyScalar(trunkRadius * 1.8).setY(-0.4).addScaledVector(side, rRng.gauss() * 0.5),
-      d.clone().multiplyScalar(reach * 0.5).setY(-depth * 0.6).addScaledVector(side, rRng.gauss() * 1.2),
-      d.clone().multiplyScalar(reach).setY(-depth).addScaledVector(side, rRng.gauss() * 1.6),
+      new THREE.Vector3(0, 0.35, 0),
+      d.clone().multiplyScalar(trunkRadius * 2.15).setY(-0.55).addScaledVector(side, rRng.gauss() * 0.55),
+      d.clone().multiplyScalar(reach * 0.48).setY(-depth * 0.55).addScaledVector(side, rRng.gauss() * 1.5),
+      d.clone().multiplyScalar(reach).setY(-depth).addScaledVector(side, rRng.gauss() * 2.1),
     ];
     const curve = makeCurve(pts);
+    const rStart = trunkRadius * (named ? 0.58 : 0.32);
     roots.push({
       id: `${account.id}.root.${i}`,
       kind: "root",
       curve,
-      radiusStart: trunkRadius * (named ? 0.5 : 0.3),
-      radiusEnd: named ? 0.12 : 0.05,
+      radiusStart: rStart,
+      radiusEnd: named ? 0.16 : 0.06,
       length: reach,
     });
     if (named) {
+      const forks = 1 + (rRng.chance(0.55) ? 1 : 0);
+      for (let j = 0; j < forks; j++) {
+        const ft = rRng.range(0.4, 0.72);
+        const fStart = curve.getPointAt(ft);
+        const fDir = d
+          .clone()
+          .applyAxisAngle(UP, (j === 0 ? 1 : -1) * rRng.range(0.4, 0.9))
+          .addScaledVector(UP, -0.25)
+          .normalize();
+        const fLen = reach * rRng.range(0.28, 0.45);
+        const fEnd = fStart.clone().addScaledVector(fDir, fLen).setY(fStart.y - depth * 0.22);
+        const fMid = fStart.clone().lerp(fEnd, 0.5).addScaledVector(side, rRng.gauss() * 0.8);
+        roots.push({
+          id: `${account.id}.root.${i}.f${j}`,
+          kind: "root",
+          curve: makeCurve([fStart.clone(), fMid, fEnd]),
+          radiusStart: rStart * 0.45,
+          radiusEnd: 0.05,
+          length: fLen,
+        });
+      }
       rootAnchors.push({
         intelligenceId: items[i].id,
         position: pts[3].clone(),
@@ -422,14 +446,14 @@ function placeLeaves(
       .addScaledVector(UP, rng.range(0.15, 0.6))
       .addScaledVector(tangent, rng.range(0.15, 0.45))
       .normalize();
-    const twigLength = rng.range(0.8, 1.5);
+    const twigLength = rng.range(1.05, 2.15);
     const leafBase = branchPoint.clone().addScaledVector(twigDir, twigLength);
 
     // Twig: short curve from branch to leaf.
     const mid = branchPoint
       .clone()
       .addScaledVector(twigDir, twigLength * 0.5)
-      .addScaledVector(UP, 0.08);
+      .addScaledVector(UP, 0.1);
     const twigCurve = makeCurve([branchPoint.clone(), mid, leafBase.clone()]);
     twigs.push({
       id: `${p.id}.twig`,
@@ -437,8 +461,8 @@ function placeLeaves(
       businessUnitId: team.businessUnitId,
       teamId: team.id,
       curve: twigCurve,
-      radiusStart: Math.min(seg.radiusStart * 0.4, 0.075),
-      radiusEnd: 0.025,
+      radiusStart: Math.min(seg.radiusStart * 0.38, 0.09),
+      radiusEnd: 0.028,
       length: twigLength,
     });
 
@@ -453,7 +477,7 @@ function placeLeaves(
     const basis = new THREE.Matrix4().makeBasis(hinge, stem, normal);
     const quaternion = new THREE.Quaternion().setFromRotationMatrix(basis);
 
-    const scale = 0.62 + 0.07 * prospect.influence;
+    const scale = 0.72 + 0.08 * prospect.influence;
     leaves.push({
       prospectId: p.id,
       businessUnitId: team.businessUnitId,
@@ -487,9 +511,9 @@ function addFineTwigs(
       .addScaledVector(perp, rng.range(0.3, 0.8))
       .addScaledVector(UP, dormant ? rng.range(-0.1, 0.3) : rng.range(0.3, 0.8))
       .normalize();
-    const len = seg.length * rng.range(0.16, 0.34);
+    const len = seg.length * rng.range(0.18, 0.4);
     const mid = start.clone().addScaledVector(dir, len * 0.5).addScaledVector(UP, len * 0.08);
-    const end = start.clone().addScaledVector(dir, len).addScaledVector(UP, len * (dormant ? -0.05 : 0.18));
+    const end = start.clone().addScaledVector(dir, len).addScaledVector(UP, len * (dormant ? -0.08 : 0.2));
     const curve = makeCurve([start, mid, end]);
     twigs.push({
       id: `${owner.id}.fine.${i}`,
@@ -497,13 +521,13 @@ function addFineTwigs(
       businessUnitId: owner.businessUnitId,
       teamId: owner.teamId,
       curve,
-      radiusStart: Math.min(seg.radiusStart * 0.35, 0.09),
-      radiusEnd: 0.015,
+      radiusStart: Math.min(seg.radiusStart * 0.32, 0.11),
+      radiusEnd: 0.016,
       length: len,
     });
 
     // Second-order twiglets: the fine, forking ends that give a crown its haze.
-    const forks = dormant ? 2 : 1 + (rng.chance(0.6) ? 1 : 0);
+    const forks = dormant ? 1 : 1 + (rng.chance(0.7) ? 1 : 0);
     for (let j = 0; j < forks; j++) {
       const ft = rng.range(0.45, 0.9);
       const fStart = curve.getPointAt(ft);
@@ -523,7 +547,7 @@ function addFineTwigs(
         businessUnitId: owner.businessUnitId,
         teamId: owner.teamId,
         curve: makeCurve([fStart, fMid, fEnd]),
-        radiusStart: 0.035,
+        radiusStart: 0.038,
         radiusEnd: 0.01,
         length: fLen,
       });
@@ -531,13 +555,76 @@ function addFineTwigs(
   }
 }
 
+/** Short visual side-shoots on a major limb — silhouette only, never data. */
+function addCharacterShoots(
+  rng: Rng,
+  owner: { id: string; businessUnitId: string },
+  seg: BranchSegment,
+  dormant: boolean,
+  twigs: BranchSegment[],
+) {
+  const count = dormant ? 2 : 3 + (rng.chance(0.5) ? 1 : 0);
+  for (let i = 0; i < count; i++) {
+    const t = rng.range(0.18, 0.7);
+    const start = seg.curve.getPointAt(t);
+    const tangent = seg.curve.getTangentAt(t).normalize();
+    const perp = new THREE.Vector3().crossVectors(tangent, UP).normalize().multiplyScalar(rng.chance(0.5) ? 1 : -1);
+    const dir = new THREE.Vector3()
+      .addScaledVector(perp, 0.95)
+      .addScaledVector(UP, dormant ? rng.range(-0.2, 0.15) : rng.range(0.25, 0.7))
+      .addScaledVector(tangent, 0.25)
+      .normalize();
+    const len = seg.length * rng.range(0.12, 0.22);
+    const end = start.clone().addScaledVector(dir, len);
+    const mid = start.clone().lerp(end, 0.5).addScaledVector(UP, len * 0.06);
+    twigs.push({
+      id: `${owner.id}.shoot.${i}`,
+      kind: "twig",
+      businessUnitId: owner.businessUnitId,
+      curve: makeCurve([start, mid, end]),
+      radiusStart: Math.min(seg.radiusStart * 0.22, 0.14),
+      radiusEnd: 0.03,
+      length: len,
+    });
+  }
+}
+
+/** Small inner shoots from the trunk — character, not organizations. */
+function addTrunkShoots(
+  rng: Rng,
+  account: Account,
+  trunk: BranchSegment,
+  height: number,
+  trunkRadius: number,
+  twigs: BranchSegment[],
+) {
+  const count = 5 + Math.round(3 * account.scale.complexity);
+  for (let i = 0; i < count; i++) {
+    const t = rng.range(0.18, 0.78);
+    const start = trunk.curve.getPointAt(t);
+    const angle = rng.range(0, Math.PI * 2);
+    const dir = new THREE.Vector3(Math.cos(angle), rng.range(0.15, 0.45), Math.sin(angle)).normalize();
+    const len = height * rng.range(0.06, 0.13);
+    const end = start.clone().addScaledVector(dir, len);
+    const mid = start.clone().lerp(end, 0.5).add(new THREE.Vector3(0, len * 0.08, 0));
+    twigs.push({
+      id: `${account.id}.trunk.shoot.${i}`,
+      kind: "twig",
+      curve: makeCurve([start, mid, end]),
+      radiusStart: trunkRadius * 0.08,
+      radiusEnd: 0.02,
+      length: len,
+    });
+  }
+}
+
 /** Deterministic resting place for a fallen leaf (meeting marker). */
 export function meetingSlot(skeleton: TreeSkeleton, prospectId: string) {
   const rng = createRng(hashString(`${skeleton.accountId}|slot|${prospectId}`));
   const angle = rng.range(0, Math.PI * 2);
-  const radius = skeleton.trunkRadius * 1.9 + rng.range(0, skeleton.trunkRadius * 2.4);
+  const radius = skeleton.trunkRadius * 2.4 + rng.range(0, skeleton.trunkRadius * 2.8);
   return {
-    position: new THREE.Vector3(Math.cos(angle) * radius, 0.04, Math.sin(angle) * radius),
+    position: new THREE.Vector3(Math.cos(angle) * radius, 0.06, Math.sin(angle) * radius),
     rotationY: rng.range(0, Math.PI * 2),
     tilt: rng.range(-0.12, 0.12),
   };

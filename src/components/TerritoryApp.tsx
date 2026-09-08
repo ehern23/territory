@@ -30,6 +30,14 @@ export function TerritoryApp() {
         s.setView("tree");
         return;
       }
+      if (s.mode === "account") {
+        if (s.selectedProspectId || s.selectedOpportunityId || s.selectedRootId || s.focusTeamId || s.focusBusinessUnitId) {
+          s.clearSelection();
+          return;
+        }
+        s.returnToForest();
+        return;
+      }
       s.clearSelection();
     };
     window.addEventListener("keydown", onKey);

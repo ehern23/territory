@@ -16,7 +16,7 @@ export function createLeafMaterial(options: { color?: THREE.Color; roughness?: n
   material.onBeforeCompile = (shader) => {
     shader.fragmentShader = shader.fragmentShader.replace(
       "#include <emissivemap_fragment>",
-      "#include <emissivemap_fragment>\n\ttotalEmissiveRadiance += diffuseColor.rgb * 0.34;",
+      "#include <emissivemap_fragment>\n\ttotalEmissiveRadiance += diffuseColor.rgb * 0.42;",
     );
   };
   material.customProgramCacheKey = () => "territory-leaf";

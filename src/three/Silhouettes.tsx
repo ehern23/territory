@@ -19,14 +19,14 @@ function silhouetteGeometry(slot: SilhouetteSlot): THREE.BufferGeometry {
     sector: "",
     thesis: "",
     season: "summer",
-    scale: { opportunity: (slot.height - 20) / 12, enterprise: 0.9, complexity: 0.8 },
+    scale: { opportunity: 0.35, enterprise: 0.45, complexity: 0.4 },
     strategicScore: { components: [] },
     businessUnits: [],
     intelligence: [],
     opportunities: [],
     signals: [],
   };
-  const bus: BusinessUnit[] = Array.from({ length: 5 }, (_, i) => ({
+  const bus: BusinessUnit[] = Array.from({ length: 4 }, (_, i) => ({
     id: `${slot.id}.bu${i}`,
     accountId: slot.id,
     name: "",
@@ -57,10 +57,30 @@ export function Silhouettes() {
   const selectMarket = useTerritoryStore((s) => s.selectMarket);
   const slots = useMemo(() => silhouetteSlots(MARKET_IDS), []);
   const material = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: BARK_FOREST_FAR.clone(), roughness: 1 }),
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: BARK_FOREST_FAR.clone(),
+        roughness: 1,
+        transparent: true,
+        opacity: 0.72,
+      }),
     [],
   );
-  useEffect(() => () => material.dispose(), [material]);
+  const selectedMaterial = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: new THREE.Color("#3a3a3e"),
+        roughness: 1,
+      }),
+    [],
+  );
+  useEffect(
+    () => () => {
+      material.dispose();
+      selectedMaterial.dispose();
+    },
+    [material, selectedMaterial],
+  );
 
   return (
     <group>
@@ -73,10 +93,10 @@ export function Silhouettes() {
         const selectable = mode === "forest" && !!slot.marketId;
         const selected = selectedMarketId === slot.marketId;
         return (
-          <group key={slot.id} position={slot.position}>
+          <group key={slot.id} position={slot.position} scale={0.46}>
             <mesh
               geometry={geo}
-              material={material}
+              material={selected ? selectedMaterial : material}
               onClick={
                 selectable
                   ? (e) => {
@@ -85,12 +105,21 @@ export function Silhouettes() {
                     }
                   : undefined
               }
+              onPointerOver={
+                selectable
+                  ? (e) => {
+                      e.stopPropagation();
+                      document.body.style.cursor = "pointer";
+                    }
+                  : undefined
+              }
+              onPointerOut={selectable ? () => { document.body.style.cursor = ""; } : undefined}
             />
-            {selectable && (
-              <Html position={[0, slot.height * 0.5, 0]} center zIndexRange={[5, 0]} style={{ pointerEvents: "auto" }}>
+            {selectable && selected && (
+              <Html position={[0, slot.height * 0.35, 0]} center zIndexRange={[5, 0]} style={{ pointerEvents: "auto" }}>
                 <button
                   type="button"
-                  className={`market-label ${selected ? "is-selected" : ""}`}
+                  className="market-label is-selected"
                   onClick={(e) => {
                     e.stopPropagation();
                     selectMarket(slot.marketId!);

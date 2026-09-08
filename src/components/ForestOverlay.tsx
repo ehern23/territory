@@ -20,7 +20,7 @@ export function ForestOverlay() {
   const market = selectedMarketId ? territory.market.find((m) => m.id === selectedMarketId) : null;
 
   return (
-    <div className="absolute inset-x-0 bottom-0 z-30 flex flex-col items-center md:items-start gap-3 px-3 md:px-6 pb-[max(14px,env(safe-area-inset-bottom))] md:pb-6 pointer-events-none">
+    <div className="absolute inset-x-0 bottom-0 z-30 flex flex-col items-center md:items-start gap-4 px-3 md:px-7 pb-[max(16px,env(safe-area-inset-bottom))] md:pb-7 pointer-events-none">
       <AnimatePresence mode="wait">
         {view && (
           <motion.div
@@ -49,7 +49,7 @@ export function ForestOverlay() {
       </AnimatePresence>
       <AccountStrip selectedAccountId={selectedAccountId} />
       {!view && !market && (
-        <p className="text-[12px] text-paper-40 pointer-events-none text-center self-center hidden sm:block">
+        <p className="text-[12px] text-paper-40 pointer-events-none text-center self-center hidden sm:block tracking-wide">
           Select a tree to inspect an account · drag to rotate · scroll or pinch to zoom
         </p>
       )}
@@ -63,11 +63,8 @@ function AccountStrip({ selectedAccountId }: { selectedAccountId: string | null 
   const selectAccount = useTerritoryStore((s) => s.selectAccount);
   const enterAccount = useTerritoryStore((s) => s.enterAccount);
   return (
-    <nav
-      aria-label="Strategic accounts"
-      className="self-center max-w-full scroll-x pointer-events-auto"
-    >
-      <ul className="flex items-center gap-1 px-1 py-1 whitespace-nowrap">
+    <nav aria-label="Strategic accounts" className="self-center max-w-full pointer-events-auto">
+      <ul className="account-rail scroll-x flex items-center gap-0.5">
         {accounts.map((a) => {
           const selected = a.id === selectedAccountId;
           return (
@@ -77,7 +74,7 @@ function AccountStrip({ selectedAccountId }: { selectedAccountId: string | null 
                 aria-pressed={selected}
                 onClick={() => selectAccount(a.id)}
                 onDoubleClick={() => enterAccount(a.id)}
-                className={`btn btn-sm btn-pill btn-ghost ${selected ? "is-active" : ""}`}
+                className={`account-rail__item ${selected ? "is-active" : ""}`}
               >
                 {a.name}
               </button>

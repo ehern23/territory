@@ -6,7 +6,7 @@ import { useThree } from "@react-three/fiber";
 import { CameraControls } from "@react-three/drei";
 import CameraControlsImpl from "camera-controls";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
-import { accountPosition } from "./layout";
+import { accountPosition, terrainHeight } from "./layout";
 import { getTreeModel } from "./useTreeModel";
 
 /**
@@ -17,7 +17,11 @@ import { getTreeModel } from "./useTreeModel";
  * always keeps the current azimuth where it makes sense (spatial coherence).
  */
 
-const FOREST_TARGET = new THREE.Vector3(0, 19, -40);
+const FOREST_TARGET = new THREE.Vector3(
+  8,
+  9 + terrainHeight(8, 14),
+  14,
+);
 
 interface Shot {
   target: THREE.Vector3;
@@ -186,15 +190,13 @@ function computeShot(input: ShotInput): Shot | null {
   if (input.mode === "forest" || !input.activeAccountId) {
     return {
       target: FOREST_TARGET,
-      // Portrait: don't chase the full width of the grove; look down a little
-      // more so its depth reads on a tall screen instead.
-      distance: 205 * Math.min(af, 1.4),
-      polar: isDesktop ? 1.33 : 1.2,
-      azimuth: 0.04,
-      minDistance: 45,
+      distance: 92 * Math.min(af, 1.22),
+      polar: isDesktop ? 1.44 : 1.28,
+      azimuth: 0.22,
+      minDistance: 36,
       maxDistance: 420,
-      minPolar: 0.6,
-      maxPolar: 1.5,
+      minPolar: 0.85,
+      maxPolar: 1.54,
       panelOffset: 0,
       sheetOpen: input.sheetOpen,
       sheetScale: 1,
@@ -211,27 +213,28 @@ function computeShot(input: ShotInput): Shot | null {
 
   // Frame the whole crown: vertical half-FOV is 21°, so the distance that
   // fits `top` with a little headroom is roughly (top / 2) / tan(21°).
-  const fitHeight = (top * 0.7) / Math.tan(THREE.MathUtils.degToRad(21));
-  const fitWidth = (skeleton.canopyRadius * 1.1) / Math.tan(THREE.MathUtils.degToRad(21)) / Math.max(aspect * (1 - panel), 0.5);
+  const fitHeight = (top * 0.84) / Math.tan(THREE.MathUtils.degToRad(21));
+  const fitWidth = (skeleton.canopyRadius * 1.15) / Math.tan(THREE.MathUtils.degToRad(21)) / Math.max(aspect * (1 - panel), 0.5);
 
   const accountShot: Shot = {
-    target: base.clone().add(new THREE.Vector3(0, top * 0.53, 0)),
-    distance: Math.max(fitHeight * Math.min(af, 1.3), fitWidth),
+    target: base.clone().add(new THREE.Vector3(0, top * 0.42, 0)),
+    distance: Math.max(fitHeight * Math.min(af, 1.25), fitWidth) * 1.12,
     sheetOpen: input.sheetOpen,
-    polar: 1.28,
-    minDistance: 5,
-    maxDistance: H * 4,
-    minPolar: 0.3,
-    maxPolar: 1.52,
+    polar: 1.4,
+    minDistance: 16,
+    maxDistance: H * 4.4,
+    minPolar: 0.42,
+    maxPolar: 1.54,
     panelOffset: panel,
   };
 
   if (input.view === "roots") {
     return {
       ...accountShot,
-      target: base.clone().add(new THREE.Vector3(0, -H * 0.08, 0)),
-      distance: H * 1.1 * af,
-      polar: 1.18,
+      target: base.clone().add(new THREE.Vector3(0, -H * 0.14, 0)),
+      distance: H * 1.38 * af,
+      polar: 1.28,
+      minDistance: 10,
       maxPolar: 1.56,
       panelOffset: panel,
     };

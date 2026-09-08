@@ -19,9 +19,9 @@ export function Header() {
   const team = bu?.teams.find((t) => t.team.id === focusTeamId);
 
   return (
-    <header className="absolute left-4 right-4 top-4 md:left-6 md:top-6 z-30 flex items-start justify-between pointer-events-none">
-      <div className="flex flex-col gap-3 pointer-events-auto">
-        <div className="flex flex-col gap-1">
+    <header className="absolute left-4 right-4 top-4 md:left-7 md:right-7 md:top-6 z-30 flex items-start justify-between pointer-events-none">
+      <div className="flex flex-col gap-5 pointer-events-auto">
+        <div className="flex flex-col gap-1.5">
           <button
             type="button"
             className="wordmark text-left"
@@ -34,7 +34,7 @@ export function Header() {
         </div>
 
         {mode === "forest" ? (
-          <dl className="hidden sm:grid grid-cols-5 gap-x-6 gap-y-0 text-[13px]">
+          <dl className="hidden sm:flex items-start gap-8 text-[13px]">
             <Stat label="Strategic accounts" value={summary.accounts} />
             <Stat label="People mapped" value={summary.mapped} />
             <Stat label="Engaged" value={summary.engaged} />
@@ -82,9 +82,9 @@ export function Header() {
         )}
       </div>
 
-      <div className="flex flex-col items-end gap-1 pointer-events-auto">
+      <div className="flex flex-col items-end gap-1.5 pointer-events-auto pt-0.5">
         <span className="eyebrow hidden sm:inline">Built with Cursor</span>
-        <span className="text-[11px] text-paper-20 hidden sm:inline">Demo data · fictional people</span>
+        <span className="text-[11px] text-paper-20 hidden sm:inline leading-relaxed">Hypothetical · demo data</span>
         <span className="text-[10px] text-paper-20 sm:hidden tracking-[0.12em] uppercase">Demo</span>
       </div>
     </header>
@@ -93,9 +93,9 @@ export function Header() {
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col gap-1 min-w-0">
       <dt className="eyebrow whitespace-nowrap">{label}</dt>
-      <dd className="text-[18px] font-medium tabular-nums leading-tight">{value}</dd>
+      <dd className="text-[20px] font-medium tabular-nums leading-none tracking-tight">{value}</dd>
     </div>
   );
 }

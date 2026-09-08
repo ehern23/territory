@@ -37,10 +37,13 @@ function FruitMesh({
     () =>
       new THREE.MeshPhysicalMaterial({
         color: FRUIT_COLORS.seed.clone(),
-        roughness: 0.55,
-        metalness: 0,
-        clearcoat: 0.35,
-        clearcoatRoughness: 0.4,
+        roughness: 0.42,
+        metalness: 0.04,
+        clearcoat: 0.55,
+        clearcoatRoughness: 0.35,
+        sheen: 0.35,
+        sheenColor: new THREE.Color("#c4a07a"),
+        sheenRoughness: 0.55,
       }),
     [],
   );
@@ -59,7 +62,7 @@ function FruitMesh({
     const emphasis = emphasisFor({ focusBusinessUnitId, focusTeamId, view }, state.opportunity.businessUnitId);
     color.lerp(QUIET, (1 - emphasis) * 0.6);
     const selected = selectedOpportunityId === state.opportunity.id;
-    return { scale: scale * (selected ? 1.18 : 1) * sizeScale, color, emissive: m === "ripe" ? 0.12 : m === "growing" ? 0.06 : 0 };
+    return { scale: scale * (selected ? 1.12 : 1) * sizeScale, color, emissive: m === "ripe" ? 0.08 : m === "growing" ? 0.04 : 0 };
   }, [state, focusBusinessUnitId, focusTeamId, view, selectedOpportunityId, sizeScale]);
 
   const current = useRef({ scale: 0 });

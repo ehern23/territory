@@ -95,9 +95,9 @@ export function Leaves({ skeleton, active, sizeScaleRef, dim }: LeavesProps) {
           const phi = u * Math.PI * 2 * 1.618 + rng.gauss() * 0.4;
           const ring = Math.sqrt(rng.range(0.15, 1));
           const offset = new THREE.Vector3(
-            Math.cos(phi) * ring * 0.8,
-            0.3 + Math.sin(phi) * ring * 0.6 + rng.range(-0.12, 0.12),
-            rng.range(-0.5, 0.5),
+            Math.cos(phi) * ring * 0.62,
+            0.22 + Math.sin(phi) * ring * 0.48 + rng.range(-0.1, 0.1),
+            rng.range(-0.38, 0.42),
           );
           const yaw = Math.atan2(offset.x, 0.6) + rng.gauss() * 0.35;
           const pitch = -Math.atan2(offset.y - 0.25, 0.6) * 0.8 + rng.gauss() * 0.3;
@@ -126,7 +126,7 @@ export function Leaves({ skeleton, active, sizeScaleRef, dim }: LeavesProps) {
 
       const color = new THREE.Color().copy(LEAF_COLORS[status]);
       if (bu?.status === "dormant") {
-        color.lerp(DORMANT_LEAF_COLOR, 0.8);
+        color.lerp(DORMANT_LEAF_COLOR, 0.88);
       } else if (bu?.status === "reactivating" && originallyLatent.has(leaf.prospectId) && status === "unworked") {
         color.copy(NEW_LEAF_COLOR);
       }
@@ -141,12 +141,12 @@ export function Leaves({ skeleton, active, sizeScaleRef, dim }: LeavesProps) {
 
       let scale = leaf.scale * (0.82 + 0.18 * emphasis);
       if (status === "disqualified") scale *= 0.7;
-      if (bu?.status === "dormant") scale *= 0.8;
+      if (bu?.status === "dormant") scale *= 0.68;
       if (selectedProspectId === leaf.prospectId) scale *= 1.45;
       if (gone) scale = 0;
 
       const rank = Math.max(0, statusRank(status));
-      const droop = status === "disqualified" ? 1.05 : rank * 0.13 + (bu?.status === "dormant" ? 0.5 : 0);
+      const droop = status === "disqualified" ? 1.05 : rank * 0.13 + (bu?.status === "dormant" ? 0.72 : 0);
 
       return { scale, droop, color, originallyLatent: originallyLatent.has(leaf.prospectId) };
     });

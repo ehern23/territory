@@ -92,7 +92,7 @@ export function ContextPanel() {
   // leaving stale account copy visible over the next surface.
   return (
     <aside
-      className="surface absolute right-5 top-[84px] bottom-[20px] w-[372px] z-30 flex flex-col overflow-hidden"
+      className="surface absolute right-5 top-[96px] bottom-[20px] w-[372px] z-30 flex flex-col overflow-hidden"
       aria-live="polite"
     >
       <motion.div

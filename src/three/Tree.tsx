@@ -10,7 +10,7 @@ import { ActiveWood, ForestWood } from "./Wood";
 import { Leaves } from "./Leaves";
 import { Buds, FallingLeaves, Fruit, MeetingMarkers, SelectionRing } from "./Living";
 import { Roots } from "./Roots";
-import { BranchLabels } from "./Labels";
+import { BranchLabels, ForestMarker } from "./Labels";
 
 /**
  * One strategic account rendered as a tree.
@@ -30,10 +30,10 @@ export function Tree({ accountId }: { accountId: string }) {
   const position = accountPosition(accountId);
 
   // Leaves grow toward full size as the account becomes active.
-  const sizeRef = useRef(1.7);
+  const sizeRef = useRef(1.35);
   const groupRef = useRef<THREE.Group>(null);
   useFrame((_, dt) => {
-    const target = active ? 1.2 : 1.7;
+    const target = active ? 1.02 : 1.22;
     sizeRef.current += (target - sizeRef.current) * (1 - Math.exp(-dt * 4));
   });
 
@@ -46,7 +46,7 @@ export function Tree({ accountId }: { accountId: string }) {
   const dim =
     mode === "forest"
       ? selectedAccountId && selectedAccountId !== accountId
-        ? 0.55
+        ? 0.42
         : 0
       : active
         ? 0
@@ -78,8 +78,9 @@ export function Tree({ accountId }: { accountId: string }) {
           {mode === "forest" && (
             <>
               <Leaves skeleton={model.skeleton} active={false} sizeScaleRef={sizeRef} dim={dim} />
-              <Fruit skeleton={model.skeleton} active={false} sizeScale={1.3} />
+              <Fruit skeleton={model.skeleton} active={false} sizeScale={1.15} />
               <MeetingMarkers skeleton={model.skeleton} active={false} />
+              <ForestMarker accountId={accountId} skeleton={model.skeleton} selected={selectedAccountId === accountId} />
             </>
           )}
         </>

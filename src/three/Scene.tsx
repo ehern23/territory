@@ -4,7 +4,8 @@ import { Suspense, useEffect } from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
-import { Atmosphere, Ground } from "./Environment";
+import { Atmosphere } from "./Environment";
+import { Landscape } from "./Landscape";
 import { Silhouettes } from "./Silhouettes";
 import { Tree } from "./Tree";
 import { CameraRig } from "./CameraRig";
@@ -41,13 +42,13 @@ export function Scene() {
     <Canvas
       className="territory-canvas"
       dpr={isTouch ? [1, 1.5] : [1, 2]}
-      camera={{ fov: 42, near: 0.5, far: 1200, position: [0, 40, 130] }}
+      camera={{ fov: 42, near: 0.5, far: 1800, position: [8, 48, 210] }}
       gl={{
         antialias: true,
         alpha: false,
         powerPreference: "high-performance",
         toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: 1.05,
+        toneMappingExposure: 1.14,
       }}
       onCreated={(state) => {
         // Development-only handle for runtime inspection.
@@ -62,7 +63,7 @@ export function Scene() {
     >
       <Suspense fallback={null}>
         <Atmosphere />
-        <Ground />
+        <Landscape />
         <Silhouettes />
         {accounts.map((a) => (
           <Tree key={a.id} accountId={a.id} />

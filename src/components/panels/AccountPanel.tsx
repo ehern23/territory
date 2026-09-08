@@ -18,6 +18,8 @@ export function AccountPanel({ view }: { view: AccountView }) {
   const selectOpportunity = useTerritoryStore((s) => s.selectOpportunity);
   const setView = useTerritoryStore((s) => s.setView);
   const setNavigatorOpen = useTerritoryStore((s) => s.setNavigatorOpen);
+  const returnToForest = useTerritoryStore((s) => s.returnToForest);
+  const isCompact = useTerritoryStore((s) => s.isCompact);
   const { account, score, coverage, units, opportunities } = view;
 
   return (
@@ -26,7 +28,8 @@ export function AccountPanel({ view }: { view: AccountView }) {
         eyebrow={account.sector}
         title={account.name}
         aside={<SeasonChip season={account.season} />}
-        onClose={() => setNavigatorOpen(false)}
+        onClose={() => (isCompact ? setNavigatorOpen(false) : returnToForest())}
+        closeLabel={isCompact ? "Close organization" : "Return to forest"}
       />
 
       <p className="text-[13px] text-paper-60 leading-relaxed -mt-2">{account.thesis}</p>

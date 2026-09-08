@@ -10,6 +10,7 @@ export interface TreeModel {
 
 const skeletonCache = new Map<string, TreeSkeleton>();
 const geometryCache = new Map<string, TreeGeometry>();
+const MODEL_GEN = "v13";
 
 /**
  * Geometry is built from the account's static organizational data so a tree
@@ -20,17 +21,17 @@ export function getTreeModel(accountId: string, detail: Detail): TreeModel | nul
   const account = state.accountsById[accountId];
   if (!account) return null;
 
-  let skeleton = skeletonCache.get(accountId);
+  let skeleton = skeletonCache.get(`${accountId}|${MODEL_GEN}`);
   if (!skeleton) {
     skeleton = buildTreeSkeleton({
       account,
       businessUnits: account.businessUnits,
       prospectsById: state.prospectsById,
     });
-    skeletonCache.set(accountId, skeleton);
+    skeletonCache.set(`${accountId}|${MODEL_GEN}`, skeleton);
   }
 
-  const key = `${accountId}|${detail}`;
+  const key = `${accountId}|${detail}|${MODEL_GEN}`;
   let geometry = geometryCache.get(key);
   if (!geometry) {
     geometry = buildTreeGeometry(skeleton, detail);

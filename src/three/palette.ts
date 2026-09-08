@@ -23,22 +23,22 @@ export const LEAF_HEX: Record<RelationshipStatus, string> = {
   disqualified: "#6b645c",
 };
 
-export const NEW_LEAF_COLOR = new THREE.Color("#8fb36a");
-export const DORMANT_LEAF_COLOR = new THREE.Color("#6d5f4d");
+export const NEW_LEAF_COLOR = new THREE.Color("#9bc575");
+export const DORMANT_LEAF_COLOR = new THREE.Color("#5a5248");
 export const BUD_COLOR = new THREE.Color("#b6c48a");
 
 export const BARK = new THREE.Color("#4a4139");
-export const BARK_DORMANT = new THREE.Color("#57524c");
-export const BARK_SPRING = new THREE.Color("#4f4738");
-export const BARK_FOREST_FAR = new THREE.Color("#2c2b2f");
-export const ROOT_COLOR = new THREE.Color("#5a4d40");
+export const BARK_DORMANT = new THREE.Color("#3c3b3d");
+export const BARK_SPRING = new THREE.Color("#534a38");
+export const BARK_FOREST_FAR = new THREE.Color("#26262a");
+export const ROOT_COLOR = new THREE.Color("#6a5a48");
 
 export const FRUIT_COLORS: Record<OpportunityMaturity, THREE.Color> = {
-  seed: new THREE.Color("#6f6553"),
-  bud: new THREE.Color("#7d6650"),
-  young: new THREE.Color("#8c5d40"),
-  growing: new THREE.Color("#8f4a37"),
-  ripe: new THREE.Color("#7f3a34"),
+  seed: new THREE.Color("#6a6152"),
+  bud: new THREE.Color("#7a6650"),
+  young: new THREE.Color("#8a5740"),
+  growing: new THREE.Color("#8a4336"),
+  ripe: new THREE.Color("#7a3532"),
 };
 
 export const FRUIT_HEX: Record<OpportunityMaturity, string> = {
@@ -50,16 +50,16 @@ export const FRUIT_HEX: Record<OpportunityMaturity, string> = {
 };
 
 export const FRUIT_SCALE: Record<OpportunityMaturity, number> = {
-  seed: 0.16,
-  bud: 0.21,
-  young: 0.27,
-  growing: 0.33,
-  ripe: 0.4,
+  seed: 0.18,
+  bud: 0.24,
+  young: 0.31,
+  growing: 0.38,
+  ripe: 0.46,
 };
 
-export const BACKGROUND = "#14151a";
-export const FOG = "#15161b";
-export const GROUND = "#1b1c21";
+export const BACKGROUND = "#141510";
+export const FOG = "#161712";
+export const GROUND = "#1c1d18";
 
 export const SEASON_HEX = {
   spring: "#8fb36a",

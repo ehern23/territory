@@ -76,3 +76,50 @@ export function BranchLabels({ skeleton }: { skeleton: TreeSkeleton }) {
     </group>
   );
 }
+
+/**
+ * Low-profile identity at the foot of each strategic tree. A stone ring is
+ * always present; the name appears only when the tree is selected.
+ */
+export function ForestMarker({
+  accountId,
+  skeleton,
+  selected,
+}: {
+  accountId: string;
+  skeleton: TreeSkeleton;
+  selected: boolean;
+}) {
+  const account = useTerritoryStore((s) => s.accountsById[accountId]);
+  const selectAccount = useTerritoryStore((s) => s.selectAccount);
+  const r = skeleton.trunkRadius * 2.35;
+  if (!account) return null;
+  return (
+    <group>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
+        <ringGeometry args={[r * 0.92, r, 48]} />
+        <meshBasicMaterial
+          color={selected ? "#d7c4a4" : "#8a8174"}
+          transparent
+          opacity={selected ? 0.55 : 0.18}
+          depthWrite={false}
+        />
+      </mesh>
+      {selected && (
+        <Html position={[0, 0.55, r + 0.4]} center zIndexRange={[8, 0]} style={{ pointerEvents: "auto" }}>
+          <button
+            type="button"
+            className="account-ground-label"
+            onClick={(e) => {
+              e.stopPropagation();
+              selectAccount(accountId);
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {account.name}
+          </button>
+        </Html>
+      )}
+    </group>
+  );
+}

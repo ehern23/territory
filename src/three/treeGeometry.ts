@@ -104,13 +104,12 @@ function segmentGeometry(seg: BranchSegment, detail: Detail): THREE.BufferGeomet
   const r1 = seg.radiusEnd;
   const radiusAt = isTrunk
     ? (t: number) => {
-        // Root flare, near-linear taper, then a pinch so the leader ends in a
-        // tip inside the crown rather than a visible flat cap.
-        const flare = 1 + 0.3 * (1 - smoothstep(0, 0.1, t));
-        const pinch = 1 - 0.85 * smoothstep(0.9, 1, t);
-        return Math.max(r1, (r0 / 1.32) * (1 - 0.7 * t) * pinch) * flare;
+        // Root flare, slow taper, then a pinch so the leader ends inside the crown.
+        const flare = 1 + 0.55 * (1 - smoothstep(0, 0.14, t));
+        const pinch = 1 - 0.72 * smoothstep(0.86, 1, t);
+        return Math.max(r1, (r0 / 1.62) * (1 - 0.52 * t) * pinch) * flare;
       }
-    : (t: number) => THREE.MathUtils.lerp(r0, r1, easeTaper(t)) * (1 - 0.35 * Math.pow(t, 6));
+    : (t: number) => THREE.MathUtils.lerp(r0, r1, easeTaper(t)) * (1 - 0.32 * Math.pow(t, 6));
 
   const tube = buildTube(seg.curve, radiusAt, tubular, radial);
   if (seg.kind === "twig") return tube;
@@ -136,7 +135,16 @@ function smoothstep(a: number, b: number, x: number): number {
 }
 
 export function buildTreeGeometry(skeleton: TreeSkeleton, detail: Detail): TreeGeometry {
-  const trunk = segmentGeometry(skeleton.trunk, detail);
+  const trunkCore = segmentGeometry(skeleton.trunk, detail);
+  const trunkShoots = skeleton.twigs
+    .filter((t) => !t.businessUnitId)
+    .map((t) => segmentGeometry(t, detail));
+  let trunk = trunkCore;
+  if (trunkShoots.length) {
+    trunk = mergeGeometries([trunkCore, ...trunkShoots], false) ?? trunkCore;
+    if (trunk !== trunkCore) trunkCore.dispose();
+    for (const g of trunkShoots) g.dispose();
+  }
   const all: THREE.BufferGeometry[] = [trunk];
 
   const byBu = new Map<string, BusinessUnitGeometry>();
@@ -232,10 +240,10 @@ export function getFruitGeometry(): THREE.BufferGeometry {
   const pos = body.attributes.position as THREE.BufferAttribute;
   for (let i = 0; i < pos.count; i++) {
     const y = pos.getY(i);
-    const s = 1 - 0.12 * Math.max(0, y);
-    pos.setX(i, pos.getX(i) * s);
+    const s = 1 - 0.18 * Math.max(0, y);
+    pos.setX(i, pos.getX(i) * s * (1 - 0.06 * Math.abs(pos.getZ(i))));
     pos.setZ(i, pos.getZ(i) * s);
-    pos.setY(i, y * 1.18);
+    pos.setY(i, y * 1.28);
   }
   pos.needsUpdate = true;
   body.computeVertexNormals();
