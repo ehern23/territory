@@ -28,11 +28,13 @@ A strategic territory is a small number of enormous accounts — not a thousand 
 
 Every major visual element is meant to answer a seller question: where have I penetrated, where am I wasting time, where is momentum forming, where should I go next.
 
+Forest scenery (ground, ordinary trees, undergrowth, rocks, bark, and lighting) uses locally hosted CC0 assets from Poly Haven. Strategic-account trees remain procedural data structures. Provenance is in `public/assets/CREDITS.md`.
+
 ## Current V1
 
 A recruiter-ready local demo. Open the URL and work immediately — no login, no database, no live APIs.
 
-- Eight hypothetical strategic accounts in a sparse 3D forest, plus faint distant market silhouettes (Amazon, Microsoft, Google)
+- Eight hypothetical strategic accounts in a larger 3D forest, plus faint distant market silhouettes (Amazon, Microsoft, Google)
 - Procedural, seeded organizational trees generated from Account → Business Unit → Team → Prospect
 - Prospect detail with relationship actions; booking a meeting detaches the leaf
 - Dormant branches with a local **Simulate trigger** path into spring reactivation

@@ -7,6 +7,7 @@ import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { useTreeModel } from "./useTreeModel";
 import { accountPosition } from "./layout";
 import { ActiveWood, ForestWood } from "./Wood";
+import { DecorativeCanopy } from "./Canopy";
 import { Leaves } from "./Leaves";
 import { Buds, FallingLeaves, Fruit, MeetingMarkers, SelectionRing } from "./Living";
 import { Roots } from "./Roots";
@@ -24,8 +25,10 @@ export function Tree({ accountId }: { accountId: string }) {
   const selectAccount = useTerritoryStore((s) => s.selectAccount);
   const isTouch = useTerritoryStore((s) => s.isTouch);
 
+  const view = useTerritoryStore((s) => s.view);
   const active = mode === "account" && activeAccountId === accountId;
   const detail = active ? "full" : isTouch ? "reduced" : "reduced";
+  const showCanopy = view !== "roots";
   const model = useTreeModel(accountId, detail);
   const position = accountPosition(accountId);
 
@@ -57,6 +60,7 @@ export function Tree({ accountId }: { accountId: string }) {
       {active ? (
         <>
           <ActiveWood model={model} />
+          {showCanopy && <DecorativeCanopy skeleton={model.skeleton} active />}
           <Leaves skeleton={model.skeleton} active sizeScaleRef={sizeRef} dim={0} />
           <Fruit skeleton={model.skeleton} active />
           <FallingLeaves skeleton={model.skeleton} />
@@ -77,6 +81,7 @@ export function Tree({ accountId }: { accountId: string }) {
           />
           {mode === "forest" && (
             <>
+              {showCanopy && <DecorativeCanopy skeleton={model.skeleton} active={false} />}
               <Leaves skeleton={model.skeleton} active={false} sizeScaleRef={sizeRef} dim={dim} />
               <Fruit skeleton={model.skeleton} active={false} sizeScale={1.15} />
               <MeetingMarkers skeleton={model.skeleton} active={false} />

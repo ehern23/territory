@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { Environment } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { FOG } from "./palette";
+import { ASSET } from "./forestKit";
 
 const SUN_DIR = new THREE.Vector3(0.38, 0.58, -0.52).normalize();
 
@@ -160,12 +162,12 @@ export function Atmosphere() {
     if (!fog) return;
     const k = 1 - Math.exp(-dt * 3);
     const roots = mode === "account" && view === "roots";
-    const nearTarget = mode === "forest" ? 280 : roots ? 10 : 36;
-    const farTarget = mode === "forest" ? 1600 : roots ? 200 : 560;
+    const nearTarget = mode === "forest" ? 520 : roots ? 10 : 36;
+    const farTarget = mode === "forest" ? 1900 : roots ? 200 : 560;
     fog.near += (nearTarget - fog.near) * k;
     fog.far += (farTarget - fog.far) * k;
     if (keyRef.current) {
-      const t = roots ? 0.55 : 2.45;
+      const t = roots ? 0.55 : 2.05;
       keyRef.current.intensity += (t - keyRef.current.intensity) * k;
     }
   });
@@ -173,15 +175,15 @@ export function Atmosphere() {
   return (
     <>
       <color attach="background" args={[FOG]} />
-      <fog ref={fogRef} attach="fog" args={[FOG, 280, 1600]} />
+      <fog ref={fogRef} attach="fog" args={[FOG, 520, 1900]} />
       <SkyDome />
       <Clouds />
-      <ambientLight intensity={0.52} color="#efe8dc" />
-      <hemisphereLight args={["#c8d8ec", "#6e8458", 0.95]} />
+      <ambientLight intensity={0.4} color="#efe8dc" />
+      <hemisphereLight args={["#c8d8ec", "#6e8458", 0.72]} />
       <directionalLight
         ref={keyRef}
         position={[SUN_DIR.x * 280, SUN_DIR.y * 280, SUN_DIR.z * 280]}
-        intensity={2.45}
+        intensity={2.05}
         color="#ffe8c4"
       />
       <directionalLight position={[-110, 48, 70]} intensity={0.42} color="#9bb4c8" />
@@ -190,5 +192,17 @@ export function Atmosphere() {
         <meshBasicMaterial color="#fff6d8" fog={false} depthWrite={false} toneMapped={false} />
       </mesh>
     </>
+  );
+}
+
+/** HDRI for IBL only. The procedural sky and clouds stay as the visible backdrop. */
+export function ImageBasedLight() {
+  return (
+    <Environment
+      files={ASSET.hdri}
+      background={false}
+      environmentIntensity={0.48}
+      resolution={256}
+    />
   );
 }

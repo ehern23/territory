@@ -79,6 +79,7 @@ export function buildTube(
   geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   geo.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
   geo.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+  geo.setAttribute("uv2", geo.attributes.uv);
   geo.setIndex(indices);
   return geo;
 }
@@ -118,10 +119,13 @@ function segmentGeometry(seg: BranchSegment, detail: Detail): THREE.BufferGeomet
   const tip = seg.curve.getPointAt(1);
   const cap = new THREE.SphereGeometry(radiusAt(1) * 0.98, radial, Math.max(3, Math.floor(radial / 2)));
   cap.translate(tip.x, tip.y, tip.z);
+  if (cap.attributes.uv) cap.setAttribute("uv2", cap.attributes.uv);
   const merged = mergeGeometries([tube, cap], false);
   tube.dispose();
   cap.dispose();
-  return merged ?? tube;
+  const geo = merged ?? tube;
+  if (geo.attributes.uv && !geo.attributes.uv2) geo.setAttribute("uv2", geo.attributes.uv);
+  return geo;
 }
 
 function easeTaper(t: number) {

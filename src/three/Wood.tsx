@@ -7,7 +7,7 @@ import { useTerritoryStore } from "@/store/useTerritoryStore";
 import type { TreeModel } from "./useTreeModel";
 import { BARK, BARK_DORMANT, BARK_SPRING } from "./palette";
 import { emphasisFor } from "./emphasis";
-import { createBarkMaterial } from "./materials";
+import { useBarkMaterial } from "./forestKit";
 
 const QUIET = new THREE.Color("#3c4038");
 const RECEDE = new THREE.Color("#3a4638");
@@ -24,10 +24,6 @@ function barkTint(id: string) {
     uber: "#4e4636",
   };
   return new THREE.Color(map[id] ?? "#5a4a3a");
-}
-
-function makeBark(): THREE.MeshStandardMaterial {
-  return createBarkMaterial(BARK.clone());
 }
 
 /** Smoothly drives a material colour toward a target each frame. */
@@ -48,7 +44,7 @@ interface LimbProps {
 }
 
 function Limb({ geometry, businessUnitId, teamId, onSelect }: LimbProps) {
-  const material = useMemo(makeBark, []);
+  const material = useBarkMaterial();
   useEffect(() => () => material.dispose(), [material]);
 
   const bu = useTerritoryStore((s) => s.businessUnitsById[businessUnitId]);
@@ -90,7 +86,7 @@ export function ActiveWood({ model }: { model: TreeModel }) {
   const focusTeam = useTerritoryStore((s) => s.focusTeam);
   const clearSelection = useTerritoryStore((s) => s.clearSelection);
   const view = useTerritoryStore((s) => s.view);
-  const trunkMaterial = useMemo(makeBark, []);
+  const trunkMaterial = useBarkMaterial();
   useEffect(() => () => trunkMaterial.dispose(), [trunkMaterial]);
   const trunkTarget = useMemo(() => {
     const c = barkTint(model.skeleton.accountId);
@@ -141,7 +137,7 @@ export function ForestWood({
   onSelect: () => void;
   dim: number;
 }) {
-  const material = useMemo(makeBark, []);
+  const material = useBarkMaterial();
   useEffect(() => () => material.dispose(), [material]);
   // Past ~0.8 the tree is a neighbour of the active account: push it toward the
   // background so it reads as depth rather than competing with the crown.

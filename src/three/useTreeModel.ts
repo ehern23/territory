@@ -10,7 +10,7 @@ export interface TreeModel {
 
 const skeletonCache = new Map<string, TreeSkeleton>();
 const geometryCache = new Map<string, TreeGeometry>();
-const MODEL_GEN = "v14";
+const MODEL_GEN = "v15";
 
 /**
  * Geometry is built from the account's static organizational data so a tree

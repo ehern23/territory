@@ -4,7 +4,7 @@ import { Suspense, useEffect } from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
-import { Atmosphere } from "./Environment";
+import { Atmosphere, ImageBasedLight } from "./Environment";
 import { Landscape } from "./Landscape";
 import { Silhouettes } from "./Silhouettes";
 import { Tree } from "./Tree";
@@ -61,15 +61,20 @@ export function Scene() {
       }}
       style={{ touchAction: "none" }}
     >
+      <Atmosphere />
       <Suspense fallback={null}>
-        <Atmosphere />
+        <ImageBasedLight />
+      </Suspense>
+      <Suspense fallback={null}>
         <Landscape />
+      </Suspense>
+      <Suspense fallback={null}>
         <Silhouettes />
         {accounts.map((a) => (
           <Tree key={a.id} accountId={a.id} />
         ))}
-        <CameraRig />
       </Suspense>
+      <CameraRig />
     </Canvas>
   );
 }
