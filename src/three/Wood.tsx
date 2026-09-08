@@ -7,12 +7,27 @@ import { useTerritoryStore } from "@/store/useTerritoryStore";
 import type { TreeModel } from "./useTreeModel";
 import { BARK, BARK_DORMANT, BARK_SPRING } from "./palette";
 import { emphasisFor } from "./emphasis";
+import { createBarkMaterial } from "./materials";
 
-const QUIET = new THREE.Color("#25262b");
-const RECEDE = new THREE.Color("#1d1e24");
+const QUIET = new THREE.Color("#3c4038");
+const RECEDE = new THREE.Color("#3a4638");
+
+function barkTint(id: string) {
+  const map: Record<string, string> = {
+    jpmc: "#4e4034",
+    goldman: "#5a4c3c",
+    meta: "#564838",
+    apple: "#5c4e3c",
+    blackrock: "#4a4438",
+    bofa: "#524636",
+    walmart: "#584a3c",
+    uber: "#4e4636",
+  };
+  return new THREE.Color(map[id] ?? "#5a4a3a");
+}
 
 function makeBark(): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color: BARK.clone(), roughness: 0.92, metalness: 0.02 });
+  return createBarkMaterial(BARK.clone());
 }
 
 /** Smoothly drives a material colour toward a target each frame. */
@@ -78,10 +93,10 @@ export function ActiveWood({ model }: { model: TreeModel }) {
   const trunkMaterial = useMemo(makeBark, []);
   useEffect(() => () => trunkMaterial.dispose(), [trunkMaterial]);
   const trunkTarget = useMemo(() => {
-    const c = BARK.clone();
+    const c = barkTint(model.skeleton.accountId);
     if (view === "roots") c.lerp(QUIET, 0.25);
     return c;
-  }, [view]);
+  }, [view, model.skeleton.accountId]);
   useAnimatedColor(trunkMaterial, trunkTarget);
 
   return (
@@ -131,8 +146,11 @@ export function ForestWood({
   // Past ~0.8 the tree is a neighbour of the active account: push it toward the
   // background so it reads as depth rather than competing with the crown.
   const target = useMemo(
-    () => (dim > 0.8 ? BARK.clone().lerp(RECEDE, 0.55 + (dim - 0.8) * 2) : BARK.clone().lerp(QUIET, dim * 0.75)),
-    [dim],
+    () => {
+      const base = barkTint(model.skeleton.accountId);
+      return dim > 0.8 ? base.lerp(RECEDE, 0.45 + (dim - 0.8) * 2) : base.lerp(QUIET, dim * 0.55);
+    },
+    [dim, model.skeleton.accountId],
   );
   useAnimatedColor(material, target);
   return (

@@ -33,7 +33,7 @@ export function Tree({ accountId }: { accountId: string }) {
   const sizeRef = useRef(1.35);
   const groupRef = useRef<THREE.Group>(null);
   useFrame((_, dt) => {
-    const target = active ? 1.02 : 1.22;
+    const target = active ? 1.04 : 1.38;
     sizeRef.current += (target - sizeRef.current) * (1 - Math.exp(-dt * 4));
   });
 

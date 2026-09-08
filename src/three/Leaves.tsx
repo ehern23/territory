@@ -28,7 +28,7 @@ interface LeavesProps {
  * metaphor (one leaf = one person) holds while the canopy reads as foliage
  * rather than a handful of specks.
  */
-export const CLUSTER = 22;
+export const CLUSTER = 26;
 
 const QUIET = new THREE.Color("#2b2c31");
 const tmpColor = new THREE.Color();
@@ -95,9 +95,9 @@ export function Leaves({ skeleton, active, sizeScaleRef, dim }: LeavesProps) {
           const phi = u * Math.PI * 2 * 1.618 + rng.gauss() * 0.4;
           const ring = Math.sqrt(rng.range(0.15, 1));
           const offset = new THREE.Vector3(
-            Math.cos(phi) * ring * 0.62,
-            0.22 + Math.sin(phi) * ring * 0.48 + rng.range(-0.1, 0.1),
-            rng.range(-0.38, 0.42),
+            Math.cos(phi) * ring * 0.82,
+            0.2 + Math.sin(phi) * ring * 0.58 + rng.range(-0.12, 0.14),
+            rng.range(-0.46, 0.5),
           );
           const yaw = Math.atan2(offset.x, 0.6) + rng.gauss() * 0.35;
           const pitch = -Math.atan2(offset.y - 0.25, 0.6) * 0.8 + rng.gauss() * 0.3;

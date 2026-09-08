@@ -6,11 +6,11 @@ import type { OpportunityMaturity, RelationshipStatus } from "@/domain/types";
  * green → yellow → orange → red → fall.
  */
 export const LEAF_COLORS: Record<RelationshipStatus, THREE.Color> = {
-  unworked: new THREE.Color("#5f7a4e"),
-  researched: new THREE.Color("#7f8a49"),
-  contacted: new THREE.Color("#b8933b"),
-  engaged: new THREE.Color("#b8642e"),
-  meeting: new THREE.Color("#8f3323"),
+  unworked: new THREE.Color("#6f8c45"),
+  researched: new THREE.Color("#8a9240"),
+  contacted: new THREE.Color("#c49a3a"),
+  engaged: new THREE.Color("#c46a2e"),
+  meeting: new THREE.Color("#9a3824"),
   disqualified: new THREE.Color("#5a534b"),
 };
 
@@ -27,10 +27,10 @@ export const NEW_LEAF_COLOR = new THREE.Color("#9bc575");
 export const DORMANT_LEAF_COLOR = new THREE.Color("#5a5248");
 export const BUD_COLOR = new THREE.Color("#b6c48a");
 
-export const BARK = new THREE.Color("#4a4139");
-export const BARK_DORMANT = new THREE.Color("#3c3b3d");
-export const BARK_SPRING = new THREE.Color("#534a38");
-export const BARK_FOREST_FAR = new THREE.Color("#26262a");
+export const BARK = new THREE.Color("#5a4a3a");
+export const BARK_DORMANT = new THREE.Color("#4a4744");
+export const BARK_SPRING = new THREE.Color("#5c4e3a");
+export const BARK_FOREST_FAR = new THREE.Color("#3d4a3c");
 export const ROOT_COLOR = new THREE.Color("#6a5a48");
 
 export const FRUIT_COLORS: Record<OpportunityMaturity, THREE.Color> = {
@@ -57,9 +57,9 @@ export const FRUIT_SCALE: Record<OpportunityMaturity, number> = {
   ripe: 0.46,
 };
 
-export const BACKGROUND = "#141510";
-export const FOG = "#161712";
-export const GROUND = "#1c1d18";
+export const BACKGROUND = "#c8d6e4";
+export const FOG = "#c5d2de";
+export const GROUND = "#4f6844";
 
 export const SEASON_HEX = {
   spring: "#8fb36a",

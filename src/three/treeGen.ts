@@ -96,9 +96,34 @@ export interface TreeInput {
 }
 
 export function treeDimensions(account: Account) {
-  const height = 36 + 18 * account.scale.opportunity;
-  const trunkRadius = 1.7 + 1.2 * account.scale.enterprise;
+  const habit = habitFor(account.id);
+  const height = (36 + 18 * account.scale.opportunity) * habit.heightMul;
+  const trunkRadius = (1.7 + 1.2 * account.scale.enterprise) * habit.radiusMul;
   return { height, trunkRadius };
+}
+
+interface TreeHabit {
+  heightMul: number;
+  radiusMul: number;
+  spread: number;
+  upright: number;
+  lean: number;
+  flare: number;
+}
+
+function habitFor(id: string): TreeHabit {
+  const base: TreeHabit = { heightMul: 1, radiusMul: 1, spread: 1, upright: 1, lean: 1, flare: 1 };
+  const table: Record<string, Partial<TreeHabit>> = {
+    jpmc: { heightMul: 1.06, radiusMul: 1.14, spread: 1.1, lean: 1.4, flare: 1.12 },
+    goldman: { heightMul: 1.02, radiusMul: 0.92, spread: 0.84, upright: 1.24, lean: 0.4 },
+    meta: { spread: 1.22, upright: 0.8, radiusMul: 1.02 },
+    apple: { spread: 0.88, upright: 1.2, lean: 0.32 },
+    blackrock: { radiusMul: 1.1, spread: 1.08, lean: 1.2 },
+    bofa: { spread: 1.16, lean: 1.75, upright: 0.86 },
+    walmart: { spread: 1.18, heightMul: 0.96, radiusMul: 1.1 },
+    uber: { heightMul: 0.9, radiusMul: 0.84, spread: 0.86, upright: 1.3, lean: 0.55 },
+  };
+  return { ...base, ...table[id] };
 }
 
 function trunkRadiusAt(base: number, t: number): number {
@@ -158,14 +183,15 @@ function growBranch(
 export function buildTreeSkeleton(input: TreeInput): TreeSkeleton {
   const { account, businessUnits, prospectsById } = input;
   const rng = createRng(account.seed);
+  const habit = habitFor(account.id);
   const { height, trunkRadius } = treeDimensions(account);
 
   // Trunk: a leaning, slightly irregular column with a heavy base.
   const trunkPts: THREE.Vector3[] = [];
   let lx = 0;
   let lz = 0;
-  const leanX = rng.gauss() * 0.07;
-  const leanZ = rng.gauss() * 0.07;
+  const leanX = rng.gauss() * 0.07 * habit.lean;
+  const leanZ = rng.gauss() * 0.07 * habit.lean;
   const levels = 8;
   for (let i = 0; i <= levels; i++) {
     const f = i / levels;
@@ -180,7 +206,7 @@ export function buildTreeSkeleton(input: TreeInput): TreeSkeleton {
     id: `${account.id}.trunk`,
     kind: "trunk",
     curve: trunkCurve,
-    radiusStart: trunkRadius * 1.62,
+    radiusStart: trunkRadius * 1.62 * habit.flare,
     radiusEnd: trunkRadius * 0.16,
     length: height,
   };
@@ -207,12 +233,14 @@ export function buildTreeSkeleton(input: TreeInput): TreeSkeleton {
     const dir = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
     const dormant = bu.status === "dormant";
     const size = clamp(buCount(bu) / 16, 0.3, 1);
-    let length = height * (0.46 + 0.38 * size) * (1.12 - 0.36 * f);
+    let length = height * (0.46 + 0.38 * size) * (1.12 - 0.36 * f) * habit.spread;
     if (dormant) length *= 0.74;
 
     const attach = trunkCurve.getPointAt(f);
     // Lower limbs reach out; upper limbs reach up. Dormant limbs sag.
-    const elevation = dormant ? buRng.range(0.04, 0.18) : buRng.range(0.22, 0.48) + f * 0.28;
+    const elevation = dormant
+      ? buRng.range(0.04, 0.18)
+      : (buRng.range(0.22, 0.48) + f * 0.28) * habit.upright;
     const upsweep = dormant ? -0.14 : 0.16;
     const pts = growBranch(buRng, attach, dir, length, elevation, upsweep, dormant ? 0.07 : 0.13);
     const curve = makeCurve(pts);

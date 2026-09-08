@@ -18,9 +18,9 @@ import { getTreeModel } from "./useTreeModel";
  */
 
 const FOREST_TARGET = new THREE.Vector3(
-  8,
-  9 + terrainHeight(8, 14),
-  14,
+  16,
+  7.2 + terrainHeight(16, -24),
+  -24,
 );
 
 interface Shot {
@@ -113,14 +113,14 @@ export function CameraRig() {
     if (shot.sheetOpen) {
       // Bottom sheet covers roughly the lower half: lift the subject into the
       // visible upper region.
-      const visibleHalfHeight = Math.tan(THREE.MathUtils.degToRad(42 / 2)) * distance;
+      const visibleHalfHeight = Math.tan(THREE.MathUtils.degToRad(44 / 2)) * distance;
       target.y -= visibleHalfHeight * 0.42;
     }
 
     if (shot.panelOffset !== 0) {
       // Shift the composition so the subject sits left of a right-hand panel.
       const right = new THREE.Vector3(Math.cos(azimuth), 0, -Math.sin(azimuth));
-      const visibleHalfWidth = Math.tan(THREE.MathUtils.degToRad(42 / 2)) * distance * aspect;
+      const visibleHalfWidth = Math.tan(THREE.MathUtils.degToRad(44 / 2)) * distance * aspect;
       target.addScaledVector(right, visibleHalfWidth * shot.panelOffset);
     }
     const position = target.clone().add(offset);
@@ -190,13 +190,13 @@ function computeShot(input: ShotInput): Shot | null {
   if (input.mode === "forest" || !input.activeAccountId) {
     return {
       target: FOREST_TARGET,
-      distance: 92 * Math.min(af, 1.22),
-      polar: isDesktop ? 1.44 : 1.28,
-      azimuth: 0.22,
-      minDistance: 36,
-      maxDistance: 420,
+      distance: 148 * Math.min(af, 1.16),
+      polar: isDesktop ? 1.46 : 1.4,
+      azimuth: 0.48,
+      minDistance: 48,
+      maxDistance: 520,
       minPolar: 0.85,
-      maxPolar: 1.54,
+      maxPolar: 1.52,
       panelOffset: 0,
       sheetOpen: input.sheetOpen,
       sheetScale: 1,
@@ -213,8 +213,8 @@ function computeShot(input: ShotInput): Shot | null {
 
   // Frame the whole crown: vertical half-FOV is 21°, so the distance that
   // fits `top` with a little headroom is roughly (top / 2) / tan(21°).
-  const fitHeight = (top * 0.84) / Math.tan(THREE.MathUtils.degToRad(21));
-  const fitWidth = (skeleton.canopyRadius * 1.15) / Math.tan(THREE.MathUtils.degToRad(21)) / Math.max(aspect * (1 - panel), 0.5);
+  const fitHeight = (top * 0.84) / Math.tan(THREE.MathUtils.degToRad(22));
+  const fitWidth = (skeleton.canopyRadius * 1.15) / Math.tan(THREE.MathUtils.degToRad(22)) / Math.max(aspect * (1 - panel), 0.5);
 
   const accountShot: Shot = {
     target: base.clone().add(new THREE.Vector3(0, top * 0.42, 0)),

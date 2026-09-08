@@ -93,7 +93,7 @@ export function Silhouettes() {
         const selectable = mode === "forest" && !!slot.marketId;
         const selected = selectedMarketId === slot.marketId;
         return (
-          <group key={slot.id} position={slot.position} scale={0.46}>
+          <group key={slot.id} position={slot.position} scale={0.82}>
             <mesh
               geometry={geo}
               material={selected ? selectedMaterial : material}

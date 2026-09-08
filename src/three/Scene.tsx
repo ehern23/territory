@@ -42,13 +42,13 @@ export function Scene() {
     <Canvas
       className="territory-canvas"
       dpr={isTouch ? [1, 1.5] : [1, 2]}
-      camera={{ fov: 42, near: 0.5, far: 1800, position: [8, 48, 210] }}
+      camera={{ fov: 44, near: 0.5, far: 2800, position: [70, 28, 128] }}
       gl={{
         antialias: true,
         alpha: false,
         powerPreference: "high-performance",
         toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: 1.14,
+        toneMappingExposure: 1.18,
       }}
       onCreated={(state) => {
         // Development-only handle for runtime inspection.
