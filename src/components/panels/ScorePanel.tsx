@@ -28,8 +28,8 @@ export function ScorePanel({ view }: { view: AccountView }) {
       />
 
       <p className="text-[12.5px] text-paper-40 leading-relaxed -mt-2">
-        A weighted, explainable composite for demonstration. Competitive friction counts against the score. This
-        is not any vendor&apos;s actual scoring methodology.
+        A weighted, explainable composite for demonstration. Competitive friction counts against the score. This is
+        an illustrative Demo Strategic Score, not Vercel&apos;s actual methodology.
       </p>
 
       <Section title="Components">

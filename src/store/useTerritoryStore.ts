@@ -141,13 +141,13 @@ function seedActivities(): Activity[] {
   const now = Date.now();
   const day = 86_400_000;
   const seed: [string, ActivityKind, string, number][] = [
-    ["jpmc", "engaged", "Director, AI Platform engaged", 6],
-    ["jpmc", "meeting", "Meeting booked with Director, Trading Platforms", 8],
-    ["goldman", "opportunity", "Firmwide AI Developer Tooling Standard reached Growing", 4],
-    ["meta", "meeting", "Meeting booked with Director, Developer Infrastructure", 3],
-    ["blackrock", "reactivation", "Wealth Technology reactivated by AI initiative signal", 11],
-    ["walmart", "opportunity", "Platform Engineering Pilot formed", 5],
-    ["uber", "meeting", "Meeting booked with Senior Engineering Manager, Developer Experience", 4],
+    ["jpmc", "engaged", "VP, Platform Engineering engaged on Engineer's Platform", 6],
+    ["jpmc", "meeting", "Meeting booked with Director, Internal Developer Platform", 8],
+    ["jpmc", "opportunity", "Engineer's Platform AI-Assisted Delivery formed", 4],
+    ["walmart", "opportunity", "Developer Experience Platform Evaluation formed", 5],
+    ["disney", "meeting", "Meeting booked with Director, Web Experiences", 3],
+    ["amex", "engaged", "Director, Digital Experience engaged", 7],
+    ["starbucks", "meeting", "Meeting booked with Director, Digital Experience", 4],
   ];
   for (const [accountId, kind, message, daysAgo] of seed) {
     activityCounter += 1;

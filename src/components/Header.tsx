@@ -30,7 +30,7 @@ export function Header() {
           >
             Territory
           </button>
-          <Eyebrow>Hypothetical strategic territory</Eyebrow>
+          <Eyebrow>Illustrative Vercel Majors Territory</Eyebrow>
         </div>
 
         {mode === "forest" ? (
@@ -84,7 +84,7 @@ export function Header() {
 
       <div className="flex flex-col items-end gap-1.5 pointer-events-auto pt-0.5">
         <span className="eyebrow hidden sm:inline">Built with Cursor</span>
-        <span className="text-[11px] text-paper-20 hidden sm:inline leading-relaxed">Hypothetical · demo data</span>
+        <span className="text-[11px] text-paper-20 hidden sm:inline leading-relaxed">Public signals + seller hypotheses</span>
         <span className="text-[10px] text-paper-20 sm:hidden tracking-[0.12em] uppercase">Demo</span>
       </div>
     </header>

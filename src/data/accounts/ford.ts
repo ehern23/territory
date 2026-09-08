@@ -1,0 +1,146 @@
+import { defineAccount, dormancy } from "../builders";
+
+/** Ford — lighter research. Hierarchy DEMO. Fictional people. */
+export const ford = defineAccount({
+  id: "ford",
+  name: "Ford",
+  ticker: "F",
+  seed: 15573,
+  sector: "Automotive digital",
+  season: "summer",
+  thesis:
+    "Consumer digital products, a public AI assistant in Ford and Lincoln apps, and commercial AI experiences may create a conversation about application delivery, agent infrastructure, and platform engineering. This is a seller hypothesis, not a confirmed opportunity.",
+  scale: { opportunity: 0.74, enterprise: 0.82, complexity: 0.78 },
+  score: [
+    { key: "technical-scale", label: "Technical scale", value: 10, weight: 1.5, reasoning: "Ford and Lincoln owner apps plus in-vehicle Digital Experience and commercial software.", evidenceType: "verified" },
+    { key: "ai-intensity", label: "AI / agent intensity", value: 9, weight: 1.2, reasoning: "Public Ford AI assistant targeting up to 8 million customers, plus Ford Pro AI for fleets.", evidenceType: "verified" },
+    { key: "engineering-complexity", label: "Engineering complexity", value: 8, weight: 0.8, reasoning: "Consumer apps, in-vehicle software, and commercial fleet products.", evidenceType: "inference" },
+    { key: "seat-expansion", label: "Platform-standardization potential", value: 10, weight: 1.3, reasoning: "Shared digital-experience surfaces across Ford, Lincoln, and Ford Pro.", evidenceType: "inference" },
+    { key: "logo-value", label: "Global digital surface", value: 9, weight: 0.8, reasoning: "High-volume owner apps and connected-vehicle experiences.", evidenceType: "verified" },
+    { key: "surface-area", label: "Organizational surface area", value: 8, weight: 1, reasoning: "Four organizations mapped; one dormant.", evidenceType: "demo" },
+    { key: "timing", label: "Timing signals", value: 8, weight: 1, reasoning: "App-first AI assistant rollout in 2026 with in-vehicle integration planned for 2027.", evidenceType: "verified" },
+    { key: "governance-fit", label: "Governance requirements", value: 9, weight: 0.9, reasoning: "Vehicle telemetry and owner data imply security and privacy constraints.", evidenceType: "inference" },
+    { key: "competitive-friction", label: "Competitive friction", value: 3, weight: 0.9, reasoning: "In-vehicle stack includes Google Gemini in Digital Experience; conversation would be complementary.", evidenceType: "inference" },
+  ],
+  intelligence: [
+    {
+      id: "ford.root.assistant",
+      category: "AI Adoption",
+      title: "Ford AI assistant in owner apps",
+      summary:
+        "Ford’s From the Road describes a Ford AI assistant arriving in the Ford or Lincoln App in the first half of 2026, intended to reach up to 8 million customers, with in-vehicle integration planned for 2027 rather than phone-screen mirroring.",
+      evidenceType: "verified",
+      sourceLabel: "Ford From the Road — AI assistant",
+      sourceUrl: "https://www.fromtheroad.ford.com/eur/en/articles/2026/ford-ai-assistant-feature-capabilities",
+    },
+    {
+      id: "ford.root.pro",
+      category: "AI Adoption",
+      title: "Ford Pro AI for fleets",
+      summary:
+        "Ford Pro publicly introduced Ford Pro AI as a fleet assistant that turns vehicle health and utilization data into recommended actions for telematics subscribers.",
+      evidenceType: "verified",
+      sourceLabel: "Ford From the Road — Ford Pro AI",
+      sourceUrl: "https://www.fromtheroad.ford.com/us/en/articles/2026/ford-pro-ai-fleet-management-software",
+    },
+    {
+      id: "ford.root.hypothesis",
+      category: "Executive Priorities",
+      title: "Digital experience and agent infrastructure",
+      summary:
+        "Seller hypothesis: owner-app AI plus Digital Experience and commercial AI could map to application delivery, AI SDK / agent infrastructure, observability, and platform standardization. Not a confirmed Vercel opportunity.",
+      evidenceType: "inference",
+    },
+  ],
+  businessUnits: [
+    {
+      id: "dx",
+      name: "Ford Digital Experience",
+      shortName: "Digital Experience",
+      priority: "high",
+      season: "fall",
+      thesis: "Owner apps and consumer digital. Primary conversation surface.",
+      teams: [
+        {
+          id: "apps",
+          name: "Ford & Lincoln Apps",
+          fn: "product-engineering",
+          size: 6,
+          condition: "warming",
+          rich: [
+            {
+              key: "dx.dir-apps",
+              name: "Micah Ellison",
+              title: "Director, Digital Experience",
+              persona: "Technical Buyer",
+              influence: 4,
+              status: "engaged",
+              hypothesis: "Owns consumer app delivery. Interested in how an AI assistant ships safely to millions of owners.",
+              nextAction: "Share a scoped example for app delivery and observability.",
+              lastTouch: "2026-08-17",
+            },
+          ],
+        },
+        { id: "invehicle", name: "In-Vehicle Experience", fn: "product-engineering", size: 4, condition: "light" },
+      ],
+    },
+    {
+      id: "assistant",
+      name: "Ford AI Assistant",
+      shortName: "AI Assistant",
+      priority: "high",
+      season: "fall",
+      thesis: "Named public product. Relevant for agent infrastructure and governed AI experiences.",
+      teams: [{ id: "assistant-eng", name: "Assistant Engineering", fn: "data-ai", size: 5, condition: "light" }],
+    },
+    {
+      id: "pro",
+      name: "Ford Pro Digital",
+      shortName: "Ford Pro",
+      priority: "medium",
+      season: "summer",
+      thesis: "Commercial AI and telematics. Secondary surface.",
+      teams: [{ id: "fleet", name: "Fleet Software", fn: "product-engineering", size: 4, condition: "untouched" }],
+    },
+    {
+      id: "platform",
+      name: "Software Platform Engineering",
+      shortName: "Platform",
+      priority: "low",
+      season: "winter",
+      status: "dormant",
+      thesis: "Shared software platform. No current trigger in this demo.",
+      dormancyReason: dormancy(
+        "no-trigger",
+        "No identified enterprise developer-platform initiative. Capacity is on Digital Experience and the AI assistant.",
+        "Hold. Revisit on a platform-standardization program.",
+      ),
+      reactivation: {
+        signal: {
+          type: "developer-productivity",
+          strength: "strong",
+          title: "Shared software platform initiative",
+          description: "Software Platform Engineering announced a shared delivery platform across Ford, Lincoln, and Ford Pro.",
+          evidenceType: "demo",
+          sourceLabel: "Simulated signal",
+        },
+        recommendation: "Qualify the new platform owner; lead with the Digital Experience relationship.",
+      },
+      teams: [{ id: "shared", name: "Shared Delivery Platform", fn: "platform", size: 3, condition: "dormant", latent: 4 }],
+    },
+  ],
+  opportunities: [],
+  signals: [
+    {
+      id: "assistant-rollout",
+      type: "product-launch",
+      strength: "strong",
+      title: "Ford AI assistant rolling out to owner apps",
+      description: "First-party: app-first AI assistant in H1 2026 for up to 8 million customers; in-vehicle planned for 2027.",
+      date: "2026-01-06",
+      evidenceType: "verified",
+      sourceLabel: "Ford From the Road",
+      sourceUrl: "https://www.fromtheroad.ford.com/eur/en/articles/2026/ford-ai-assistant-feature-capabilities",
+    },
+  ],
+});

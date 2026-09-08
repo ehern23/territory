@@ -34,7 +34,7 @@ Forest scenery (ground, ordinary trees, undergrowth, rocks, bark, and lighting) 
 
 A recruiter-ready local demo. Open the URL and work immediately — no login, no database, no live APIs.
 
-- Eight hypothetical strategic accounts in a larger 3D forest, plus faint distant market silhouettes (Amazon, Microsoft, Google)
+- Eight illustrative Vercel Majors accounts in a larger 3D forest, plus faint distant market silhouettes (Amazon, Microsoft, Google)
 - Procedural, seeded organizational trees generated from Account → Business Unit → Team → Prospect
 - Prospect detail with relationship actions; booking a meeting detaches the leaf
 - Dormant branches with a local **Simulate trigger** path into spring reactivation
@@ -42,7 +42,7 @@ A recruiter-ready local demo. Open the URL and work immediately — no login, no
 - Roots, Demo Strategic Score, Penetration, Activity, and deterministic **Analyze account**
 - Desktop side panel and compact bottom sheet; keyboard navigation and Escape; `prefers-reduced-motion`
 
-This is demonstration data. People are fictional. Accounts are hypothetical. The score is a demo construct, not Cursor’s methodology. Evidence is labeled **verified**, **inference**, or **demo**.
+This is an illustrative Vercel Majors territory. People are fictional. Accounts are hypothetical. Public signals are labeled **verified**. Seller theses are labeled **inference**. CRM activity is labeled **demo**. The Demo Strategic Score is a demonstration construct, not Vercel’s methodology.
 
 ```bash
 npm install

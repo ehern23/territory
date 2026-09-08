@@ -1,0 +1,190 @@
+import { defineAccount, dormancy } from "../builders";
+
+/** American Express — lighter research. Hierarchy DEMO except publicly named programs. Fictional people. */
+export const amex = defineAccount({
+  id: "amex",
+  name: "American Express",
+  ticker: "AXP",
+  seed: 29041,
+  sector: "Payments and membership",
+  season: "fall",
+  thesis:
+    "Agentic commerce plus regulated infrastructure plus significant engineering AI-assistant adoption could support a conversation about governed application and agent infrastructure. This is a seller hypothesis, not a confirmed opportunity.",
+  scale: { opportunity: 0.88, enterprise: 0.95, complexity: 0.85 },
+  score: [
+    { key: "technical-scale", label: "Technical scale", value: 10, weight: 1.5, reasoning: "Large global engineering organization shipping consumer and commercial digital products.", evidenceType: "inference" },
+    { key: "ai-intensity", label: "AI / agent intensity", value: 10, weight: 1.2, reasoning: "Public ACE Developer Kit for agentic commerce and first-party writing on rolling GitHub Copilot to thousands of engineers.", evidenceType: "verified" },
+    { key: "engineering-complexity", label: "Engineering complexity", value: 10, weight: 0.8, reasoning: "Consumer apps, commercial products, payments, and a formalized inner-platform (Amex Way).", evidenceType: "verified" },
+    { key: "seat-expansion", label: "Platform-standardization potential", value: 10, weight: 1.3, reasoning: "Building Software the Amex Way and paved-road programs are explicitly about standardizing engineering patterns.", evidenceType: "verified" },
+    { key: "logo-value", label: "Global digital surface", value: 10, weight: 0.8, reasoning: "Global consumer and commercial digital experiences.", evidenceType: "inference" },
+    { key: "surface-area", label: "Organizational surface area", value: 9, weight: 1, reasoning: "Four organizations mapped; one dormant.", evidenceType: "demo" },
+    { key: "timing", label: "Timing signals", value: 8, weight: 1, reasoning: "ACE kit specifications began publishing in 2026; agentic commerce is a named public priority.", evidenceType: "verified" },
+    { key: "governance-fit", label: "Governance requirements", value: 10, weight: 0.9, reasoning: "ACE materials emphasize identity, intent, scoped credentials, auditability, and zero-trust controls.", evidenceType: "verified" },
+    { key: "competitive-friction", label: "Competitive friction", value: 3, weight: 0.9, reasoning: "Incumbent coding assistants are already rolled out; any new platform would need to fit Amex Way paved roads.", evidenceType: "inference" },
+  ],
+  intelligence: [
+    {
+      id: "amex.root.ace",
+      category: "AI Adoption",
+      title: "ACE Developer Kit for agentic commerce",
+      summary:
+        "American Express publicly offers the Agentic Commerce Experiences (ACE) developer kit: identity, account enablement, intent intelligence, and tokenized payment credentials so verified AI agents can transact with Card Member controls.",
+      evidenceType: "verified",
+      sourceLabel: "American Express — Agentic Commerce",
+      sourceUrl: "https://www.americanexpress.com/en-us/company/agentic-commerce/",
+    },
+    {
+      id: "amex.root.ace-eng",
+      category: "Security / Governance",
+      title: "Trust, intent, and scoped credentials",
+      summary:
+        "Amex Technology describes ACE as enforcing explicit delegation, enforceable intent, scoped credentials, OAuth/mTLS, and auditable execution so agent-driven payments remain controlled.",
+      evidenceType: "verified",
+      sourceLabel: "American Express Technology — ACE Developer Kit",
+      sourceUrl: "https://americanexpress.io/building-trust-in-ai-powered-transactions-with-amex-agentic-commerce-experiences/",
+    },
+    {
+      id: "amex.root.copilot",
+      category: "Developer Tooling",
+      title: "AI coding assistants for thousands of engineers",
+      summary:
+        "American Express Technology publicly describes rolling GitHub Copilot out to thousands of engineers as part of Developer Enablement and the Building Software the Amex Way program.",
+      evidenceType: "verified",
+      sourceLabel: "American Express Technology — Developer Enablement",
+      sourceUrl: "https://americanexpress.io/u/michelleswartz/",
+    },
+    {
+      id: "amex.root.paved",
+      category: "Developer Tooling",
+      title: "Building Software the Amex Way",
+      summary:
+        "The Developer Experience organization has publicly described formalizing patterns, CI/CD pipelines, and paved roads (including a Python paved road) so teams share architecture and delivery standards.",
+      evidenceType: "verified",
+      sourceLabel: "American Express Technology — Python Paved Road",
+      sourceUrl: "https://americanexpress.io/empowering-innovation-the-python-paved-road/",
+    },
+    {
+      id: "amex.root.hypothesis",
+      category: "Executive Priorities",
+      title: "Governed app and agent infrastructure",
+      summary:
+        "Seller hypothesis: agentic commerce plus regulated infrastructure plus engineering AI adoption could map to AI Gateway, Sandbox, Workflows, agent infrastructure, CI/CD, security, and enterprise governance — if they fit Amex Way. Not a confirmed Vercel opportunity.",
+      evidenceType: "inference",
+    },
+  ],
+  businessUnits: [
+    {
+      id: "digital",
+      name: "Consumer Digital Experiences",
+      shortName: "Consumer Digital",
+      priority: "high",
+      season: "fall",
+      thesis: "Card Member apps and web. Application delivery and global performance are plausible conversation surfaces.",
+      teams: [
+        {
+          id: "app",
+          name: "Consumer App",
+          fn: "product-engineering",
+          size: 6,
+          condition: "warming",
+          rich: [
+            {
+              key: "digital.dir-app",
+              name: "Helena Quist",
+              title: "Director, Digital Experience",
+              persona: "Technical Buyer",
+              influence: 4,
+              status: "engaged",
+              hypothesis: "Ships consumer digital under release pressure; interested in safer iteration on membership experiences.",
+              nextAction: "Propose a short working session on delivery and observability.",
+              lastTouch: "2026-08-20",
+            },
+          ],
+        },
+        { id: "web", name: "Web Platform", fn: "product-engineering", size: 4, condition: "light" },
+      ],
+    },
+    {
+      id: "ace",
+      name: "Agentic Commerce",
+      shortName: "ACE",
+      priority: "high",
+      season: "fall",
+      thesis: "Public ACE program. The natural home for an agent-infrastructure conversation. Hierarchy around it is DEMO.",
+      teams: [
+        {
+          id: "kit",
+          name: "ACE Developer Kit",
+          fn: "data-ai",
+          size: 5,
+          condition: "light",
+          rich: [
+            {
+              key: "ace.dir-platform",
+              name: "Rafael Osgood",
+              title: "Director, AI Platform",
+              persona: "Technical Buyer",
+              influence: 4,
+              status: "researched",
+              hypothesis: "Would evaluate any external agent runtime against ACE identity and intent controls.",
+              nextAction: "Send a note that assumes ACE as the control plane.",
+            },
+          ],
+        },
+        { id: "payments", name: "Digital Payments", fn: "platform", size: 4, condition: "untouched" },
+      ],
+    },
+    {
+      id: "devex",
+      name: "Developer Experience",
+      shortName: "DevEx",
+      priority: "medium",
+      season: "summer",
+      thesis: "Paved roads and AI-assistant rollout. Healthy unworked canopy.",
+      teams: [
+        { id: "enablement", name: "Developer Enablement", fn: "developer-experience", size: 5, condition: "untouched" },
+        { id: "security", name: "Security Engineering", fn: "security", size: 3, condition: "light" },
+      ],
+    },
+    {
+      id: "commercial",
+      name: "Commercial Digital",
+      shortName: "Commercial",
+      priority: "low",
+      season: "winter",
+      status: "dormant",
+      thesis: "Commercial digital products. No current trigger in this demo.",
+      dormancyReason: dormancy(
+        "low-relevance",
+        "No identified platform initiative in commercial digital. Capacity is on ACE and consumer digital.",
+        "Hold until a commercial-digital platform owner or initiative appears.",
+      ),
+      reactivation: {
+        signal: {
+          type: "ai-initiative",
+          strength: "strong",
+          title: "Commercial agentic checkout initiative",
+          description: "Commercial digital announced an agentic B2B checkout program with new platform roles.",
+          evidenceType: "demo",
+          sourceLabel: "Simulated signal",
+        },
+        recommendation: "Qualify the new commercial platform owner; lead with the ACE relationship.",
+      },
+      teams: [{ id: "b2b", name: "Commercial Platforms", fn: "product-engineering", size: 3, condition: "dormant", latent: 3 }],
+    },
+  ],
+  opportunities: [],
+  signals: [
+    {
+      id: "ace-kit",
+      type: "product-launch",
+      strength: "strong",
+      title: "ACE Developer Kit specifications published",
+      description: "Amex published ACE kit capabilities for agent registration, account enablement, intent, and payment credentials.",
+      date: "2026-04-14",
+      evidenceType: "verified",
+      sourceLabel: "American Express — Agentic Commerce",
+      sourceUrl: "https://www.americanexpress.com/en-us/company/agentic-commerce/",
+    },
+  ],
+});

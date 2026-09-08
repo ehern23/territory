@@ -11,13 +11,13 @@ export const FOREST_CENTER = new THREE.Vector3(6, 0, -36);
 
 const ACCOUNT_SLOTS: Record<string, [number, number]> = {
   jpmc: [10, 18],
-  goldman: [-52, -14],
-  meta: [78, -22],
-  apple: [-92, -68],
-  blackrock: [118, -78],
-  bofa: [-36, -124],
-  walmart: [64, -138],
-  uber: [-14, -178],
+  walmart: [-52, -14],
+  disney: [78, -22],
+  amex: [-92, -68],
+  nike: [118, -78],
+  starbucks: [-36, -124],
+  marriott: [64, -138],
+  ford: [-14, -178],
 };
 
 export function creekCenterX(z: number): number {

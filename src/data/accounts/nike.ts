@@ -1,0 +1,149 @@
+import { defineAccount, dormancy } from "../builders";
+
+/** Nike — lighter research. Hierarchy DEMO. Fictional people. */
+export const nike = defineAccount({
+  id: "nike",
+  name: "Nike",
+  ticker: "NKE",
+  seed: 64018,
+  sector: "Consumer digital and marketplace",
+  season: "summer",
+  thesis:
+    "Global ecommerce, high-traffic launches, and public AI-powered shopping experiments may create a conversation about application delivery, global performance, and agent-assisted commerce. This is a seller hypothesis, not a confirmed opportunity.",
+  scale: { opportunity: 0.82, enterprise: 0.88, complexity: 0.8 },
+  score: [
+    { key: "technical-scale", label: "Technical scale", value: 10, weight: 1.5, reasoning: "Global digital marketplace spanning nike.com, Nike App, SNKRS, and partnered commerce.", evidenceType: "verified" },
+    { key: "ai-intensity", label: "AI / agent intensity", value: 10, weight: 1.2, reasoning: "Public June 2026 AI-powered shopping on Google Gemini / Universal Commerce Protocol.", evidenceType: "verified" },
+    { key: "engineering-complexity", label: "Engineering complexity", value: 9, weight: 0.8, reasoning: "High-traffic launches plus multiple owned apps and a 30-year nike.com surface.", evidenceType: "inference" },
+    { key: "seat-expansion", label: "Platform-standardization potential", value: 10, weight: 1.3, reasoning: "Multiple consumer surfaces could benefit from shared delivery and frontend-platform standards.", evidenceType: "inference" },
+    { key: "logo-value", label: "Global digital surface", value: 10, weight: 0.8, reasoning: "Global launch traffic and marketplace presence.", evidenceType: "verified" },
+    { key: "surface-area", label: "Organizational surface area", value: 9, weight: 1, reasoning: "Four organizations mapped; one dormant.", evidenceType: "demo" },
+    { key: "timing", label: "Timing signals", value: 7, weight: 1, reasoning: "AI shopping launch around summer 2026 football; no public developer-platform program identified.", evidenceType: "verified" },
+    { key: "governance-fit", label: "Governance requirements", value: 9, weight: 0.9, reasoning: "Brand, allocation, and launch integrity imply tight controls on consumer surfaces.", evidenceType: "inference" },
+    { key: "competitive-friction", label: "Competitive friction", value: 3, weight: 0.9, reasoning: "Existing cloud and commerce stack is likely entrenched; conversation would be complementary.", evidenceType: "inference" },
+  ],
+  intelligence: [
+    {
+      id: "nike.root.marketplace",
+      category: "Developer Scale",
+      title: "Owned digital marketplace",
+      summary:
+        "Nike describes a multifaceted retail presence including nike.com (noted as celebrating its 30th anniversary), the Nike App, SNKRS, activity apps, and owned and partnered marketplace.",
+      evidenceType: "verified",
+      sourceLabel: "Nike Newsroom — AI-powered shopping",
+      sourceUrl: "https://about.nike.com/en/newsroom/releases/nike-is-serving-athletes-faster-through-ai-powered-shopping-on-google",
+    },
+    {
+      id: "nike.root.ai-shop",
+      category: "AI Adoption",
+      title: "AI-powered shopping on Google",
+      summary:
+        "In May 2026 Nike announced a U.S. AI-powered shopping experience in the Gemini app and AI Mode in Google Search, using Universal Commerce Protocol multi-item checkout, positioned ahead of a summer football tournament.",
+      evidenceType: "verified",
+      sourceLabel: "Nike Newsroom — AI-powered shopping",
+      sourceUrl: "https://about.nike.com/en/newsroom/releases/nike-is-serving-athletes-faster-through-ai-powered-shopping-on-google",
+    },
+    {
+      id: "nike.root.hypothesis",
+      category: "Executive Priorities",
+      title: "Launch-grade delivery and agentic commerce",
+      summary:
+        "Seller hypothesis: high-traffic launches plus AI shopping could map to global performance, application delivery, microfrontends, AI SDK / agent infrastructure, and observability. Not a confirmed Vercel opportunity.",
+      evidenceType: "inference",
+    },
+  ],
+  businessUnits: [
+    {
+      id: "direct",
+      name: "Nike Direct Digital",
+      shortName: "Nike Direct",
+      priority: "high",
+      season: "fall",
+      thesis: "nike.com and digital marketplace. The primary conversation surface for delivery and performance.",
+      teams: [
+        {
+          id: "web",
+          name: "Web Platform",
+          fn: "product-engineering",
+          size: 6,
+          condition: "warming",
+          rich: [
+            {
+              key: "direct.dir-web",
+              name: "Callum Reeve",
+              title: "Director, Web Platform",
+              persona: "Technical Buyer",
+              influence: 4,
+              status: "contacted",
+              hypothesis: "Owns nike.com delivery. Sensitive to launch-day performance.",
+              nextAction: "Follow up with a launch-traffic example.",
+              lastTouch: "2026-08-16",
+            },
+          ],
+        },
+        { id: "commerce", name: "Digital Marketplace", fn: "product-engineering", size: 4, condition: "light" },
+      ],
+    },
+    {
+      id: "apps",
+      name: "Consumer Apps",
+      shortName: "Apps",
+      priority: "medium",
+      season: "summer",
+      thesis: "Nike App and related consumer apps. Relevant for digital experience after web conversation matures.",
+      teams: [
+        { id: "nike-app", name: "Nike App", fn: "product-engineering", size: 5, condition: "untouched" },
+        { id: "snkrs", name: "SNKRS", fn: "product-engineering", size: 4, condition: "light" },
+      ],
+    },
+    {
+      id: "platform",
+      name: "Platform Engineering",
+      shortName: "Platform",
+      priority: "medium",
+      season: "summer",
+      thesis: "Shared delivery and developer productivity. Largely unworked.",
+      teams: [{ id: "devex", name: "Developer Experience", fn: "developer-experience", size: 4, condition: "untouched" }],
+    },
+    {
+      id: "activity",
+      name: "Activity Apps",
+      shortName: "Activity",
+      priority: "low",
+      season: "winter",
+      status: "dormant",
+      thesis: "Activity apps. No current trigger in this demo.",
+      dormancyReason: dormancy(
+        "low-expected-return",
+        "Smaller surface relative to Direct and SNKRS; no identified platform initiative.",
+        "Hold. Revisit if activity apps share a frontend platform with Direct.",
+      ),
+      reactivation: {
+        signal: {
+          type: "product-launch",
+          strength: "strong",
+          title: "Unified consumer app platform announced",
+          description: "Activity apps announced a shared web/app platform with Direct, opening frontend-platform roles.",
+          evidenceType: "demo",
+          sourceLabel: "Simulated signal",
+        },
+        recommendation: "Qualify the new shared-platform owner; sequence behind Direct.",
+      },
+      teams: [{ id: "nrc", name: "Activity Platform", fn: "product-engineering", size: 3, condition: "dormant", latent: 3 }],
+    },
+  ],
+  opportunities: [],
+  signals: [
+    {
+      id: "gemini-shop",
+      type: "product-launch",
+      strength: "strong",
+      title: "AI-powered shopping on Gemini and Google Search",
+      description: "Nike announced U.S. AI shopping in Gemini and AI Mode using Universal Commerce Protocol.",
+      date: "2026-05-19",
+      evidenceType: "verified",
+      sourceLabel: "Nike Newsroom",
+      sourceUrl: "https://about.nike.com/en/newsroom/releases/nike-is-serving-athletes-faster-through-ai-powered-shopping-on-google",
+    },
+  ],
+});

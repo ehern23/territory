@@ -1,0 +1,167 @@
+import { defineAccount, dormancy } from "../builders";
+
+/** Marriott — lighter research. Hierarchy DEMO except publicly named TIP.AI. Fictional people. */
+export const marriott = defineAccount({
+  id: "marriott",
+  name: "Marriott",
+  ticker: "MAR",
+  seed: 77420,
+  sector: "Hospitality and booking",
+  season: "summer",
+  thesis:
+    "A global booking ecosystem plus public AI platform-engineering investment may create a conversation about cloud-native delivery, developer productivity, reliability, and agent infrastructure. This is a seller hypothesis, not a confirmed opportunity.",
+  scale: { opportunity: 0.76, enterprise: 0.85, complexity: 0.78 },
+  score: [
+    { key: "technical-scale", label: "Technical scale", value: 10, weight: 1.5, reasoning: "Global marriott.com and Bonvoy digital booking ecosystem.", evidenceType: "inference" },
+    { key: "ai-intensity", label: "AI / agent intensity", value: 9, weight: 1.2, reasoning: "Careers materials describe TIP.AI as an enterprise platform for AI systems and agentic workflows.", evidenceType: "verified" },
+    { key: "engineering-complexity", label: "Engineering complexity", value: 9, weight: 0.8, reasoning: "Booking, loyalty, property systems, and an internal AI platform.", evidenceType: "inference" },
+    { key: "seat-expansion", label: "Platform-standardization potential", value: 10, weight: 1.3, reasoning: "TIP.AI platform engineering is described as setting CI/CD, runtime, and developer-velocity standards.", evidenceType: "verified" },
+    { key: "logo-value", label: "Global digital surface", value: 9, weight: 0.8, reasoning: "Global hotel booking and loyalty digital properties.", evidenceType: "inference" },
+    { key: "surface-area", label: "Organizational surface area", value: 8, weight: 1, reasoning: "Four organizations mapped; one dormant.", evidenceType: "demo" },
+    { key: "timing", label: "Timing signals", value: 8, weight: 1, reasoning: "Active TIP.AI platform-engineering hiring is a public timing signal.", evidenceType: "verified" },
+    { key: "governance-fit", label: "Governance requirements", value: 9, weight: 0.9, reasoning: "Guest data, payments, and property operations imply security and reliability requirements.", evidenceType: "inference" },
+    { key: "competitive-friction", label: "Competitive friction", value: 3, weight: 0.9, reasoning: "Existing booking and loyalty stack plus an internal AI platform; conversation would need to complement TIP.AI.", evidenceType: "inference" },
+  ],
+  intelligence: [
+    {
+      id: "mar.root.tipai",
+      category: "Developer Tooling",
+      title: "TIP.AI platform engineering",
+      summary:
+        "Marriott careers materials describe a Director / Principal Engineer role for TIP.AI Platform: designing and operating scalable, resilient platform infrastructure for enterprise AI systems, with CI/CD, shared services, reliability (SLOs), and developer velocity.",
+      evidenceType: "verified",
+      sourceLabel: "Marriott Careers — TIP.AI Platform Engineering",
+      sourceUrl: "https://careers.marriott.com/director-principle-engineer-platform-engineering-tip-ai-platform/job/A1D371BF214A38B2E7F2602CE1621524",
+    },
+    {
+      id: "mar.root.agents",
+      category: "AI Adoption",
+      title: "Agentic experiences on TIP.AI",
+      summary:
+        "Related Marriott careers postings describe engineering teams building agentic experiences and AI agents for business use cases on the TIP.AI platform.",
+      evidenceType: "verified",
+      sourceLabel: "Marriott Careers — Director IT Application Dev",
+      sourceUrl: "https://careers.marriott.com/director-it-application-dev/job/6E663D1F9EF4406867147594EF725896",
+    },
+    {
+      id: "mar.root.hypothesis",
+      category: "Executive Priorities",
+      title: "Booking reliability and platform standards",
+      summary:
+        "Seller hypothesis: global booking plus AI platform engineering could map to application delivery, CI/CD, observability, developer experience, agent infrastructure, and enterprise governance. Not a confirmed Vercel opportunity.",
+      evidenceType: "inference",
+    },
+  ],
+  businessUnits: [
+    {
+      id: "booking",
+      name: "Marriott.com & Booking",
+      shortName: "Booking",
+      priority: "high",
+      season: "fall",
+      thesis: "Global booking web. Reliability and performance are the plausible entry points.",
+      teams: [
+        {
+          id: "web",
+          name: "Web Platform",
+          fn: "product-engineering",
+          size: 5,
+          condition: "light",
+          rich: [
+            {
+              key: "booking.dir-web",
+              name: "Elise Hartwell",
+              title: "Director, Web Platform",
+              persona: "Technical Buyer",
+              influence: 4,
+              status: "researched",
+              hypothesis: "Would care about booking reliability and global performance.",
+              nextAction: "Send a specific first note referencing public booking-scale.",
+            },
+          ],
+        },
+        { id: "search", name: "Search & Availability", fn: "product-engineering", size: 4, condition: "untouched" },
+      ],
+    },
+    {
+      id: "bonvoy",
+      name: "Bonvoy Digital",
+      shortName: "Bonvoy",
+      priority: "medium",
+      season: "summer",
+      thesis: "Loyalty and member digital. Largely unworked.",
+      teams: [{ id: "member", name: "Member Experience", fn: "product-engineering", size: 4, condition: "untouched" }],
+    },
+    {
+      id: "tipai",
+      name: "TIP.AI Platform",
+      shortName: "TIP.AI",
+      priority: "high",
+      season: "fall",
+      thesis: "Named internal AI platform. Natural home for a complementary agent-infrastructure conversation.",
+      teams: [
+        {
+          id: "platform",
+          name: "Platform Engineering",
+          fn: "platform",
+          size: 5,
+          condition: "warming",
+          rich: [
+            {
+              key: "tipai.dir-platform",
+              name: "Owen Brice",
+              title: "Director, Platform Engineering",
+              persona: "Champion",
+              influence: 4,
+              status: "engaged",
+              hypothesis: "Interested in developer velocity and safe delivery for AI services.",
+              nextAction: "Propose a complementarity conversation, not a replacement of TIP.AI.",
+              lastTouch: "2026-08-19",
+            },
+          ],
+        },
+        { id: "agents", name: "Agentic Experiences", fn: "data-ai", size: 4, condition: "light" },
+      ],
+    },
+    {
+      id: "property",
+      name: "Property Systems",
+      shortName: "Property",
+      priority: "low",
+      season: "winter",
+      status: "dormant",
+      thesis: "Property-facing systems. No current software-platform trigger in this demo.",
+      dormancyReason: dormancy(
+        "no-buying-surface",
+        "Property systems are operationally critical but no external developer-platform conversation is identified.",
+        "Hold. Revisit if property digital standardizes on TIP.AI delivery paths.",
+      ),
+      reactivation: {
+        signal: {
+          type: "engineering-hub",
+          strength: "strong",
+          title: "Property digital modernization announced",
+          description: "Property systems announced a cloud-native rebuild with open platform-engineering roles.",
+          evidenceType: "demo",
+          sourceLabel: "Simulated signal",
+        },
+        recommendation: "Qualify new property-platform leadership; sequence behind TIP.AI.",
+      },
+      teams: [{ id: "ops", name: "Property Digital", fn: "infrastructure", size: 3, condition: "dormant", latent: 3 }],
+    },
+  ],
+  opportunities: [],
+  signals: [
+    {
+      id: "tipai-hiring",
+      type: "hiring-surge",
+      strength: "moderate",
+      title: "TIP.AI platform engineering hiring",
+      description: "Public careers posting for TIP.AI Platform Engineering leadership.",
+      date: "2026-06-01",
+      evidenceType: "verified",
+      sourceLabel: "Marriott Careers — TIP.AI",
+      sourceUrl: "https://careers.marriott.com/director-principle-engineer-platform-engineering-tip-ai-platform/job/A1D371BF214A38B2E7F2602CE1621524",
+    },
+  ],
+});

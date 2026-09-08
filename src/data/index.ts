@@ -1,12 +1,12 @@
 import type { MarketSilhouette, Territory } from "@/domain/types";
 import { jpmc } from "./accounts/jpmc";
-import { bofa } from "./accounts/bofa";
 import { walmart } from "./accounts/walmart";
-import { blackrock } from "./accounts/blackrock";
-import { goldman } from "./accounts/goldman";
-import { meta } from "./accounts/meta";
-import { apple } from "./accounts/apple";
-import { uber } from "./accounts/uber";
+import { disney } from "./accounts/disney";
+import { amex } from "./accounts/amex";
+import { nike } from "./accounts/nike";
+import { starbucks } from "./accounts/starbucks";
+import { marriott } from "./accounts/marriott";
+import { ford } from "./accounts/ford";
 
 /**
  * Deprioritized market: large companies that are not in the active territory.
@@ -43,6 +43,6 @@ export const market: MarketSilhouette[] = [
 ];
 
 export const territory: Territory = {
-  accounts: [jpmc, bofa, walmart, blackrock, goldman, meta, apple, uber],
+  accounts: [jpmc, walmart, disney, amex, nike, starbucks, marriott, ford],
   market,
 };

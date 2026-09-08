@@ -50,7 +50,7 @@ export function ForestOverlay() {
       <AccountStrip selectedAccountId={selectedAccountId} />
       {!view && !market && (
         <p className="text-[12px] text-paper-40 pointer-events-none text-center self-center hidden sm:block tracking-wide">
-          Select a tree to inspect an account · drag to rotate · scroll or pinch to zoom
+          Select a tree · Demo CRM activity · drag to rotate · scroll or pinch to zoom
         </p>
       )}
     </div>

@@ -115,13 +115,13 @@ function habitFor(id: string): TreeHabit {
   const base: TreeHabit = { heightMul: 1, radiusMul: 1, spread: 1, upright: 1, lean: 1, flare: 1 };
   const table: Record<string, Partial<TreeHabit>> = {
     jpmc: { heightMul: 1.06, radiusMul: 1.14, spread: 1.1, lean: 1.4, flare: 1.12 },
-    goldman: { heightMul: 1.02, radiusMul: 0.92, spread: 0.84, upright: 1.24, lean: 0.4 },
-    meta: { spread: 1.22, upright: 0.8, radiusMul: 1.02 },
-    apple: { spread: 0.88, upright: 1.2, lean: 0.32 },
-    blackrock: { radiusMul: 1.1, spread: 1.08, lean: 1.2 },
-    bofa: { spread: 1.16, lean: 1.75, upright: 0.86 },
     walmart: { spread: 1.18, heightMul: 0.96, radiusMul: 1.1 },
-    uber: { heightMul: 0.9, radiusMul: 0.84, spread: 0.86, upright: 1.3, lean: 0.55 },
+    disney: { spread: 1.22, upright: 0.8, radiusMul: 1.02 },
+    amex: { heightMul: 1.02, radiusMul: 0.92, spread: 0.84, upright: 1.24, lean: 0.4 },
+    nike: { spread: 0.88, upright: 1.2, lean: 0.32 },
+    starbucks: { spread: 1.16, lean: 1.75, upright: 0.86 },
+    marriott: { radiusMul: 1.1, spread: 1.08, lean: 1.2 },
+    ford: { heightMul: 0.9, radiusMul: 0.84, spread: 0.86, upright: 1.3, lean: 0.55 },
   };
   return { ...base, ...table[id] };
 }
