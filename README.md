@@ -4,6 +4,8 @@ Grow relationships. See the territory.
 
 Territory is an experiment in spatial enterprise GTM. Instead of representing strategic accounts primarily as rows in a CRM, it models them as a living forest the seller can read at a glance.
 
+Live demo: https://territory-beige.vercel.app
+
 ## Concept
 
 A strategic territory is a small number of enormous accounts — not a thousand random names. Territory asks whether organizational complexity, stakeholder penetration, relationship progression, whitespace, opportunity, timing, and account intelligence can be understood spatially, before anyone opens a spreadsheet.
