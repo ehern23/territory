@@ -79,13 +79,13 @@ export function Tree({ accountId }: { accountId: string }) {
               if (mode === "forest") selectAccount(accountId);
             }}
           />
-          {mode === "forest" && (
+          {true && (
             <>
               {showCanopy && <DecorativeCanopy skeleton={model.skeleton} active={false} />}
               <Leaves skeleton={model.skeleton} active={false} sizeScaleRef={sizeRef} dim={dim} />
-              <Fruit skeleton={model.skeleton} active={false} sizeScale={1.15} />
-              <MeetingMarkers skeleton={model.skeleton} active={false} />
-              <ForestMarker accountId={accountId} skeleton={model.skeleton} selected={selectedAccountId === accountId} />
+              {mode === "forest" && <Fruit skeleton={model.skeleton} active={false} sizeScale={1.15} />}
+              {mode === "forest" && <MeetingMarkers skeleton={model.skeleton} active={false} />}
+              {mode === "forest" && <ForestMarker accountId={accountId} skeleton={model.skeleton} selected={selectedAccountId === accountId} />}
             </>
           )}
         </>

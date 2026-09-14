@@ -8,7 +8,7 @@ import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { FOG } from "./palette";
 import { ASSET } from "./forestKit";
 
-const SUN_DIR = new THREE.Vector3(0.38, 0.58, -0.52).normalize();
+const SUN_DIR = new THREE.Vector3(-0.48, 0.72, 0.42).normalize();
 
 const skyVert = /* glsl */ `
   varying vec3 vWorld;
@@ -25,9 +25,9 @@ const skyFrag = /* glsl */ `
   void main() {
     vec3 dir = normalize(vWorld);
     float h = dir.y;
-    vec3 zenith = vec3(0.38, 0.66, 0.96);
-    vec3 mid = vec3(0.55, 0.76, 0.94);
-    vec3 horizon = vec3(0.78, 0.80, 0.86);
+    vec3 zenith = vec3(0.32, 0.52, 0.61);
+    vec3 mid = vec3(0.55, 0.69, 0.73);
+    vec3 horizon = vec3(0.72, 0.79, 0.74);
     vec3 ground = vec3(0.52, 0.62, 0.50);
     vec3 col;
     if (h > 0.0) {
@@ -100,7 +100,7 @@ function Clouds() {
       new THREE.MeshBasicMaterial({
         map: tex ?? undefined,
         transparent: true,
-        opacity: 0.72,
+        opacity: 0.23,
         depthWrite: false,
         fog: false,
         side: THREE.DoubleSide,
@@ -162,12 +162,12 @@ export function Atmosphere() {
     if (!fog) return;
     const k = 1 - Math.exp(-dt * 3);
     const roots = mode === "account" && view === "roots";
-    const nearTarget = mode === "forest" ? 520 : roots ? 10 : 36;
-    const farTarget = mode === "forest" ? 1900 : roots ? 200 : 560;
+    const nearTarget = mode === "forest" ? 160 : roots ? 10 : 65;
+    const farTarget = mode === "forest" ? 980 : roots ? 200 : 690;
     fog.near += (nearTarget - fog.near) * k;
     fog.far += (farTarget - fog.far) * k;
     if (keyRef.current) {
-      const t = roots ? 0.55 : 2.05;
+      const t = roots ? 0.55 : 1.65;
       keyRef.current.intensity += (t - keyRef.current.intensity) * k;
     }
   });
@@ -175,15 +175,25 @@ export function Atmosphere() {
   return (
     <>
       <color attach="background" args={[FOG]} />
-      <fog ref={fogRef} attach="fog" args={[FOG, 520, 1900]} />
+      <fog ref={fogRef} attach="fog" args={[FOG, 160, 980]} />
       <SkyDome />
       <Clouds />
-      <ambientLight intensity={0.4} color="#efe8dc" />
-      <hemisphereLight args={["#c8d8ec", "#6e8458", 0.72]} />
+      <ambientLight intensity={0.55} color="#efe8dc" />
+      <hemisphereLight args={["#c7dcd8", "#627b45", 1.1]} />
       <directionalLight
         ref={keyRef}
+        castShadow
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-left={-220}
+        shadow-camera-right={220}
+        shadow-camera-top={210}
+        shadow-camera-bottom={-210}
+        shadow-camera-near={1}
+        shadow-camera-far={700}
+        shadow-normalBias={0.2}
+        shadow-bias={-0.0001}
         position={[SUN_DIR.x * 280, SUN_DIR.y * 280, SUN_DIR.z * 280]}
-        intensity={2.05}
+        intensity={1.65}
         color="#ffe8c4"
       />
       <directionalLight position={[-110, 48, 70]} intensity={0.42} color="#9bb4c8" />

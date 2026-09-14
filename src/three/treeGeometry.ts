@@ -95,7 +95,7 @@ function segmentGeometry(seg: BranchSegment, detail: Detail): THREE.BufferGeomet
     : seg.kind === "root" ? (full ? 14 : 8)
     : full ? 4 : 3;
   const radial =
-    seg.kind === "trunk" ? (full ? 14 : 9)
+    seg.kind === "trunk" ? (full ? 28 : 18)
     : seg.kind === "bu" ? (full ? 9 : 6)
     : seg.kind === "team" ? (full ? 7 : 5)
     : seg.kind === "root" ? (full ? 7 : 5)
@@ -113,6 +113,24 @@ function segmentGeometry(seg: BranchSegment, detail: Detail): THREE.BufferGeomet
     : (t: number) => THREE.MathUtils.lerp(r0, r1, easeTaper(t)) * (1 - 0.32 * Math.pow(t, 6));
 
   const tube = buildTube(seg.curve, radiusAt, tubular, radial);
+  if (isTrunk) {
+    const positions = tube.attributes.position as THREE.BufferAttribute;
+    for (let i = 0; i <= tubular; i++) {
+      const t = i / tubular;
+      const center = seg.curve.getPointAt(t);
+      for (let j = 0; j <= radial; j++) {
+        const index = i * (radial + 1) + j;
+        const angle = j / radial * Math.PI * 2;
+        const flute = 1 + (0.06 + 0.16 * Math.exp(-t * 12)) * Math.sin(angle * 7 + t * 1.4)
+          + 0.035 * Math.sin(angle * 11 - t * 7);
+        positions.setXYZ(index,
+          center.x + (positions.getX(index) - center.x) * flute,
+          positions.getY(index),
+          center.z + (positions.getZ(index) - center.z) * flute);
+      }
+    }
+    tube.computeVertexNormals();
+  }
   if (seg.kind === "twig") return tube;
 
   // Tip cap
@@ -140,9 +158,22 @@ function smoothstep(a: number, b: number, x: number): number {
 
 export function buildTreeGeometry(skeleton: TreeSkeleton, detail: Detail): TreeGeometry {
   const trunkCore = segmentGeometry(skeleton.trunk, detail);
+  const buttresses: THREE.BufferGeometry[] = [];
+  for(let i=0;i<7;i++) {
+    const angle=i*2.399+skeleton.seed*.01, r=skeleton.trunkRadius;
+    const dir=new THREE.Vector3(Math.cos(angle),0,Math.sin(angle));
+    const curve=new THREE.CatmullRomCurve3([
+      dir.clone().multiplyScalar(r*.55).setY(r*.7),
+      dir.clone().multiplyScalar(r*1.4).setY(.8),
+      dir.clone().multiplyScalar(r*2.1).setY(.18),
+      dir.clone().multiplyScalar(r*2.9).setY(-.5),
+    ]);
+    buttresses.push(buildTube(curve,t=>r*.3*Math.pow(1-t,1.8)+.02,10,7));
+  }
   const trunkShoots = skeleton.twigs
     .filter((t) => !t.businessUnitId)
     .map((t) => segmentGeometry(t, detail));
+  trunkShoots.push(...buttresses);
   let trunk = trunkCore;
   if (trunkShoots.length) {
     trunk = mergeGeometries([trunkCore, ...trunkShoots], false) ?? trunkCore;

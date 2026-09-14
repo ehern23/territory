@@ -2,13 +2,26 @@
 
 import { Suspense, useEffect } from "react";
 import * as THREE from "three";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { Atmosphere, ImageBasedLight } from "./Environment";
 import { Landscape } from "./Landscape";
 import { Silhouettes } from "./Silhouettes";
 import { Tree } from "./Tree";
+import { OLD_GROWTH } from "./biome";
 import { CameraRig } from "./CameraRig";
+
+function RenderDiagnostics() {
+  let frames=0,elapsed=0;
+  useFrame(({gl},dt)=>{
+    frames++;elapsed+=dt;
+    if(elapsed>2) {
+      gl.domElement.dataset.renderStats=JSON.stringify({fps:Math.round(frames/elapsed),calls:gl.info.render.calls,triangles:gl.info.render.triangles,textures:gl.info.memory.textures});
+      frames=0;elapsed=0;
+    }
+  });
+  return null;
+}
 
 export function Scene() {
   const accounts = useTerritoryStore((s) => s.accounts);
@@ -41,14 +54,15 @@ export function Scene() {
   return (
     <Canvas
       className="territory-canvas"
-      dpr={isTouch ? [1, 1.5] : [1, 2]}
+      dpr={isTouch ? [1, OLD_GROWTH.mobileDpr] : [1, OLD_GROWTH.desktopDpr]}
+      shadows="percentage"
       camera={{ fov: 44, near: 0.5, far: 2800, position: [70, 28, 128] }}
       gl={{
         antialias: true,
         alpha: false,
         powerPreference: "high-performance",
         toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: 1.18,
+        toneMappingExposure: OLD_GROWTH.exposure,
       }}
       onCreated={(state) => {
         // Development-only handle for runtime inspection.
@@ -62,6 +76,7 @@ export function Scene() {
       style={{ touchAction: "none" }}
     >
       <Atmosphere />
+      {process.env.NODE_ENV !== "production" && <RenderDiagnostics />}
       <Suspense fallback={null}>
         <ImageBasedLight />
       </Suspense>

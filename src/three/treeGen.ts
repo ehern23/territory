@@ -97,8 +97,8 @@ export interface TreeInput {
 
 export function treeDimensions(account: Account) {
   const habit = habitFor(account.id);
-  const height = (36 + 18 * account.scale.opportunity) * habit.heightMul;
-  const trunkRadius = (1.7 + 1.2 * account.scale.enterprise) * habit.radiusMul;
+  const height = (44 + 22 * account.scale.opportunity) * habit.heightMul;
+  const trunkRadius = (2.8 + 1.5 * account.scale.enterprise) * habit.radiusMul;
   return { height, trunkRadius };
 }
 
@@ -228,12 +228,12 @@ export function buildTreeSkeleton(input: TreeInput): TreeSkeleton {
 
   ordered.forEach((bu, i) => {
     const buRng = seededRng(account.seed, bu.id);
-    const f = clamp(0.28 + (0.64 * i) / Math.max(1, n - 1) + buRng.gauss() * 0.035, 0.22, 0.96);
+    const f = clamp(0.34 + (0.57 * i) / Math.max(1, n - 1) + buRng.gauss() * 0.035, 0.22, 0.96);
     const angle = angle0 + i * GOLDEN_ANGLE + buRng.gauss() * 0.42;
     const dir = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
     const dormant = bu.status === "dormant";
     const size = clamp(buCount(bu) / 16, 0.3, 1);
-    let length = height * (0.46 + 0.38 * size) * (1.12 - 0.36 * f) * habit.spread;
+    let length = height * (0.31 + 0.25 * size) * (1.12 - 0.36 * f) * habit.spread;
     if (dormant) length *= 0.74;
 
     const attach = trunkCurve.getPointAt(f);
@@ -283,7 +283,7 @@ export function buildTreeSkeleton(input: TreeInput): TreeSkeleton {
         .addScaledVector(perp, 0.9)
         .normalize();
       const teamSize = clamp(team.prospects.length / 8, 0.3, 1);
-      let tLength = length * (0.48 + 0.36 * teamSize) * (1.18 - 0.42 * t);
+      let tLength = length * (0.40 + 0.28 * teamSize) * (1.18 - 0.42 * t);
       if (dormant) tLength *= 0.76;
       const start = curve.getPointAt(t);
       const tElev = dormant ? tRng.range(-0.02, 0.12) : tRng.range(0.16, 0.44);

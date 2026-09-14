@@ -5,8 +5,8 @@
   --color-ink-2: #1b1c21;
   --color-paper: #ece6dc;
   --color-paper-60: rgba(236, 230, 220, 0.62);
-  --color-paper-40: rgba(236, 230, 220, 0.42);
-  --color-paper-20: rgba(236, 230, 220, 0.2);
+  --color-paper-40: rgba(236, 230, 220, 0.64);
+  --color-paper-20: rgba(236, 230, 220, 0.48);
   --color-line: rgba(236, 230, 220, 0.09);
   --color-accent: #d1a15a;
   --color-ember: #b0483a;
@@ -428,3 +428,21 @@ body {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* Old-growth field interface: stable contrast over both sky and canopy. */
+header { text-shadow: 0 2px 16px #092318; }
+header > div:first-child { padding: 16px 20px; border-radius: 16px; background: linear-gradient(120deg,rgba(13,35,29,.9),rgba(13,35,29,.55)); backdrop-filter: blur(14px); border: 1px solid #d5e3c51a; }
+.wordmark { font-size: 17px; letter-spacing: .24em; }
+.surface { background: rgba(15,31,27,.91); border-color: #cedbc622; }
+.account-rail { background: rgba(14,33,27,.88); }
+.account-rail__item { color: #e5e8d9b8; }
+.account-ground-label { color: #e8eddb; background: #102e25dc; padding: 8px 12px; border: 1px solid #b9d0a74d; font-size: 10px; letter-spacing: .09em; box-shadow: 0 4px 14px #071d2450; }
+.account-ground-label::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: #aac584; display: inline-block; margin-right: 8px; }
+.account-ground-label.is-selected { border-color: #e5c986; background: #304a32; }
+.branch-label { background: #102c24e8; border-color: #b9d0a74d; }
+.vignette { background: radial-gradient(ellipse at 52% 44%,transparent 45%,#08241c30 100%),linear-gradient(0deg,#071e2370,transparent 18%); }
+@media (max-width:767px) { header > div:first-child { padding: 10px 12px; max-width: calc(100vw - 72px); } .wordmark { font-size:14px; } .account-ground-label { font-size:9px; padding:8px; } }
+
+header > div:first-child { background: none; border: 0; backdrop-filter: none; padding: 4px 0; }
+.vignette { background: linear-gradient(180deg,#0b241aa0 0, #0b241a40 105px,transparent 215px),linear-gradient(0deg,#071e2380,transparent 18%); }
+header .eyebrow { color: #e4ecdbb0; }

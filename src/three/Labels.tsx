@@ -105,11 +105,11 @@ export function ForestMarker({
           depthWrite={false}
         />
       </mesh>
-      {selected && (
-        <Html position={[0, 0.55, r + 0.4]} center zIndexRange={[8, 0]} style={{ pointerEvents: "auto" }}>
+      {(
+        <Html position={[0, skeleton.height * 0.20, r + 0.4]} center zIndexRange={[8, 0]} style={{ pointerEvents: "auto" }}>
           <button
             type="button"
-            className="account-ground-label"
+            className={`account-ground-label ${selected ? "is-selected" : ""}`}
             onClick={(e) => {
               e.stopPropagation();
               selectAccount(accountId);

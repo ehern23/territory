@@ -19,7 +19,7 @@ import { getTreeModel } from "./useTreeModel";
 
 const FOREST_TARGET = new THREE.Vector3(
   16,
-  7.2 + terrainHeight(16, -24),
+  37 + terrainHeight(16, -24),
   -24,
 );
 
@@ -190,9 +190,9 @@ function computeShot(input: ShotInput): Shot | null {
   if (input.mode === "forest" || !input.activeAccountId) {
     return {
       target: FOREST_TARGET,
-      distance: 148 * Math.min(af, 1.16),
-      polar: isDesktop ? 1.46 : 1.4,
-      azimuth: 0.48,
+      distance: 218 * Math.min(af, 1.16),
+      polar: isDesktop ? 1.44 : 1.38,
+      azimuth: 0.3,
       minDistance: 48,
       maxDistance: 520,
       minPolar: 0.85,
@@ -213,7 +213,7 @@ function computeShot(input: ShotInput): Shot | null {
 
   // Frame the whole crown: vertical half-FOV is 21°, so the distance that
   // fits `top` with a little headroom is roughly (top / 2) / tan(21°).
-  const fitHeight = (top * 0.84) / Math.tan(THREE.MathUtils.degToRad(22));
+  const fitHeight = (top * 0.58) / Math.tan(THREE.MathUtils.degToRad(22));
   const fitWidth = (skeleton.canopyRadius * 1.15) / Math.tan(THREE.MathUtils.degToRad(22)) / Math.max(aspect * (1 - panel), 0.5);
 
   const accountShot: Shot = {

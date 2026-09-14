@@ -14,14 +14,14 @@ const RECEDE = new THREE.Color("#3a4638");
 
 function barkTint(id: string) {
   const map: Record<string, string> = {
-    jpmc: "#4e4034",
-    walmart: "#584a3c",
-    disney: "#564838",
-    amex: "#5a4c3c",
-    nike: "#5c4e3c",
-    starbucks: "#524636",
-    marriott: "#4a4438",
-    ford: "#4e4636",
+    jpmc: "#a18a73",
+    walmart: "#ad967d",
+    disney: "#a59171",
+    amex: "#b2a18a",
+    nike: "#aa9880",
+    starbucks: "#968e72",
+    marriott: "#a49780",
+    ford: "#958d79",
   };
   return new THREE.Color(map[id] ?? "#5a4a3a");
 }
@@ -71,6 +71,7 @@ function Limb({ geometry, businessUnitId, teamId, onSelect }: LimbProps) {
 
   return (
     <mesh
+      castShadow receiveShadow
       geometry={geometry}
       material={material}
       onClick={handleClick}
@@ -98,6 +99,7 @@ export function ActiveWood({ model }: { model: TreeModel }) {
   return (
     <group>
       <mesh
+      castShadow receiveShadow
         geometry={model.geometry.trunk}
         material={trunkMaterial}
         onClick={(e) => {
@@ -151,6 +153,7 @@ export function ForestWood({
   useAnimatedColor(material, target);
   return (
     <mesh
+      castShadow receiveShadow
       geometry={model.geometry.merged}
       material={material}
       onClick={(e) => {

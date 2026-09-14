@@ -32,9 +32,9 @@ export function InstancedScatter({
 }) {
   const mesh = useMemo(() => {
     const inst = new THREE.InstancedMesh(geometry, material, Math.max(1, items.length));
-    inst.frustumCulled = false;
+    inst.frustumCulled = true;
     inst.castShadow = false;
-    inst.receiveShadow = false;
+    inst.receiveShadow = true;
     const m = new THREE.Matrix4();
     items.forEach((item, i) => {
       m.compose(item.position, item.quaternion, item.scale);
@@ -42,6 +42,8 @@ export function InstancedScatter({
     });
     inst.instanceMatrix.needsUpdate = true;
     inst.count = Math.max(1, items.length);
+    inst.computeBoundingSphere();
+    inst.raycast = () => undefined;
     return inst;
   }, [geometry, material, items]);
   useEffect(

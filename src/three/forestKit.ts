@@ -76,17 +76,17 @@ export function useForestFloorMaterial() {
     arm: ASSET.forestArm,
   });
   const material = useMemo(() => {
-    wrapMaps(maps.map, 36, true);
-    wrapMaps(maps.normalMap, 36, false);
-    wrapMaps(maps.arm, 36, false);
-    return new THREE.MeshStandardMaterial({
+    wrapMaps(maps.map, 150, true);
+    wrapMaps(maps.normalMap, 150, false);
+    wrapMaps(maps.arm, 150, false);
+    const mat = new THREE.MeshStandardMaterial({
       map: maps.map,
       normalMap: maps.normalMap,
       roughnessMap: maps.arm,
       metalnessMap: maps.arm,
       aoMap: maps.arm,
       aoMapIntensity: 0.55,
-      color: new THREE.Color("#d8d2c2"),
+      color: new THREE.Color("#adb593"),
       roughness: 0.95,
       metalness: 0.02,
       envMapIntensity: 0.35,
@@ -94,6 +94,29 @@ export function useForestFloorMaterial() {
       transparent: true,
       opacity: 1,
     });
+    mat.onBeforeCompile = shader => {
+      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vFloor;')
+        .replace('#include <begin_vertex>','#include <begin_vertex>\nvFloor = position.xz;');
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
+        varying vec2 vFloor;
+        float floorHash(vec2 p) { return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+        float floorNoise(vec2 p) {
+          vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+          return mix(mix(floorHash(i),floorHash(i+vec2(1,0)),f.x),mix(floorHash(i+vec2(0,1)),floorHash(i+vec2(1,1)),f.x),f.y);
+        }`);
+      shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+        float n=floorNoise(vFloor*.035)*.6+floorNoise(vFloor*.15)*.28+floorNoise(vFloor*.5)*.12;
+        float trailX=24.0+26.0*sin(vFloor.y*.011+.5)+9.0*sin(vFloor.y*.028+1.1);
+        float trail=smoothstep(4.0,13.0,abs(vFloor.x-trailX));
+        float moss=smoothstep(.28,.68,n)*trail;
+        float luminance=dot(diffuseColor.rgb,vec3(.3,.59,.11));
+        diffuseColor.rgb=mix(diffuseColor.rgb*.76, vec3(.19,.32,.095)*(.20+luminance*1.2),moss*.92);
+        float dapple=floorNoise(vFloor*.11+vec2(9,2));
+        diffuseColor.rgb*=.82+.3*smoothstep(.4,.7,dapple);
+      `);
+    };
+    mat.customProgramCacheKey=()=>"old-growth-floor-1";
+    return mat;
   }, [maps]);
   useEffect(() => () => material.dispose(), [material]);
   return material;

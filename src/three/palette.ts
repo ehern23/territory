@@ -27,7 +27,7 @@ export const NEW_LEAF_COLOR = new THREE.Color("#9bc575");
 export const DORMANT_LEAF_COLOR = new THREE.Color("#5a5248");
 export const BUD_COLOR = new THREE.Color("#b6c48a");
 
-export const BARK = new THREE.Color("#5a4a3a");
+export const BARK = new THREE.Color("#ab977d");
 export const BARK_DORMANT = new THREE.Color("#4a4744");
 export const BARK_SPRING = new THREE.Color("#5c4e3a");
 export const BARK_FOREST_FAR = new THREE.Color("#3d4a3c");
@@ -58,7 +58,7 @@ export const FRUIT_SCALE: Record<OpportunityMaturity, number> = {
 };
 
 export const BACKGROUND = "#c8d6e4";
-export const FOG = "#c5d2de";
+export const FOG = "#a7bcb2";
 export const GROUND = "#4f6844";
 
 export const SEASON_HEX = {
