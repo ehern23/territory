@@ -117,7 +117,7 @@ export function Fruit({ skeleton, active, sizeScale = 1 }: { skeleton: TreeSkele
           <FruitMesh
             key={state.opportunity.id}
             state={state}
-            position={anchor.branchPoint}
+            position={anchor.position}
             active={active}
             sizeScale={sizeScale}
           />
@@ -144,6 +144,7 @@ function FallingLeaf({
 }) {
   const ref = useRef<THREE.Mesh>(null);
   const completeFall = useTerritoryStore((s) => s.completeFall);
+  const reducedMotion = useTerritoryStore((s) => s.reducedMotion);
   const anchor = useMemo(
     () => skeleton.leaves.find((l) => l.prospectId === prospectId),
     [skeleton, prospectId],
@@ -163,6 +164,16 @@ function FallingLeaf({
   useFrame(() => {
     const mesh = ref.current;
     if (!mesh || !anchor) return;
+    if (reducedMotion) {
+      mesh.position.copy(slot.position);
+      mesh.quaternion.copy(restQuat);
+      mesh.scale.setScalar(anchor.scale * 2);
+      if (!done.current) {
+        done.current = true;
+        completeFall(prospectId);
+      }
+      return;
+    }
     const elapsed = performance.now() - startedAt;
     // Brief hold on the branch (reaction), then release.
     const hold = 350;
@@ -193,7 +204,7 @@ function FallingLeaf({
     );
     mesh.quaternion.copy(anchor.quaternion).multiply(tumble);
     if (t > 0.8) mesh.quaternion.slerp(restQuat, (t - 0.8) / 0.2);
-    const s = anchor.scale * 1.2;
+    const s = anchor.scale * (1.2 + 0.8 * t);
     mesh.scale.set(s, s, s);
 
     if (t >= 1 && !done.current) {
@@ -266,10 +277,10 @@ function MeetingMarker({
     appear.current = reduced ? 1 : Math.min(1, appear.current + dt * 2.5);
     const s = appear.current * (selected ? 1.15 : 1);
     g.scale.set(s, s, s);
-    ringMaterial.opacity = selected ? 0.75 : active ? 0.16 : 0.08;
+    ringMaterial.opacity = selected ? 0.8 : active ? 0.32 : 0.1;
   });
 
-  const scale = (anchor?.scale ?? 1) * 1.2;
+  const scale = (anchor?.scale ?? 1) * 2;
   return (
     <group ref={groupRef} position={slot.position}>
       <mesh
@@ -288,8 +299,8 @@ function MeetingMarker({
         onPointerOver={active ? (e) => { e.stopPropagation(); document.body.style.cursor = "pointer"; } : undefined}
         onPointerOut={active ? () => { document.body.style.cursor = ""; } : undefined}
       />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} material={ringMaterial}>
-        <ringGeometry args={[0.72, 0.78, 40]} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, -0.45 * scale]} material={ringMaterial}>
+        <ringGeometry args={[1.3, 1.42, 48]} />
       </mesh>
     </group>
   );
@@ -325,7 +336,11 @@ export function Buds({ skeleton }: { skeleton: TreeSkeleton }) {
   const reactivations = useTerritoryStore((s) => s.reactivations);
   const accountsById = useTerritoryStore((s) => s.accountsById);
   const completeReactivation = useTerritoryStore((s) => s.completeReactivation);
+  const reducedMotion = useTerritoryStore((s) => s.reducedMotion);
   const meshRef = useRef<THREE.InstancedMesh>(null);
+  const matrixRef = useRef(new THREE.Matrix4());
+  const scaleRef = useRef(new THREE.Vector3());
+  const identityRef = useRef(new THREE.Quaternion());
 
   const anchors = useMemo(() => {
     const account = accountsById[skeleton.accountId];
@@ -338,6 +353,10 @@ export function Buds({ skeleton }: { skeleton: TreeSkeleton }) {
       (l) => latent.has(l.prospectId) && reactivations.some((r) => r.businessUnitId === l.businessUnitId),
     );
   }, [accountsById, skeleton, reactivations]);
+  const reactivationMap = useMemo(
+    () => new Map(reactivations.map((r) => [r.businessUnitId, r.startedAt])),
+    [reactivations],
+  );
 
   const material = useMemo(() => new THREE.MeshStandardMaterial({ color: BUD_COLOR, roughness: 0.6 }), []);
   const geometry = useMemo(() => new THREE.SphereGeometry(0.16, 10, 8), []);
@@ -346,14 +365,16 @@ export function Buds({ skeleton }: { skeleton: TreeSkeleton }) {
   useFrame(() => {
     const mesh = meshRef.current;
     if (!mesh || anchors.length === 0) return;
+    if (reducedMotion) {
+      const ids = new Set(anchors.map((a) => a.businessUnitId));
+      ids.forEach((id) => completeReactivation(id));
+      return;
+    }
     const now = performance.now();
-    const m = new THREE.Matrix4();
-    const q = new THREE.Quaternion();
-    const sc = new THREE.Vector3();
     let allDone = true;
     anchors.forEach((a, i) => {
-      const r = reactivations.find((x) => x.businessUnitId === a.businessUnitId);
-      const e = r ? (now - r.startedAt) / 1000 : 10;
+      const startedAt = reactivationMap.get(a.businessUnitId);
+      const e = startedAt === undefined ? 10 : (now - startedAt) / 1000;
       // grow 0-0.8s, hold, shrink 1.2-2.6s
       let s = 0;
       if (e < 0.8) s = e / 0.8;
@@ -361,9 +382,9 @@ export function Buds({ skeleton }: { skeleton: TreeSkeleton }) {
       else if (e < 2.6) s = 1 - (e - 1.2) / 1.4;
       if (e < 2.8) allDone = false;
       s = Math.max(0.0001, s);
-      sc.set(s, s, s);
-      m.compose(a.position, q, sc);
-      mesh.setMatrixAt(i, m);
+      scaleRef.current.set(s, s, s);
+      matrixRef.current.compose(a.position, identityRef.current, scaleRef.current);
+      mesh.setMatrixAt(i, matrixRef.current);
     });
     mesh.instanceMatrix.needsUpdate = true;
     if (allDone) {
@@ -383,7 +404,10 @@ export function Buds({ skeleton }: { skeleton: TreeSkeleton }) {
 export function SelectionRing({ skeleton }: { skeleton: TreeSkeleton }) {
   const selectedProspectId = useTerritoryStore((s) => s.selectedProspectId);
   const prospectsById = useTerritoryStore((s) => s.prospectsById);
+  const reducedMotion = useTerritoryStore((s) => s.reducedMotion);
   const ref = useRef<THREE.Mesh>(null);
+  const hingeRef = useRef(new THREE.Quaternion());
+  const stemRef = useRef(new THREE.Vector3());
   const anchor = selectedProspectId ? skeleton.leaves.find((l) => l.prospectId === selectedProspectId) : null;
   const p = selectedProspectId ? prospectsById[selectedProspectId] : null;
   const onBranch = anchor && p && p.relationshipStatus !== "meeting";
@@ -394,11 +418,11 @@ export function SelectionRing({ skeleton }: { skeleton: TreeSkeleton }) {
     // Centre the ring on the blade, which extends from the anchor along the
     // leaf's local +Y after the status droop is applied about the hinge.
     const droop = Math.max(0, statusRank(p?.relationshipStatus ?? "unworked")) * 0.13;
-    const hinge = new THREE.Quaternion().setFromAxisAngle(anchor.hinge, -droop);
-    const stem = new THREE.Vector3(0, 1, 0).applyQuaternion(anchor.quaternion).applyQuaternion(hinge);
-    mesh.position.copy(anchor.position).addScaledVector(stem, 0.42 * anchor.scale * 1.45);
+    hingeRef.current.setFromAxisAngle(anchor.hinge, -droop);
+    stemRef.current.set(0, 1, 0).applyQuaternion(anchor.quaternion).applyQuaternion(hingeRef.current);
+    mesh.position.copy(anchor.position).addScaledVector(stemRef.current, 0.42 * anchor.scale * 1.45);
     mesh.quaternion.copy(camera.quaternion);
-    const pulse = 1 + Math.sin(performance.now() * 0.003) * 0.04;
+    const pulse = reducedMotion ? 1 : 1 + Math.sin(performance.now() * 0.003) * 0.04;
     mesh.scale.setScalar(anchor.scale * pulse * 1.9);
   });
 

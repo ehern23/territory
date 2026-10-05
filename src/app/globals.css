@@ -286,7 +286,8 @@ body {
     cursor: pointer;
     transition:
       background 160ms ease,
-      border-color 160ms ease;
+      border-color 160ms ease,
+      transform 220ms ease;
     -webkit-tap-highlight-color: transparent;
     transform: translateZ(0);
   }
@@ -436,13 +437,19 @@ header > div:first-child { padding: 16px 20px; border-radius: 16px; background: 
 .surface { background: rgba(15,31,27,.91); border-color: #cedbc622; }
 .account-rail { background: rgba(14,33,27,.88); }
 .account-rail__item { color: #e5e8d9b8; }
-.account-ground-label { color: #e8eddb; background: #102e25dc; padding: 8px 12px; border: 1px solid #b9d0a74d; font-size: 10px; letter-spacing: .09em; box-shadow: 0 4px 14px #071d2450; }
-.account-ground-label::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: #aac584; display: inline-block; margin-right: 8px; }
-.account-ground-label.is-selected { border-color: #e5c986; background: #304a32; }
+.account-ground-label { display: inline-flex; align-items: center; gap: 7px; min-height: 30px; color: #f1f3e6; background: #0f2a22e6; padding: 6px 12px; border: 1px solid #c9dcb455; border-radius: 999px; font-size: 10.5px; font-weight: 600; letter-spacing: .1em; box-shadow: 0 6px 18px #04140f66; cursor: pointer; transition: opacity 240ms ease, background 160ms ease, border-color 160ms ease; }
+.account-ground-label:hover { background: #193a2ef0; border-color: #e5c98699; }
+.account-ground-label__dot { width: 6px; height: 6px; border-radius: 50%; flex: none; box-shadow: 0 0 0 2px #0f2a22; }
+.account-ground-label.is-selected { border-color: #e5c986; background: #2d4a33f2; color: #fff; }
+.account-ground-label.is-quiet { opacity: .5; }
 .branch-label { background: #102c24e8; border-color: #b9d0a74d; }
 .vignette { background: radial-gradient(ellipse at 52% 44%,transparent 45%,#08241c30 100%),linear-gradient(0deg,#071e2370,transparent 18%); }
-@media (max-width:767px) { header > div:first-child { padding: 10px 12px; max-width: calc(100vw - 72px); } .wordmark { font-size:14px; } .account-ground-label { font-size:9px; padding:8px; } }
+@media (max-width:767px) { header > div:first-child { padding: 10px 12px; max-width: calc(100vw - 72px); } .wordmark { font-size:14px; } .account-ground-label { font-size:9.5px; padding:5px 10px; min-height: 28px; } }
 
 header > div:first-child { background: none; border: 0; backdrop-filter: none; padding: 4px 0; }
-.vignette { background: linear-gradient(180deg,#0b241aa0 0, #0b241a40 105px,transparent 215px),linear-gradient(0deg,#071e2380,transparent 18%); }
-header .eyebrow { color: #e4ecdbb0; }
+.vignette { background: radial-gradient(ellipse 760px 210px at 0 0,#0a2219b8,#0a221966 55%,transparent 100%),radial-gradient(ellipse 420px 140px at 100% 0,#0a221980,transparent 100%),linear-gradient(180deg,#0b241a90 0, #0b241a30 105px,transparent 215px),linear-gradient(0deg,#071e2380,transparent 18%); }
+header .eyebrow { color: #e9f0e0d0; }
+header .text-paper-20 { color: #e4ecdb99; }
+header .wordmark, header .eyebrow, header dd, header nav { text-shadow: 0 1px 10px #061a1299, 0 0 2px #061a1266; }
+header nav .btn-ghost { color: #e4ecdbcc; }
+header nav .btn-ghost:hover { background: #0b241a73; }

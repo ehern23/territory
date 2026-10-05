@@ -86,7 +86,7 @@ export function useForestFloorMaterial() {
       metalnessMap: maps.arm,
       aoMap: maps.arm,
       aoMapIntensity: 0.55,
-      color: new THREE.Color("#adb593"),
+      color: new THREE.Color("#959f7c"),
       roughness: 0.95,
       metalness: 0.02,
       envMapIntensity: 0.35,
@@ -108,14 +108,15 @@ export function useForestFloorMaterial() {
         float n=floorNoise(vFloor*.035)*.6+floorNoise(vFloor*.15)*.28+floorNoise(vFloor*.5)*.12;
         float trailX=24.0+26.0*sin(vFloor.y*.011+.5)+9.0*sin(vFloor.y*.028+1.1);
         float trail=smoothstep(4.0,13.0,abs(vFloor.x-trailX));
-        float moss=smoothstep(.28,.68,n)*trail;
+        float moss=smoothstep(.12,.52,n)*trail;
         float luminance=dot(diffuseColor.rgb,vec3(.3,.59,.11));
-        diffuseColor.rgb=mix(diffuseColor.rgb*.76, vec3(.19,.32,.095)*(.20+luminance*1.2),moss*.92);
+        vec3 litter=diffuseColor.rgb*vec3(.86,.8,.66);
+        diffuseColor.rgb=mix(litter, vec3(.2,.31,.11)*(.3+luminance*1.05),moss*.88);
         float dapple=floorNoise(vFloor*.11+vec2(9,2));
-        diffuseColor.rgb*=.82+.3*smoothstep(.4,.7,dapple);
+        diffuseColor.rgb*=.86+.22*smoothstep(.4,.7,dapple);
       `);
     };
-    mat.customProgramCacheKey=()=>"old-growth-floor-1";
+    mat.customProgramCacheKey=()=>"old-growth-floor-2";
     return mat;
   }, [maps]);
   useEffect(() => () => material.dispose(), [material]);

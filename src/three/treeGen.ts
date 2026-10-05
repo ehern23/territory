@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { accountPosition, terrainHeight } from "./layout";
 import type { Account, BusinessUnit, Prospect, Team } from "@/domain/types";
 import { createRng, hashString, seededRng, type Rng } from "@/lib/random";
 
@@ -347,7 +348,7 @@ export function buildTreeSkeleton(input: TreeInput): TreeSkeleton {
     const limbRadius = lerp(seg.radiusStart, seg.radiusEnd, t);
     const position = branchPoint
       .clone()
-      .add(new THREE.Vector3(0, -(limbRadius + 1.45), 0))
+      .add(new THREE.Vector3(0, -limbRadius * 0.85, 0))
       .addScaledVector(perp, oRng.gauss() * 0.28);
     fruit.push({ opportunityId: opp.id, businessUnitId: opp.businessUnitId, position, branchPoint });
   }
@@ -649,10 +650,14 @@ function addTrunkShoots(
 /** Deterministic resting place for a fallen leaf (meeting marker). */
 export function meetingSlot(skeleton: TreeSkeleton, prospectId: string) {
   const rng = createRng(hashString(`${skeleton.accountId}|slot|${prospectId}`));
-  const angle = rng.range(0, Math.PI * 2);
+  // Leaves come to rest beneath their own branch rather than behind the trunk.
+  const outward = skeleton.leaves.find((l) => l.prospectId === prospectId)?.outward;
+  const angle = outward ? Math.atan2(outward.z, outward.x) + rng.range(-0.7, 0.7) : rng.range(0, Math.PI * 2);
   const radius = skeleton.trunkRadius * 2.4 + rng.range(0, skeleton.trunkRadius * 2.8);
+  const base=accountPosition(skeleton.accountId);
+  const x=Math.cos(angle)*radius,z=Math.sin(angle)*radius;
   return {
-    position: new THREE.Vector3(Math.cos(angle) * radius, 0.06, Math.sin(angle) * radius),
+    position: new THREE.Vector3(x, terrainHeight(base.x+x,base.z+z)-base.y+0.24,z),
     rotationY: rng.range(0, Math.PI * 2),
     tilt: rng.range(-0.12, 0.12),
   };

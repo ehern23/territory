@@ -6,8 +6,8 @@ import type { OpportunityMaturity, RelationshipStatus } from "@/domain/types";
  * green → yellow → orange → red → fall.
  */
 export const LEAF_COLORS: Record<RelationshipStatus, THREE.Color> = {
-  unworked: new THREE.Color("#6f8c45"),
-  researched: new THREE.Color("#8a9240"),
+  unworked: new THREE.Color("#92b257"),
+  researched: new THREE.Color("#a0a33e"),
   contacted: new THREE.Color("#c49a3a"),
   engaged: new THREE.Color("#c46a2e"),
   meeting: new THREE.Color("#9a3824"),
@@ -58,7 +58,7 @@ export const FRUIT_SCALE: Record<OpportunityMaturity, number> = {
 };
 
 export const BACKGROUND = "#c8d6e4";
-export const FOG = "#a7bcb2";
+export const FOG = "#a2b4aa";
 export const GROUND = "#4f6844";
 
 export const SEASON_HEX = {

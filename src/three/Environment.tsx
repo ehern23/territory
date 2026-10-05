@@ -7,8 +7,7 @@ import { useFrame } from "@react-three/fiber";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { FOG } from "./palette";
 import { ASSET } from "./forestKit";
-
-const SUN_DIR = new THREE.Vector3(-0.48, 0.72, 0.42).normalize();
+import { SUN_DIR } from "./biome";
 
 const skyVert = /* glsl */ `
   varying vec3 vWorld;
@@ -25,10 +24,10 @@ const skyFrag = /* glsl */ `
   void main() {
     vec3 dir = normalize(vWorld);
     float h = dir.y;
-    vec3 zenith = vec3(0.32, 0.52, 0.61);
-    vec3 mid = vec3(0.55, 0.69, 0.73);
-    vec3 horizon = vec3(0.72, 0.79, 0.74);
-    vec3 ground = vec3(0.52, 0.62, 0.50);
+    vec3 zenith = vec3(0.27, 0.45, 0.6);
+    vec3 mid = vec3(0.56, 0.68, 0.73);
+    vec3 horizon = vec3(0.8, 0.8, 0.7);
+    vec3 ground = vec3(0.6, 0.66, 0.56);
     vec3 col;
     if (h > 0.0) {
       float t = smoothstep(0.0, 0.22, h);
@@ -38,8 +37,10 @@ const skyFrag = /* glsl */ `
     }
     float sun = pow(max(dot(dir, normalize(uSun)), 0.0), 140.0);
     float glow = pow(max(dot(dir, normalize(uSun)), 0.0), 8.0);
+    float halo = pow(max(dot(dir, normalize(uSun)), 0.0), 3.0);
     col += vec3(1.0, 0.94, 0.78) * sun * 2.1;
-    col += vec3(1.0, 0.88, 0.68) * glow * 0.28;
+    col += vec3(1.0, 0.86, 0.62) * glow * 0.34;
+    col += vec3(0.95, 0.82, 0.6) * halo * 0.1 * (1.0 - smoothstep(0.0, 0.5, h));
     gl_FragColor = vec4(col, 1.0);
   }
 `;
@@ -162,12 +163,12 @@ export function Atmosphere() {
     if (!fog) return;
     const k = 1 - Math.exp(-dt * 3);
     const roots = mode === "account" && view === "roots";
-    const nearTarget = mode === "forest" ? 160 : roots ? 10 : 65;
-    const farTarget = mode === "forest" ? 980 : roots ? 200 : 690;
+    const nearTarget = mode === "forest" ? 230 : roots ? 10 : 150;
+    const farTarget = mode === "forest" ? 1050 : roots ? 200 : 820;
     fog.near += (nearTarget - fog.near) * k;
     fog.far += (farTarget - fog.far) * k;
     if (keyRef.current) {
-      const t = roots ? 0.55 : 1.65;
+      const t = roots ? 0.55 : 1.95;
       keyRef.current.intensity += (t - keyRef.current.intensity) * k;
     }
   });
@@ -175,11 +176,11 @@ export function Atmosphere() {
   return (
     <>
       <color attach="background" args={[FOG]} />
-      <fog ref={fogRef} attach="fog" args={[FOG, 160, 980]} />
+      <fog ref={fogRef} attach="fog" args={[FOG, 230, 1050]} />
       <SkyDome />
       <Clouds />
-      <ambientLight intensity={0.55} color="#efe8dc" />
-      <hemisphereLight args={["#c7dcd8", "#627b45", 1.1]} />
+      <ambientLight intensity={0.4} color="#efe8dc" />
+      <hemisphereLight args={["#cbdedb", "#5a6e3e", 1.05]} />
       <directionalLight
         ref={keyRef}
         castShadow
@@ -193,8 +194,8 @@ export function Atmosphere() {
         shadow-normalBias={0.2}
         shadow-bias={-0.0001}
         position={[SUN_DIR.x * 280, SUN_DIR.y * 280, SUN_DIR.z * 280]}
-        intensity={1.65}
-        color="#ffe8c4"
+        intensity={1.95}
+        color="#ffdfb2"
       />
       <directionalLight position={[-110, 48, 70]} intensity={0.42} color="#9bb4c8" />
       <mesh position={SUN_DIR.clone().multiplyScalar(980)} renderOrder={-12}>

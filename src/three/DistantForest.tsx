@@ -168,8 +168,8 @@ export function DistantForest() {
   const texture = useMemo(coniferTexture, []);
   const ridges = useMemo(
     () => [
-      { geometry: mountainRidge("ridge-a", 1080, 160, -70, 258), color: "#819f94", opacity: 0.86 },
-      { geometry: mountainRidge("ridge-b", 1290, 160, -82, 300), color: "#9aafa5", opacity: 0.78 },
+      { geometry: mountainRidge("ridge-a", 1080, 160, -70, 258), color: "#6f8e8a", opacity: 0.88 },
+      { geometry: mountainRidge("ridge-b", 1290, 160, -82, 300), color: "#93aaa6", opacity: 0.8 },
     ],
     [],
   );

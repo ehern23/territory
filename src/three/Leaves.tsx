@@ -140,6 +140,9 @@ export function Leaves({ skeleton, active, sizeScaleRef, dim }: LeavesProps) {
       color.lerp(QUIET, Math.max((1 - emphasis) * 0.78, dim * 0.7));
 
       let scale = leaf.scale * (0.82 + 0.18 * emphasis);
+      // Relationships that have been worked grow a little, so progression is
+      // findable inside a full crown before any branch is opened.
+      if (active && bu?.status !== "dormant") scale *= 1 + Math.max(0, statusRank(status)) * 0.09;
       if (status === "disqualified") scale *= 0.7;
       if (bu?.status === "dormant") scale *= 0.68;
       if (selectedProspectId === leaf.prospectId) scale *= 1.45;
@@ -161,6 +164,7 @@ export function Leaves({ skeleton, active, sizeScaleRef, dim }: LeavesProps) {
     fallingLeaves,
     originallyLatent,
     dim,
+    active,
   ]);
 
   // Current animated state, per primary leaf.

@@ -9,8 +9,8 @@ import { accountClearings, creekDistance, terrainHeight } from "./layout";
 
 type FernShader = { uniforms: Record<string, { value: number }> };
 
-const PLANT_COUNT_DESKTOP = 1200;
-const PLANT_COUNT_TOUCH = 600;
+const PLANT_COUNT_DESKTOP = 900;
+const PLANT_COUNT_TOUCH = 420;
 
 function fernGeometry() {
   const positions:number[]=[],colors:number[]=[],indices:number[]=[];
@@ -47,7 +47,8 @@ function fernGeometry() {
 function plantMatrices(count: number) {
   const clearings = accountClearings();
   const patches = [
-    [10, 18], [10, 18], [10, 18],
+    [-7, 28], [28, 4], [-30, -1], [67, -4], [96, -54],
+    [-75, -49], [-15, -107], [43, -121], [-34, -159],
     [40, 126], [72, 112], [96, 142],
     [-128, 90], [132, 76], [-116, -202], [148, -176],
     [-168, -138], [168, -88], [0, -218], [0, 112],
@@ -58,8 +59,8 @@ function plantMatrices(count: number) {
   while (out.length < count && attempts < count * 16) {
     attempts++;
     const patch = patches[rng.int(0, patches.length - 1)];
-    const x = patch[0] + rng.range(-24, 24);
-    const z = patch[1] + rng.range(-24, 24);
+    const x = patch[0] + rng.range(-16, 16);
+    const z = patch[1] + rng.range(-16, 16);
     if (creekDistance(x, z) < 6) continue;
     if (clearings.some(({ x: cx, z: cz }) => Math.hypot(x - cx, z - cz) < 9)) continue;
     const h = rng.range(0.8, 2.4);
@@ -83,7 +84,7 @@ export function FernBeds() {
   const material = useMemo(() => {
     const m = new THREE.MeshStandardMaterial({
       vertexColors: true,
-      color: "#4a6b34",
+      color: "#93a676",
       roughness: 0.9,
       metalness: 0,
       envMapIntensity: 0.2,
