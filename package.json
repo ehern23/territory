@@ -2,13 +2,13 @@
   "name": "territory",
   "version": "0.1.0",
   "private": true,
-  "description": "Territory — Grow relationships. See the territory. A spatial interface for strategic enterprise GTM.",
+  "description": "Territory \u2014 a living map of a book of business. Accounts are trees, canopy is engagement health, fruit is pipeline.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",
@@ -30,6 +30,7 @@
     "@types/react-dom": "^19.2.5",
     "@types/three": "^0.185.4",
     "tailwindcss": "^4.3.3",
-    "typescript": "^5.9.0"
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.4"
   }
 }
