@@ -1,3 +1,4 @@
+import * as THREE from "three";
 import type { Account } from "@/domain/types";
 import { territory } from "@/data";
 import { generateTree, type TreeShape } from "./generateTree";
@@ -32,6 +33,8 @@ export interface AccountTreeModel {
   geometries: TreeGeometries;
   /** Business-unit id for each scaffold limb index. */
   limbIds: string[];
+  /** Opportunity id → where its fruit hangs (tree-local). Stable for every opportunity, visible or not. */
+  fruitHang: Record<string, THREE.Vector3>;
 }
 
 const cache = new Map<string, AccountTreeModel>();
@@ -62,12 +65,30 @@ export function getAccountTree(accountId: string): AccountTreeModel | null {
   const account = territory.accounts.find((a) => a.id === accountId);
   if (!account) return null;
   const shape = generateTree(accountTreeParams(account));
+  const limbIds = account.businessUnits.map((bu) => bu.id);
   const model: AccountTreeModel = {
     accountId,
     shape,
     geometries: buildTreeGeometries(shape),
-    limbIds: account.businessUnits.map((bu) => bu.id),
+    limbIds,
+    fruitHang: placeFruit(shape, account),
   };
   cache.set(accountId, model);
   return model;
+}
+
+/**
+ * Fruit hangs on the camera-facing side of the lower canopy (the territory is
+ * viewed from +Z), fanned out so several opportunities never overlap.
+ */
+function placeFruit(shape: TreeShape, account: Account) {
+  const out: Record<string, THREE.Vector3> = {};
+  const n = account.opportunities.length;
+  const front = Math.atan2(0.3, 1);
+  account.opportunities.forEach((opp, k) => {
+    const az = front + (k - (n - 1) / 2) * 0.75 + (k % 2 === 0 ? 0.08 : -0.12);
+    const dir = new THREE.Vector3(Math.sin(az), -0.32 - (k % 2) * 0.12, Math.cos(az)).normalize();
+    out[opp.id] = shape.crownCenter.clone().add(dir.multiply(shape.crownRadii).multiplyScalar(0.9));
+  });
+  return out;
 }

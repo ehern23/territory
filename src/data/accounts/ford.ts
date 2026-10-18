@@ -129,7 +129,20 @@ export const ford = defineAccount({
       teams: [{ id: "shared", name: "Shared Delivery Platform", fn: "platform", size: 3, condition: "dormant", latent: 4 }],
     },
   ],
-  opportunities: [],
+  opportunities: [
+    {
+      id: "owner-app",
+      businessUnitId: "dx",
+      name: "Owner App AI Experience Platform",
+      stage: "Stalled",
+      baselineMaturity: "seed",
+      stakeholders: ["dx.dir-apps"],
+      champion: "dx.dir-apps",
+      baseMeetingCount: 1,
+      signals: ["Single-threaded; no reply since last call"],
+      nextStep: "Re-open with a point of view on the AI assistant rollout and a second stakeholder.",
+    },
+  ],
   signals: [
     {
       id: "assistant-rollout",

@@ -150,7 +150,20 @@ export const marriott = defineAccount({
       teams: [{ id: "ops", name: "Property Digital", fn: "infrastructure", size: 3, condition: "dormant", latent: 3 }],
     },
   ],
-  opportunities: [],
+  opportunities: [
+    {
+      id: "tipai-standards",
+      businessUnitId: "tipai",
+      name: "TIP.AI Platform Standards",
+      stage: "Discovery",
+      baselineMaturity: "bud",
+      stakeholders: ["tipai.dir-platform"],
+      champion: "tipai.dir-platform",
+      baseMeetingCount: 1,
+      signals: ["Asked for CI/CD reference architecture"],
+      nextStep: "Send the reference architecture and ask for the Bonvoy engineering lead.",
+    },
+  ],
   signals: [
     {
       id: "tipai-hiring",

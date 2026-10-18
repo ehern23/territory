@@ -139,7 +139,20 @@ export const starbucks = defineAccount({
       teams: [{ id: "iot", name: "Equipment Intelligence", fn: "data-ai", size: 3, condition: "dormant", latent: 3 }],
     },
   ],
-  opportunities: [],
+  opportunities: [
+    {
+      id: "mobile-ordering",
+      businessUnitId: "digital",
+      name: "Mobile Ordering Experience Platform",
+      stage: "Qualified",
+      baselineMaturity: "young",
+      stakeholders: ["digital.dir-mobile"],
+      champion: "digital.dir-mobile",
+      baseMeetingCount: 2,
+      signals: ["Meeting held; economic buyer not yet identified"],
+      nextStep: "Identify the economic buyer before the champion's budget window closes.",
+    },
+  ],
   signals: [
     {
       id: "chatgpt-app",

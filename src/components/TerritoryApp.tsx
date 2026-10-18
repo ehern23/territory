@@ -3,42 +3,30 @@
 import dynamic from "next/dynamic";
 import { useEffect } from "react";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
-import { Header } from "./Header";
-import { ForestOverlay } from "./ForestOverlay";
-import { AccountToolbar } from "./AccountToolbar";
-import { ContextPanel } from "./ContextPanel";
+import { TopBar } from "./TopBar";
+import { TerritoryPanel } from "./TerritoryPanel";
+import { AccountPanel } from "./AccountPanel";
+import { AccountRail } from "./AccountRail";
 import { Notices } from "./Notices";
+import { Loader } from "./Loader";
+import { DemoNarrator } from "./demo/DemoNarrator";
 
-const Scene = dynamic(() => import("@/three/Scene").then((m) => m.Scene), {
-  ssr: false,
-  loading: () => (
-    <div className="absolute inset-0 grid place-items-center text-paper-40 text-[12px] tracking-[0.2em] uppercase">
-      Growing territory
-    </div>
-  ),
-});
+const Scene = dynamic(() => import("@/three/Scene").then((m) => m.Scene), { ssr: false });
 
 export function TerritoryApp() {
-  const mode = useTerritoryStore((s) => s.mode);
-
-  // Keyboard: Escape peels back one layer of selection.
+  // Escape peels back one layer: selection → account → territory.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       const s = useTerritoryStore.getState();
-      if (s.view !== "tree") {
-        s.setView("tree");
-        return;
-      }
+      if (s.demo.active) return;
       if (s.mode === "account") {
-        if (s.selectedProspectId || s.selectedOpportunityId || s.selectedRootId || s.focusTeamId || s.focusBusinessUnitId) {
+        if (s.selectedProspectId || s.selectedOpportunityId || s.focusTeamId || s.focusBusinessUnitId) {
           s.clearSelection();
           return;
         }
         s.returnToForest();
-        return;
       }
-      s.clearSelection();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -47,11 +35,14 @@ export function TerritoryApp() {
   return (
     <div id="territory-root">
       <Scene />
-      <div className="vignette" />
-      <Header />
-      {mode === "forest" ? <ForestOverlay /> : <AccountToolbar />}
-      <ContextPanel />
+      <div className="scrim" />
+      <TopBar />
+      <TerritoryPanel />
+      <AccountRail />
+      <AccountPanel />
+      <DemoNarrator />
       <Notices />
+      <Loader />
     </div>
   );
 }

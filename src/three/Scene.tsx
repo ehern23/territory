@@ -3,13 +3,13 @@
 import { Suspense, useEffect } from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
-import { CameraControls } from "@react-three/drei";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { Atmosphere, ImageBasedLight } from "./world/Atmosphere";
 import { Grass, Terrain } from "./world/Ground";
 import { Backdrop } from "./world/Backdrop";
 import { Effects } from "./world/Effects";
 import { Forest } from "./Forest";
+import { CameraDirector } from "./CameraDirector";
 
 export function Scene() {
   const isTouch = useTerritoryStore((s) => s.isTouch);
@@ -38,7 +38,7 @@ export function Scene() {
       className="territory-canvas"
       shadows={{ type: THREE.PCFSoftShadowMap }}
       dpr={isTouch ? [1, 1.5] : [1, 2]}
-      camera={{ fov: 40, near: 0.5, far: 4000, position: [40, 70, 190] }}
+      camera={{ fov: 38, near: 0.5, far: 4000, position: [-300, 260, 420] }}
       gl={{ antialias: false, powerPreference: "high-performance", stencil: false }}
       onCreated={(state) => {
         (window as unknown as { __r3f?: unknown }).__r3f = state.get;
@@ -54,8 +54,8 @@ export function Scene() {
         <Grass />
         <Backdrop />
         <Forest />
+        <CameraDirector />
       </Suspense>
-      <CameraControls makeDefault />
       <Effects />
     </Canvas>
   );
