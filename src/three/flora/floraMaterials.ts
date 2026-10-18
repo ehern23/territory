@@ -34,8 +34,8 @@ export const floraGlobals = {
   /** Leaf colour ramp from withered (0) to thriving (1). */
   uPal: {
     value: [
-      new THREE.Color("#6e4526"),
-      new THREE.Color("#a8742c"),
+      new THREE.Color("#94582c"),
+      new THREE.Color("#c08636"),
       new THREE.Color("#a29a3a"),
       new THREE.Color("#5f9234"),
       new THREE.Color("#3f8a2e"),

@@ -35,7 +35,7 @@ export function TopBar() {
           <Mark />
           <span className="flex flex-col items-start leading-none min-w-0">
             <span className="wordmark">Territory</span>
-            {!isCompact && <span className="text-[11.5px] text-paper-60 mt-1">A living map of a book of business</span>}
+            {!isCompact && mode === "forest" && <span className="text-[11.5px] text-paper-60 mt-1">A living map of a book of business</span>}
           </span>
         </button>
         <AnimatePresence>
