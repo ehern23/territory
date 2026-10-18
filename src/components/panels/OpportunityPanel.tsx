@@ -4,6 +4,7 @@ import { useTerritoryStore } from "@/store/useTerritoryStore";
 import type { AccountView } from "@/store/selectors";
 import { MATURITY_DESCRIPTION, MATURITY_LABEL, MATURITY_ORDER, maturityRank } from "@/domain/opportunity";
 import { FRUIT_HEX } from "@/three/palette";
+import { STAGE_BY_MATURITY, WIN_PROBABILITY, formatMoney } from "@/domain/commercial";
 import { EvidenceTag, Kv, Section, StatusDot } from "../ui";
 import { PanelHeader } from "./PanelHeader";
 
@@ -59,7 +60,7 @@ export function OpportunityPanel({ view, opportunityId }: { view: AccountView; o
         <div className="flex items-center justify-between">
           <span className="inline-flex items-center gap-2 text-[13px]">
             <span className="dot" style={{ background: FRUIT_HEX[state.maturity], width: 10, height: 10 }} aria-hidden />
-            {MATURITY_LABEL[state.maturity]}
+            {STAGE_BY_MATURITY[state.maturity]} · {MATURITY_LABEL[state.maturity].toLowerCase()} fruit
           </span>
           <span className="text-[11.5px] text-paper-40">{MATURITY_DESCRIPTION[state.maturity]}</span>
         </div>
@@ -69,14 +70,15 @@ export function OpportunityPanel({ view, opportunityId }: { view: AccountView; o
               key={m}
               className="h-1.5 flex-1 rounded-full"
               style={{ background: i <= rank ? FRUIT_HEX[m] : "rgba(236,230,220,0.08)" }}
-              title={MATURITY_LABEL[m]}
+              title={STAGE_BY_MATURITY[m]}
             />
           ))}
         </ol>
       </div>
 
       <div className="grid grid-cols-2 gap-x-4">
-        <Kv k="Stage" v={opp.stage} />
+        <Kv k="Deal value" v={<span className="num font-medium">{formatMoney(view.commercial.dealValues[opp.id] ?? 0)}</span>} />
+        <Kv k="Win probability" v={`${Math.round(WIN_PROBABILITY[state.maturity] * 100)}%`} />
         <Kv k="Momentum" v={<span className="capitalize">{state.momentum}</span>} />
         <Kv k="Stakeholders" v={state.stakeholderCount} />
         <Kv k="Engaged" v={state.engagedCount} />

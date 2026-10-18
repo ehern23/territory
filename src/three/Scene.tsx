@@ -39,7 +39,7 @@ export function Scene() {
       shadows={{ type: THREE.PCFSoftShadowMap }}
       dpr={isTouch ? [1, 1.5] : [1, 2]}
       camera={{ fov: 38, near: 0.5, far: 4000, position: [-300, 260, 420] }}
-      gl={{ antialias: false, powerPreference: "high-performance", stencil: false }}
+      gl={{ antialias: false, alpha: false, powerPreference: "high-performance", stencil: false }}
       onCreated={(state) => {
         (window as unknown as { __r3f?: unknown }).__r3f = state.get;
       }}

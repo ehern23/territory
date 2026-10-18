@@ -6,7 +6,7 @@ import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { useTexture } from "@react-three/drei";
 import { getAccountTree, type AccountTreeModel } from "./accountTrees";
 import { getFoliageAtlas } from "./foliageAtlas";
-import { MAX_LIMBS, createBarkMaterial, createFoliageMaterial, createTreeUniforms } from "./floraMaterials";
+import { MAX_LIMBS, createBarkMaterial, createFoliageMaterial, createTreeUniforms, floraDebug } from "./floraMaterials";
 import { BARK_TEX, configureBarkMaps } from "./barkMaps";
 
 export interface TreeVisualState {
@@ -55,7 +55,7 @@ export function AccountTree({ accountId, position, stateRef, onSelect, onHover, 
   );
 
   useFrame((_, rawDt) => {
-    const dt = Math.min(rawDt, 0.1);
+    const dt = floraDebug.settle ? 10 : Math.min(rawDt, 0.1);
     const s = stateRef.current;
     // Health changes are deliberately slow so a transformation is watchable.
     uniforms.uVitality.value = ease(uniforms.uVitality.value, s.vitality, 1.1, dt);

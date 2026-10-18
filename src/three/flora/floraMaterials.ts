@@ -11,6 +11,19 @@ import * as THREE from "three";
 
 export const MAX_LIMBS = 12;
 
+/** QA aid: `?settle=1` snaps eased visuals to their targets (software-rendered screenshots). */
+export const floraDebug = {
+  settle: typeof window !== "undefined" && new URLSearchParams(window.location.search).has("settle"),
+};
+
+/**
+ * Touch devices render without MSAA; alpha-to-coverage needs multisampling,
+ * so they fall back to a plain alpha cut.
+ */
+export function supportsAlphaToCoverage() {
+  return typeof window !== "undefined" && !window.matchMedia("(pointer: coarse)").matches;
+}
+
 export const floraGlobals = {
   uTime: { value: 0 },
   /** xz = wind direction × strength. */
@@ -182,7 +195,7 @@ export function createFoliageMaterial(atlas: THREE.Texture | null, tree: TreeUni
     metalness: 0,
     side: THREE.DoubleSide,
     alphaTest: 0.5,
-    alphaToCoverage: true,
+    alphaToCoverage: supportsAlphaToCoverage(),
     envMapIntensity: 0.55,
   });
   const translucency = { value: opts.translucency ?? 0.85 };

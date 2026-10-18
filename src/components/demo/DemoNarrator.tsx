@@ -89,18 +89,15 @@ export function DemoNarrator() {
               Exit
             </button>
           </div>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={demo.step}
-              initial={reduce ? false : { opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
+          <motion.div
+            key={demo.step}
+            initial={reduce ? false : { opacity: 0.2, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35 }}
+          >
               <h2 className={`display ${isCompact ? "text-[19px]" : "text-[22px]"} mt-2`}>{beat.title}</h2>
               <p className={`${isCompact ? "text-[12.5px]" : "text-[13.5px]"} text-paper-80 leading-relaxed mt-2`}>{text}</p>
-            </motion.div>
-          </AnimatePresence>
+          </motion.div>
           <div className="flex items-center justify-between gap-3 mt-4">
             <ol className="flex items-center gap-1.5" aria-label="Progress">
               {DEMO_BEATS.map((b, i) => (

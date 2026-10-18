@@ -8,6 +8,7 @@ import CameraControlsImpl from "camera-controls";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { accountPosition, FOREST_CENTER, terrainHeight } from "./layout";
 import { getAccountTree } from "./flora/accountTrees";
+import { floraDebug } from "./flora/floraMaterials";
 
 /**
  * Camera direction.
@@ -33,10 +34,12 @@ interface Shot {
 
 function overviewShot(aspect: number): Shot {
   const portrait = aspect < 0.9;
+  // On desktop the territory panel sits on the left: push the forest right.
+  const shift = portrait ? 0 : -42;
   return {
-    target: new THREE.Vector3(FOREST_CENTER.x, 12 + terrainHeight(FOREST_CENTER.x, FOREST_CENTER.z), FOREST_CENTER.z + (portrait ? -10 : 0)),
-    distance: portrait ? 470 : aspect < 1.3 ? 330 : 285,
-    polar: portrait ? 1.08 : 1.2,
+    target: new THREE.Vector3(FOREST_CENTER.x + 6 + shift, 10 + terrainHeight(FOREST_CENTER.x, FOREST_CENTER.z), FOREST_CENTER.z - 18 + shift * 0.3),
+    distance: portrait ? 500 : aspect < 1.3 ? 370 : 320,
+    polar: portrait ? 1.0 : 1.06,
     azimuth: 0.32,
     minDistance: 60,
     maxDistance: 620,
@@ -166,7 +169,7 @@ export function CameraDirector() {
       isCompact,
       currentAzimuth: c.azimuthAngle,
     });
-    applyShot(c, shot, !reducedMotion, true);
+    applyShot(c, shot, !reducedMotion && !floraDebug.settle, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, activeAccountId, focusBusinessUnitId, selectedOpportunityId, cameraNonce, aspect, isCompact, reducedMotion]);
 
@@ -247,7 +250,7 @@ function computeShot(input: ShotInput): Shot {
     if (hang) {
       const outward = new THREE.Vector3(hang.x, 0, hang.z).normalize();
       const az = Math.atan2(outward.x, outward.z) + 0.3;
-      const d = isCompact ? 34 : 26;
+      const d = isCompact ? 52 : 42;
       const t = base.clone().add(hang).add(new THREE.Vector3(0, -3, 0));
       offsetForPanel(t, d, az);
       return { ...account, target: t, distance: d, polar: 1.42, azimuth: az };

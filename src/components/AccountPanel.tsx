@@ -186,7 +186,12 @@ function Overview({ view }: { view: AccountView }) {
       <section className="grid grid-cols-3 gap-3">
         <Figure label="Potential" value={formatMoney(commercial.potentialArr)} sub="ARR" />
         <Figure label="Pipeline" value={pipeline.open > 0 ? formatMoney(pipeline.open) : "—"} sub={`${formatMoney(pipeline.weighted)} weighted`} />
-        <Figure label="Last activity" value={formatDaysAgo(view.daysSince)} sub={view.daysSince > 30 ? "Going cold" : "Recent"} warn={view.daysSince > 30} />
+        <Figure
+          label="Last touch"
+          value={view.daysSince <= 1 ? (view.daysSince === 0 ? "Today" : "1 day") : `${view.daysSince} days`}
+          sub={view.daysSince > 30 ? "Going cold" : view.daysSince > 14 ? "Cooling" : "Recent"}
+          warn={view.daysSince > 14}
+        />
       </section>
 
       {/* Next best action */}

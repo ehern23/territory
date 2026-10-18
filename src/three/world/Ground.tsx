@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { useTexture } from "@react-three/drei";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { createRng, seededRng } from "@/lib/random";
-import { UNFLIPPED_NORMAL, floraGlobals } from "../flora/floraMaterials";
+import { UNFLIPPED_NORMAL, floraGlobals, supportsAlphaToCoverage } from "../flora/floraMaterials";
 import { accountClearings, clearingFactor, terrainHeight } from "../layout";
 
 const TEX = {
@@ -220,7 +220,7 @@ export function Grass() {
     const material = new THREE.MeshStandardMaterial({
       map: getGrassAtlas() ?? undefined,
       alphaTest: 0.5,
-      alphaToCoverage: true,
+      alphaToCoverage: supportsAlphaToCoverage(),
       side: THREE.DoubleSide,
       roughness: 0.9,
       metalness: 0,
