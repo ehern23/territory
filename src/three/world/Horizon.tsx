@@ -20,8 +20,9 @@ function ridge(a: number, seed: number) {
   return (
     0.55 +
     0.25 * Math.sin(a * 3 + seed) +
-    0.12 * Math.sin(a * 7.3 + seed * 2.1) +
-    0.08 * Math.sin(a * 15.7 + seed * 3.7)
+    // Integer harmonics so the ring closes seamlessly.
+    0.12 * Math.sin(a * 7 + seed * 2.1) +
+    0.08 * Math.sin(a * 16 + seed * 3.7)
   );
 }
 

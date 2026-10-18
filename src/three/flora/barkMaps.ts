@@ -2,9 +2,9 @@ import * as THREE from "three";
 
 /** CC0 bark (Poly Haven `bark_brown_02`), shared by every tree. */
 export const BARK_TEX = {
-  map: "/assets/textures/bark/diff.jpg",
-  normalMap: "/assets/textures/bark/nor.jpg",
-  arm: "/assets/textures/bark/arm.jpg",
+  map: "assets/textures/bark/diff.jpg",
+  normalMap: "assets/textures/bark/nor.jpg",
+  arm: "assets/textures/bark/arm.jpg",
 };
 
 export function configureBarkMaps(maps: { map: THREE.Texture; normalMap: THREE.Texture; arm: THREE.Texture }) {

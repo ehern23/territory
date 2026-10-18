@@ -20,7 +20,10 @@ export function IntroTitle() {
           transition={{ duration: 1.2, delay: 0.8, ease: [0.2, 0.8, 0.2, 1] }}
           className="absolute inset-x-0 top-[30%] z-20 flex flex-col items-center text-center pointer-events-none px-6"
         >
-          <span className="eyebrow" style={{ color: "rgba(242,238,229,0.8)" }}>
+          <span
+            className="eyebrow px-3 py-1.5 rounded-full"
+            style={{ color: "var(--color-paper)", background: "rgba(13,16,14,0.42)", backdropFilter: "blur(8px)" }}
+          >
             Illustrative Vercel Majors territory
           </span>
           <h1 className="display text-[40px] md:text-[64px] mt-3" style={{ textShadow: "0 2px 30px rgba(6,10,8,0.45)" }}>

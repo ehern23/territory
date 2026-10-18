@@ -9,8 +9,8 @@ import { UNFLIPPED_NORMAL, floraGlobals, supportsAlphaToCoverage } from "../flor
 import { accountClearings, clearingFactor, terrainHeight } from "../layout";
 
 const TEX = {
-  map: "/assets/textures/forest_floor/diff.jpg",
-  normalMap: "/assets/textures/forest_floor/nor.jpg",
+  map: "assets/textures/forest_floor/diff.jpg",
+  normalMap: "assets/textures/forest_floor/nor.jpg",
 };
 
 function smooth(e0: number, e1: number, x: number) {

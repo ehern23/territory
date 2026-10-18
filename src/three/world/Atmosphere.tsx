@@ -175,7 +175,7 @@ export function Atmosphere() {
 export function ImageBasedLight() {
   return (
     <Environment
-      files="/assets/hdri/noon_grass_1k.hdr"
+      files="assets/hdri/noon_grass_1k.hdr"
       background={false}
       environmentIntensity={0.42}
       resolution={256}
