@@ -89,7 +89,7 @@ function SpeciesInstances({
       cardSize: sp.height * 0.17,
       leafDensity: 1.4,
     });
-    return buildTreeGeometries(shape, { lowDetail: true, cardScale: 1.2 });
+    return buildTreeGeometries(shape, { lowDetail: true, cardScale: 1.5 });
   }, [index]);
 
   const meshes = useMemo(() => {
@@ -143,7 +143,7 @@ export function Backdrop() {
   const maps = useTexture(BARK_TEX);
   const uniforms = useMemo(() => createTreeUniforms(0.86), []);
   const barkMaterial = useMemo(() => createBarkMaterial(configureBarkMaps(maps), uniforms, { moss: 0.6 }), [maps, uniforms]);
-  const foliage = useMemo(() => createFoliageMaterial(getFoliageAtlas(), uniforms, { translucency: 0.6 }), [uniforms]);
+  const foliage = useMemo(() => createFoliageMaterial(getFoliageAtlas(), uniforms, { translucency: 0.6, alphaToCoverage: false }), [uniforms]);
   const placements = useMemo(() => placeForest(count), [count]);
 
   useEffect(

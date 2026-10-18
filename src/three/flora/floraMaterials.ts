@@ -188,14 +188,18 @@ function bindUniforms(shader: THREE.WebGLProgramParametersWithUniforms, tree: Tr
 }
 
 /** Leaf-card foliage. One per tree (per-tree uniforms), or shared for the backdrop. */
-export function createFoliageMaterial(atlas: THREE.Texture | null, tree: TreeUniforms, opts: { translucency?: number } = {}) {
+export function createFoliageMaterial(
+  atlas: THREE.Texture | null,
+  tree: TreeUniforms,
+  opts: { translucency?: number; alphaToCoverage?: boolean } = {},
+) {
   const material = new THREE.MeshStandardMaterial({
     map: atlas ?? undefined,
     roughness: 0.78,
     metalness: 0,
     side: THREE.DoubleSide,
     alphaTest: 0.5,
-    alphaToCoverage: supportsAlphaToCoverage(),
+    alphaToCoverage: (opts.alphaToCoverage ?? true) && supportsAlphaToCoverage(),
     envMapIntensity: 0.55,
   });
   const translucency = { value: opts.translucency ?? 0.85 };
@@ -228,6 +232,8 @@ export function createFoliageMaterial(atlas: THREE.Texture | null, tree: TreeUni
           vec2 ddy = dFdy(tc);
           float lod = max(0.0, 0.5 * log2(max(dot(ddx, ddx), dot(ddy, ddy))));
           texel.a *= 1.0 + lod * 0.45;
+          // Soft coverage only up close; at distance a hard cut avoids dithered stipple.
+          texel.a = mix(texel.a, step(0.5, texel.a), smoothstep(1.1, 2.4, lod));
           diffuseColor *= texel;
         #endif
         diffuseColor.rgb *= vLeafTint;
@@ -245,7 +251,7 @@ export function createFoliageMaterial(atlas: THREE.Texture | null, tree: TreeUni
         `,
       );
   };
-  material.customProgramCacheKey = () => "flora-foliage-v2";
+  material.customProgramCacheKey = () => "flora-foliage-v3";
 
   const depth = new THREE.MeshDepthMaterial({
     depthPacking: THREE.RGBADepthPacking,
