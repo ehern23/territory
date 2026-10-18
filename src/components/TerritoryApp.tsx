@@ -9,6 +9,7 @@ import { AccountPanel } from "./AccountPanel";
 import { AccountRail } from "./AccountRail";
 import { Notices } from "./Notices";
 import { Loader } from "./Loader";
+import { IntroTitle } from "./IntroTitle";
 import { DemoNarrator } from "./demo/DemoNarrator";
 
 const Scene = dynamic(() => import("@/three/Scene").then((m) => m.Scene), { ssr: false });
@@ -32,10 +33,28 @@ export function TerritoryApp() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Any interaction ends the establishing shot.
+  useEffect(() => {
+    const skip = () => {
+      const s = useTerritoryStore.getState();
+      if (!s.introDone) s.setIntroDone();
+    };
+    const opts = { passive: true } as const;
+    window.addEventListener("pointerdown", skip, opts);
+    window.addEventListener("wheel", skip, opts);
+    window.addEventListener("keydown", skip);
+    return () => {
+      window.removeEventListener("pointerdown", skip);
+      window.removeEventListener("wheel", skip);
+      window.removeEventListener("keydown", skip);
+    };
+  }, []);
+
   return (
     <div id="territory-root">
       <Scene />
       <div className="scrim" />
+      <IntroTitle />
       <TopBar />
       <TerritoryPanel />
       <AccountRail />
