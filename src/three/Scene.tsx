@@ -3,16 +3,15 @@
 import { Suspense, useEffect } from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
+import { CameraControls } from "@react-three/drei";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
-import { Atmosphere, ImageBasedLight } from "./Environment";
-import { Landscape } from "./Landscape";
-import { Silhouettes } from "./Silhouettes";
-import { Tree } from "./Tree";
-import { CameraRig } from "./CameraRig";
+import { Atmosphere, ImageBasedLight } from "./world/Atmosphere";
+import { Grass, Terrain } from "./world/Ground";
+import { Backdrop } from "./world/Backdrop";
+import { Effects } from "./world/Effects";
+import { Forest } from "./Forest";
 
 export function Scene() {
-  const accounts = useTerritoryStore((s) => s.accounts);
-  const clearSelection = useTerritoryStore((s) => s.clearSelection);
   const isTouch = useTerritoryStore((s) => s.isTouch);
   const setIsTouch = useTerritoryStore((s) => s.setIsTouch);
   const setReducedMotion = useTerritoryStore((s) => s.setReducedMotion);
@@ -22,42 +21,27 @@ export function Scene() {
     const touch = window.matchMedia("(pointer: coarse)");
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const compact = window.matchMedia("(max-width: 767px)");
-    const applyTouch = () => setIsTouch(touch.matches);
-    const applyMotion = () => setReducedMotion(motion.matches);
-    const applyCompact = () => setIsCompact(compact.matches);
-    applyTouch();
-    applyMotion();
-    applyCompact();
-    touch.addEventListener("change", applyTouch);
-    motion.addEventListener("change", applyMotion);
-    compact.addEventListener("change", applyCompact);
+    const apply = () => {
+      setIsTouch(touch.matches);
+      setReducedMotion(motion.matches);
+      setIsCompact(compact.matches);
+    };
+    apply();
+    for (const m of [touch, motion, compact]) m.addEventListener("change", apply);
     return () => {
-      touch.removeEventListener("change", applyTouch);
-      motion.removeEventListener("change", applyMotion);
-      compact.removeEventListener("change", applyCompact);
+      for (const m of [touch, motion, compact]) m.removeEventListener("change", apply);
     };
   }, [setIsTouch, setReducedMotion, setIsCompact]);
 
   return (
     <Canvas
       className="territory-canvas"
+      shadows={{ type: THREE.PCFSoftShadowMap }}
       dpr={isTouch ? [1, 1.5] : [1, 2]}
-      camera={{ fov: 44, near: 0.5, far: 2800, position: [70, 28, 128] }}
-      gl={{
-        antialias: true,
-        alpha: false,
-        powerPreference: "high-performance",
-        toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: 1.18,
-      }}
+      camera={{ fov: 40, near: 0.5, far: 4000, position: [40, 70, 190] }}
+      gl={{ antialias: false, powerPreference: "high-performance", stencil: false }}
       onCreated={(state) => {
-        // Development-only handle for runtime inspection.
-        if (process.env.NODE_ENV !== "production") {
-          (window as unknown as { __t?: unknown }).__t = state;
-        }
-      }}
-      onPointerMissed={(e) => {
-        if (e.type === "click") clearSelection();
+        (window as unknown as { __r3f?: unknown }).__r3f = state.get;
       }}
       style={{ touchAction: "none" }}
     >
@@ -66,15 +50,13 @@ export function Scene() {
         <ImageBasedLight />
       </Suspense>
       <Suspense fallback={null}>
-        <Landscape />
+        <Terrain />
+        <Grass />
+        <Backdrop />
+        <Forest />
       </Suspense>
-      <Suspense fallback={null}>
-        <Silhouettes />
-        {accounts.map((a) => (
-          <Tree key={a.id} accountId={a.id} />
-        ))}
-      </Suspense>
-      <CameraRig />
+      <CameraControls makeDefault />
+      <Effects />
     </Canvas>
   );
 }
