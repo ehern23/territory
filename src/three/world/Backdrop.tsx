@@ -89,7 +89,7 @@ function SpeciesInstances({
       cardSize: sp.height * 0.17,
       leafDensity: 1.4,
     });
-    return buildTreeGeometries(shape, { lowDetail: true });
+    return buildTreeGeometries(shape, { lowDetail: true, cardScale: 1.2 });
   }, [index]);
 
   const meshes = useMemo(() => {

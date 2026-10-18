@@ -24,8 +24,11 @@ export function AccountPanel() {
   const mode = useTerritoryStore((s) => s.mode);
   const activeAccountId = useTerritoryStore((s) => s.activeAccountId);
   const isCompact = useTerritoryStore((s) => s.isCompact);
+  const demoActive = useTerritoryStore((s) => s.demo.active);
   const view = useAccountView(mode === "account" ? activeAccountId : null);
   const reduce = useReducedMotion();
+  // On phones the narrator carries the story during the demo; the tree needs the screen.
+  if (isCompact && demoActive) return null;
 
   return (
     <AnimatePresence>

@@ -255,6 +255,10 @@ export function Grass() {
         .replace("#include <common>", `#include <common>\nvarying vec2 vGrass;\nvarying float vH;`)
         .replace("#include <normal_fragment_begin>", UNFLIPPED_NORMAL)
         .replace(
+          "vec3 totalSpecular = reflectedLight.directSpecular + reflectedLight.indirectSpecular;",
+          "vec3 totalSpecular = (reflectedLight.directSpecular + reflectedLight.indirectSpecular) * 0.2;",
+        )
+        .replace(
           "#include <map_fragment>",
           /* glsl */ `
           #include <map_fragment>
@@ -264,7 +268,7 @@ export function Grass() {
           `,
         );
     };
-    material.customProgramCacheKey = () => "territory-grass-v2";
+    material.customProgramCacheKey = () => "territory-grass-v3";
 
     const inst = new THREE.InstancedMesh(geometry, material, count);
     const attr = new Float32Array(count * 2);

@@ -35,7 +35,7 @@ interface Shot {
 function overviewShot(aspect: number): Shot {
   const portrait = aspect < 0.9;
   // On desktop the territory panel sits on the left: push the forest right.
-  const shift = portrait ? 0 : -78;
+  const shift = portrait ? 0 : -58;
   return {
     target: new THREE.Vector3(FOREST_CENTER.x + 6 + shift, 10 + terrainHeight(FOREST_CENTER.x, FOREST_CENTER.z), FOREST_CENTER.z - 18 + shift * 0.3),
     distance: portrait ? 430 : aspect < 1.3 ? 380 : 340,
@@ -100,11 +100,12 @@ export function CameraDirector() {
       if (!introDone) setIntroDone();
       return;
     }
+    // A low arc in from the left flank, sky and sun in frame, settling on the overview.
     const from: Shot = {
-      target: new THREE.Vector3(FOREST_CENTER.x - 40, 60, FOREST_CENTER.z - 120),
-      distance: 640,
-      polar: 0.72,
-      azimuth: -0.55,
+      target: new THREE.Vector3(FOREST_CENTER.x - 70, 34, FOREST_CENTER.z - 30),
+      distance: 540,
+      polar: 1.36,
+      azimuth: -1.15,
       minDistance: 10,
       maxDistance: 2000,
     };

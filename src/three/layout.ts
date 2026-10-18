@@ -42,7 +42,9 @@ function rawHeight(x: number, z: number): number {
   const ridge = back * back * (3 - 2 * back) * 26;
   const e = clearingFactor(x, z);
   const rim = THREE.MathUtils.smoothstep(e, 0.9, 2.2) * 16;
-  return a + b + c + d + ridge + rim;
+  // Far beyond the forest the land falls away so the mesh edge hides behind the ridgelines.
+  const falloff = THREE.MathUtils.smoothstep(e, 3.2, 5.5) * 70;
+  return a + b + c + d + ridge + rim - falloff;
 }
 
 /** World height, with gentle lawns levelled under each strategic tree. */

@@ -161,7 +161,7 @@ export function Atmosphere() {
   return (
     <>
       <color attach="background" args={[FOG_COLOR]} />
-      <fogExp2 attach="fog" args={[FOG_COLOR, 0.0009]} />
+      <fogExp2 attach="fog" args={[FOG_COLOR, 0.00078]} />
       <SkyDome />
       <FloraClock />
       <Sun />

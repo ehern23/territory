@@ -74,7 +74,7 @@ export function DemoNarrator() {
           transition={{ duration: 0.4, ease: [0.2, 0.8, 0.2, 1] }}
           className={
             isCompact
-              ? "glass glass-strong absolute inset-x-2 top-[calc(max(8px,env(safe-area-inset-top))+52px)] z-40 p-4"
+              ? "glass glass-strong absolute inset-x-2 bottom-[max(8px,env(safe-area-inset-bottom))] z-40 p-4"
               : "glass glass-strong absolute left-1/2 -translate-x-1/2 bottom-5 w-[min(600px,calc(100%-480px-48px))] min-w-[440px] z-40 p-5"
           }
           role="region"

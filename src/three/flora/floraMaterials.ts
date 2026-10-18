@@ -212,6 +212,11 @@ export function createFoliageMaterial(atlas: THREE.Texture | null, tree: TreeUni
         `#include <common>\n${SHARED_FRAGMENT_PARS}\nuniform float uTranslucency;\nuniform vec2 uAtlasSize;\nvarying vec3 vLeafTint;\nvarying float vFocus;`,
       )
       .replace("#include <normal_fragment_begin>", UNFLIPPED_NORMAL)
+      // Leaf cards facing the sun would otherwise glint as white speckle.
+      .replace(
+        "vec3 totalSpecular = reflectedLight.directSpecular + reflectedLight.indirectSpecular;",
+        "vec3 totalSpecular = (reflectedLight.directSpecular + reflectedLight.indirectSpecular) * 0.2;",
+      )
       .replace(
         "#include <map_fragment>",
         /* glsl */ `
@@ -222,7 +227,7 @@ export function createFoliageMaterial(atlas: THREE.Texture | null, tree: TreeUni
           vec2 ddx = dFdx(tc);
           vec2 ddy = dFdy(tc);
           float lod = max(0.0, 0.5 * log2(max(dot(ddx, ddx), dot(ddy, ddy))));
-          texel.a *= 1.0 + lod * 0.3;
+          texel.a *= 1.0 + lod * 0.45;
           diffuseColor *= texel;
         #endif
         diffuseColor.rgb *= vLeafTint;
@@ -240,7 +245,7 @@ export function createFoliageMaterial(atlas: THREE.Texture | null, tree: TreeUni
         `,
       );
   };
-  material.customProgramCacheKey = () => "flora-foliage-v1";
+  material.customProgramCacheKey = () => "flora-foliage-v2";
 
   const depth = new THREE.MeshDepthMaterial({
     depthPacking: THREE.RGBADepthPacking,

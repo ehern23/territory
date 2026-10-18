@@ -39,7 +39,7 @@ export function TopBar() {
           </span>
         </button>
         <AnimatePresence>
-          {view && (
+          {view && !isCompact && (
             <motion.span
               initial={{ opacity: 0, x: -6 }}
               animate={{ opacity: 1, x: 0 }}
