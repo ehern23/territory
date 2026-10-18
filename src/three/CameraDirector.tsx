@@ -35,10 +35,10 @@ interface Shot {
 function overviewShot(aspect: number): Shot {
   const portrait = aspect < 0.9;
   // On desktop the territory panel sits on the left: push the forest right.
-  const shift = portrait ? 0 : -42;
+  const shift = portrait ? 0 : -78;
   return {
     target: new THREE.Vector3(FOREST_CENTER.x + 6 + shift, 10 + terrainHeight(FOREST_CENTER.x, FOREST_CENTER.z), FOREST_CENTER.z - 18 + shift * 0.3),
-    distance: portrait ? 500 : aspect < 1.3 ? 370 : 320,
+    distance: portrait ? 430 : aspect < 1.3 ? 380 : 340,
     polar: portrait ? 1.0 : 1.06,
     azimuth: 0.32,
     minDistance: 60,

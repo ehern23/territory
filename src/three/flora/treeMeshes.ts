@@ -60,16 +60,28 @@ export function buildBarkGeometry(shape: TreeShape, opts: { lowDetail?: boolean 
 
   const addBranch = (b: Branch) => {
     let radial = RADIAL[Math.min(RADIAL.length - 1, b.level)];
-    if (opts.lowDetail) radial = Math.max(3, Math.round(radial * 0.6));
-    const { normals, binormals } = frames(b.points);
+    // Distant trees: fewer sides and every other ring — bark is mostly hidden by foliage.
+    let points = b.points;
+    let radii = b.radii;
+    let flex = b.flex;
+    if (opts.lowDetail) {
+      radial = b.level === 0 ? 7 : 3;
+      if (b.level >= 1) {
+        const keep = b.points.map((_, i) => i % 2 === 0 || i === b.points.length - 1);
+        points = b.points.filter((_, i) => keep[i]);
+        radii = b.radii.filter((_, i) => keep[i]);
+        flex = b.flex.filter((_, i) => keep[i]);
+      }
+    }
+    const { normals, binormals } = frames(points);
     const base = pos.length / 3;
-    const uRepeat = Math.max(1, Math.round((Math.PI * 2 * b.radii[0]) / BARK_TEX_SCALE));
+    const uRepeat = Math.max(1, Math.round((Math.PI * 2 * radii[0]) / BARK_TEX_SCALE));
     const buttressPhase = rng.range(0, Math.PI * 2);
     let v = 0;
-    for (let i = 0; i < b.points.length; i++) {
-      if (i > 0) v += b.points[i].distanceTo(b.points[i - 1]) / BARK_TEX_SCALE;
-      const p = b.points[i];
-      const r = b.radii[i];
+    for (let i = 0; i < points.length; i++) {
+      if (i > 0) v += points[i].distanceTo(points[i - 1]) / BARK_TEX_SCALE;
+      const p = points[i];
+      const r = radii[i];
       for (let j = 0; j <= radial; j++) {
         const theta = (j / radial) * Math.PI * 2;
         const dir = normals[i]
@@ -86,11 +98,11 @@ export function buildBarkGeometry(shape: TreeShape, opts: { lowDetail?: boolean 
         pos.push(p.x + dir.x * rr, p.y + dir.y * rr, p.z + dir.z * rr);
         nor.push(dir.x, dir.y, dir.z);
         uv.push((j / radial) * uRepeat, v);
-        bark.push(b.flex[i], b.limb);
+        bark.push(flex[i], b.limb);
       }
     }
     const ring = radial + 1;
-    for (let i = 0; i < b.points.length - 1; i++) {
+    for (let i = 0; i < points.length - 1; i++) {
       for (let j = 0; j < radial; j++) {
         const a = base + i * ring + j;
         const c = base + (i + 1) * ring + j;

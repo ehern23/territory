@@ -322,3 +322,172 @@ export function Grass() {
   );
   return <primitive object={mesh} />;
 }
+
+/* ------------------------------------------------------------------------ */
+/* Wildflowers                                                               */
+/* ------------------------------------------------------------------------ */
+
+let flowerTex: THREE.DataTexture | null = null;
+
+/** Four cells of small meadow flowers on stems: white, butter-yellow, lilac, cream. */
+function getFlowerAtlas() {
+  if (flowerTex || typeof document === "undefined") return flowerTex;
+  const C = 128;
+  const canvas = document.createElement("canvas");
+  canvas.width = C * 4;
+  canvas.height = C;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return null;
+  const rng = createRng(31);
+  const petals = ["#f4f1e8", "#f1d65a", "#c7a6e0", "#f5e6bf"];
+  const centers = ["#e7b53a", "#c98a1e", "#f0e2a0", "#d9a53a"];
+  for (let cell = 0; cell < 4; cell++) {
+    const ox = cell * C;
+    for (let f = 0; f < 4; f++) {
+      const x = ox + 22 + f * 26 + rng.gauss() * 6;
+      const top = C * rng.range(0.12, 0.42);
+      ctx.strokeStyle = "rgb(96,124,58)";
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(x + rng.gauss() * 4, C);
+      ctx.quadraticCurveTo(x + rng.gauss() * 8, (C + top) / 2, x, top);
+      ctx.stroke();
+      const r = rng.range(6, 9.5);
+      ctx.fillStyle = petals[cell];
+      const n = cell === 2 ? 0 : 6;
+      if (n === 0) {
+        // Clover-like head.
+        for (let k = 0; k < 9; k++) {
+          ctx.beginPath();
+          ctx.arc(x + rng.gauss() * r * 0.5, top + rng.gauss() * r * 0.5, r * 0.45, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else {
+        for (let k = 0; k < n; k++) {
+          const a = (k / n) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.ellipse(x + Math.cos(a) * r * 0.6, top + Math.sin(a) * r * 0.45, r * 0.55, r * 0.32, a, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = centers[cell];
+        ctx.beginPath();
+        ctx.arc(x, top, r * 0.3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+  const data = new Uint8ClampedArray(ctx.getImageData(0, 0, C * 4, C).data);
+  for (let pass = 0; pass < 3; pass++) {
+    const src = new Uint8ClampedArray(data);
+    for (let i = 4; i < data.length - 4; i += 4) {
+      if (src[i + 3] > 0) continue;
+      for (const o of [4, -4]) {
+        if (src[i + o + 3] > 0) {
+          data[i] = src[i + o];
+          data[i + 1] = src[i + o + 1];
+          data[i + 2] = src[i + o + 2];
+          break;
+        }
+      }
+    }
+  }
+  const tex = new THREE.DataTexture(new Uint8Array(data.buffer), C * 4, C, THREE.RGBAFormat);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.generateMipmaps = true;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.needsUpdate = true;
+  flowerTex = tex;
+  return tex;
+}
+
+export function Wildflowers() {
+  const isTouch = useTerritoryStore((s) => s.isTouch);
+  const count = isTouch ? 1500 : 4200;
+  const mesh = useMemo(() => {
+    const geometry = grassGeometry();
+    const material = new THREE.MeshStandardMaterial({
+      map: getFlowerAtlas() ?? undefined,
+      alphaTest: 0.5,
+      alphaToCoverage: supportsAlphaToCoverage(),
+      side: THREE.DoubleSide,
+      roughness: 0.8,
+      metalness: 0,
+      envMapIntensity: 0.4,
+    });
+    material.onBeforeCompile = (shader) => {
+      shader.uniforms.uTime = floraGlobals.uTime;
+      shader.uniforms.uWind = floraGlobals.uWind;
+      shader.vertexShader = shader.vertexShader
+        .replace("#include <common>", `#include <common>\nuniform float uTime;\nuniform vec3 uWind;\nattribute float aCell;`)
+        .replace(
+          "#include <uv_vertex>",
+          `#include <uv_vertex>\n#ifdef USE_MAP\nvMapUv = vec2((uv.x + aCell) * 0.25, uv.y);\n#endif`,
+        )
+        .replace(
+          "#include <begin_vertex>",
+          /* glsl */ `
+          #include <begin_vertex>
+          {
+            vec3 wp = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+            float ph = dot(wp.xz, vec2(0.05, 0.04));
+            float s = sin(uTime * 1.9 + ph) * 0.6 + 0.3;
+            vec3 w = vec3(uWind.x, 0.0, uWind.z) * s * 0.3 * position.y * position.y;
+            mat3 im = mat3(instanceMatrix);
+            transformed += transpose(im) * w / dot(im[0], im[0]);
+          }
+          `,
+        );
+      shader.fragmentShader = shader.fragmentShader.replace("#include <normal_fragment_begin>", UNFLIPPED_NORMAL);
+    };
+    material.customProgramCacheKey = () => "territory-flowers-v1";
+
+    const inst = new THREE.InstancedMesh(geometry, material, count);
+    const cells = new Float32Array(count);
+    const rng = seededRng("flowers", count);
+    const clearings = accountClearings();
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const up = new THREE.Vector3(0, 1, 0);
+    let i = 0;
+    let guard = 0;
+    while (i < count && guard < count * 12) {
+      guard++;
+      const x = rng.range(-230, 240);
+      const z = rng.range(-240, 110);
+      const e = clearingFactor(x, z);
+      if (e > 1.0) continue;
+      // Flowers grow in drifts, not evenly.
+      const n = valueNoise(x * 1.7 + 40, z * 1.7 - 20);
+      if (n < 0.25 && !rng.chance(0.05)) continue;
+      if (clearings.some((c) => Math.hypot(x - c.x, z - c.z) < 12)) continue;
+      const s = rng.range(0.9, 1.5);
+      m.compose(
+        new THREE.Vector3(x, terrainHeight(x, z) - 0.05, z),
+        q.setFromAxisAngle(up, rng.range(0, Math.PI * 2)),
+        new THREE.Vector3(s, s * rng.range(1.0, 1.4), s),
+      );
+      inst.setMatrixAt(i, m);
+      // Each drift leans toward one colour.
+      cells[i] = Math.floor(((n * 7 + 10) % 4) + (rng.chance(0.25) ? rng.int(1, 3) : 0)) % 4;
+      i++;
+    }
+    inst.count = i;
+    geometry.setAttribute("aCell", new THREE.InstancedBufferAttribute(cells, 1));
+    inst.instanceMatrix.needsUpdate = true;
+    inst.frustumCulled = false;
+    inst.receiveShadow = true;
+    inst.raycast = () => undefined;
+    return inst;
+  }, [count]);
+
+  useEffect(
+    () => () => {
+      mesh.geometry.dispose();
+      (mesh.material as THREE.Material).dispose();
+      mesh.dispose();
+    },
+    [mesh],
+  );
+  return <primitive object={mesh} />;
+}

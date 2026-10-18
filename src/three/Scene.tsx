@@ -5,7 +5,8 @@ import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { Atmosphere, ImageBasedLight } from "./world/Atmosphere";
-import { Grass, Terrain } from "./world/Ground";
+import { Grass, Terrain, Wildflowers } from "./world/Ground";
+import { Horizon } from "./world/Horizon";
 import { Backdrop } from "./world/Backdrop";
 import { Effects } from "./world/Effects";
 import { Forest } from "./Forest";
@@ -46,12 +47,14 @@ export function Scene() {
       style={{ touchAction: "none" }}
     >
       <Atmosphere />
+      <Horizon />
       <Suspense fallback={null}>
         <ImageBasedLight />
       </Suspense>
       <Suspense fallback={null}>
         <Terrain />
         <Grass />
+        <Wildflowers />
         <Backdrop />
         <Forest />
         <CameraDirector />

@@ -28,6 +28,8 @@ const SPECIES = [
 interface Placement {
   matrix: THREE.Matrix4;
   color: THREE.Color;
+  /** Close enough to the meadow for its shadow to matter. */
+  near: boolean;
 }
 
 function placeForest(count: number): Placement[][] {
@@ -55,7 +57,7 @@ function placeForest(count: number): Placement[][] {
     const warm = rng.chance(0.12) ? rng.range(0.1, 0.3) : 0;
     const v = rng.range(0.82, 1.08);
     const color = new THREE.Color(v * (1 + warm * 0.8), v * (1 + warm * 0.2), v * (1 - warm));
-    out[species].push({ matrix: m, color });
+    out[species].push({ matrix: m, color, near: e < 1.45 });
     made++;
   }
   return out;
@@ -156,14 +158,22 @@ export function Backdrop() {
   return (
     <group>
       {SPECIES.map((_, i) => (
-        <SpeciesInstances
-          key={i}
-          index={i}
-          placements={placements[i]}
-          barkMaterial={barkMaterial}
-          foliage={foliage}
-          shadows={!isTouch}
-        />
+        <group key={i}>
+          <SpeciesInstances
+            index={i}
+            placements={placements[i].filter((p) => p.near)}
+            barkMaterial={barkMaterial}
+            foliage={foliage}
+            shadows={!isTouch}
+          />
+          <SpeciesInstances
+            index={i}
+            placements={placements[i].filter((p) => !p.near)}
+            barkMaterial={barkMaterial}
+            foliage={foliage}
+            shadows={false}
+          />
+        </group>
       ))}
     </group>
   );

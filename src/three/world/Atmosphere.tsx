@@ -16,7 +16,7 @@ import { FOREST_CENTER, SUN_DIR } from "../layout";
 export const FOG_COLOR = new THREE.Color("#c3cdd2");
 const HORIZON = new THREE.Color("#b4c6d2");
 const ZENITH = new THREE.Color("#2a5fa8");
-const SUN_COLOR = new THREE.Color("#ffe2bd");
+const SUN_COLOR = new THREE.Color("#ffdcb0");
 
 const skyVert = /* glsl */ `
   varying vec3 vDir;
@@ -161,7 +161,7 @@ export function Atmosphere() {
   return (
     <>
       <color attach="background" args={[FOG_COLOR]} />
-      <fogExp2 attach="fog" args={[FOG_COLOR, 0.0011]} />
+      <fogExp2 attach="fog" args={[FOG_COLOR, 0.0009]} />
       <SkyDome />
       <FloraClock />
       <Sun />
