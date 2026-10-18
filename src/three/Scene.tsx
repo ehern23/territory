@@ -11,6 +11,7 @@ import { Backdrop } from "./world/Backdrop";
 import { Effects } from "./world/Effects";
 import { Forest } from "./Forest";
 import { CameraDirector } from "./CameraDirector";
+import { OptionalScenePart } from "./SceneBoundary";
 
 export function Scene() {
   const isTouch = useTerritoryStore((s) => s.isTouch);
@@ -48,9 +49,11 @@ export function Scene() {
     >
       <Atmosphere />
       <Horizon />
-      <Suspense fallback={null}>
-        <ImageBasedLight />
-      </Suspense>
+      <OptionalScenePart>
+        <Suspense fallback={null}>
+          <ImageBasedLight />
+        </Suspense>
+      </OptionalScenePart>
       <Suspense fallback={null}>
         <Terrain />
         <Grass />
