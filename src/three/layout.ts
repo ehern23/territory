@@ -151,9 +151,32 @@ export function streamDistance(x: number, z: number): { d: number; t: number } {
   return { d: best, t: bestT };
 }
 
+/**
+ * Reaches where the river opens up: it widens, the canopy pulls back and it
+ * runs bright through the forest. Between them the banks close in and the
+ * crowns hide it. The first is the plunge pool under the falls.
+ */
+const OPEN_REACHES: [number, number][] = [
+  [0.205, 0.04],
+  [0.455, 0.045],
+  [0.7, 0.045],
+  [0.915, 0.04],
+];
+
+export function streamOpenness(t: number) {
+  let o = 0;
+  for (const [c, half] of OPEN_REACHES) o = Math.max(o, 1 - smoothstep01(half * 0.45, half, Math.abs(t - c)));
+  return o;
+}
+
+function smoothstep01(e0: number, e1: number, x: number) {
+  const k = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
+  return k * k * (3 - 2 * k);
+}
+
 export function streamWidth(t: number) {
-  // Narrower near the source, wider downstream.
-  return STREAM_HALF_WIDTH * (0.55 + 0.6 * t);
+  // Narrower near the source, wider downstream, broad in the open reaches.
+  return STREAM_HALF_WIDTH * (0.55 + 0.6 * t) * (1 + 0.6 * streamOpenness(t));
 }
 
 /* ------------------------------------------------------------------------ */
@@ -320,15 +343,80 @@ export function groundCover(x: number, z: number): GroundCover {
   if (Math.abs(x) < 400 && z > -1300 && z < 1100) {
     const { d, t } = streamDistance(x, z);
     const w = streamWidth(t);
+    const reach = streamOpenness(t);
     water = 1 - smooth(w - 0.8, w + 0.6, d);
-    bank = 1 - smooth(w, w + 9, d);
+    // Open reaches clear a wide grassy margin; elsewhere trees crowd the bank
+    // and their crowns close over the water.
+    bank = 1 - smooth(w + 0.5 + reach * 26, w + 4 + reach * 40, d);
   }
   const open = Math.max(glade, meadow * (1 - m), bank * 0.8, 1 - treeline);
   const patch = fbm(x * 0.02 - 5, z * 0.02 + 9, 3);
   const trees = (1 - open) * (1 - water) * treeline * (0.75 + 0.25 * fbm(x * 0.008, z * 0.008, 2));
-  const grass = (1 - water) * Math.min(1, 0.5 + open * 0.6 + smooth(0.45, 0.7, patch) * 0.35) * (1 - smooth(380, 480, h));
+  const wet = fallsWetness(x, z);
+  const grass = (1 - water) * (1 - wet) * Math.min(1, 0.5 + open * 0.6 + smooth(0.45, 0.7, patch) * 0.35) * (1 - smooth(380, 480, h));
   const ferns = (1 - water) * (1 - glade) * (1 - open * 0.7) * smooth(0.3, 0.55, fbm(x * 0.013 + 3, z * 0.013 - 8, 3)) * treeline;
   const flowers = (1 - water) * Math.max(glade * 0.8, meadow * 0.9) * smooth(0.4, 0.62, fbm(x * 0.03 + 7, z * 0.03, 2));
   const rock = Math.max(bank * 0.6, (1 - treeline) * 0.5);
-  return { open, trees, grass, ferns, flowers, water, rock };
+  return { open, trees, grass, ferns: ferns * (1 - wet * 0.5), flowers: flowers * (1 - wet), water, rock: Math.max(rock, wet) };
 }
+
+/** Spray-soaked rock around the falls, 0-1. */
+function fallsWetness(x: number, z: number) {
+  const a = WATERFALL.top;
+  const b = WATERFALL.base;
+  const abx = b.x - a.x;
+  const abz = b.z - a.z;
+  const k = Math.max(0, Math.min(1.2, ((x - a.x) * abx + (z - a.z) * abz) / (abx * abx + abz * abz)));
+  const d = Math.hypot(x - (a.x + abx * k), z - (a.z + abz * k));
+  return 1 - smooth(18, 46, d);
+}
+
+/* ------------------------------------------------------------------------ */
+/* Waterfall                                                                 */
+/* ------------------------------------------------------------------------ */
+
+export interface WaterfallSite {
+  /** Lip of the falls, on the water surface. */
+  top: THREE.Vector3;
+  /** Plunge pool at the foot. */
+  base: THREE.Vector3;
+  /** Downstream direction at the foot (xz). */
+  flow: THREE.Vector2;
+  width: number;
+}
+
+/** The longest steep run of the stream, from where it leaves the hanging valley. */
+export const WATERFALL: WaterfallSite = (() => {
+  const n = STREAM_PATH.length;
+  let start = -1;
+  let end = -1;
+  let bestDrop = 0;
+  let runStart = -1;
+  for (let i = 1; i < n - 1; i++) {
+    const seg = STREAM_PATH[i].distanceTo(STREAM_PATH[i + 1]);
+    const steep = (STREAM_LEVELS[i] - STREAM_LEVELS[i + 1]) / Math.max(1, seg) > 0.5;
+    if (steep && runStart < 0) runStart = i;
+    if (!steep && runStart >= 0) {
+      const drop = STREAM_LEVELS[runStart] - STREAM_LEVELS[i];
+      if (drop > bestDrop) {
+        bestDrop = drop;
+        start = runStart;
+        end = i;
+      }
+      runStart = -1;
+    }
+  }
+  if (start < 0) {
+    start = 0;
+    end = 1;
+  }
+  const a = STREAM_PATH[start];
+  const b = STREAM_PATH[end];
+  const flow = STREAM_PATH[Math.min(n - 1, end + 1)].clone().sub(b).normalize();
+  return {
+    top: new THREE.Vector3(a.x, STREAM_LEVELS[start], a.y),
+    base: new THREE.Vector3(b.x, STREAM_LEVELS[end], b.y),
+    flow,
+    width: streamWidth(end / (n - 1)),
+  };
+})();

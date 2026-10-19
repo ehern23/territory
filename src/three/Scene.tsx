@@ -7,6 +7,7 @@ import { PerformanceMonitor } from "@react-three/drei";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { Atmosphere, ImageBasedLight } from "./world/Atmosphere";
 import { Precipitation } from "./sky/Precipitation";
+import { Waterfall } from "./world/Waterfall";
 import { Terrain } from "./world/Terrain";
 import { GroundCover } from "./world/GroundCover";
 import { Stream } from "./world/Stream";
@@ -90,6 +91,7 @@ export function Scene() {
       <Suspense fallback={null}>
         {!OFF.has("terrain") && <Terrain />}
         {!OFF.has("stream") && <Stream />}
+        {!OFF.has("stream") && <Waterfall />}
         {!OFF.has("cover") && <GroundCover />}
         {!OFF.has("rocks") && <Rocks />}
         {!OFF.has("forest") && <WildForest />}

@@ -4,7 +4,7 @@ import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { useTexture } from "@react-three/drei";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
-import { terrainHeight } from "../layout";
+import { WATERFALL, terrainHeight } from "../layout";
 import { WORLD_MAP_GLSL, getWorldMaps, worldMapUniforms } from "./worldMaps";
 
 /**
@@ -25,6 +25,8 @@ function warp(u: number) {
 
 const TERRAIN_PARS = /* glsl */ `
 ${WORLD_MAP_GLSL}
+uniform vec3 uFallsTop;
+uniform vec3 uFallsBase;
 varying vec3 vWorld;
 varying vec3 vWorldNormal;
 float tHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -106,7 +108,11 @@ export function Terrain() {
       metalness: 0,
       envMapIntensity: 0.35,
     });
-    const uniforms = worldMapUniforms(maps);
+    const uniforms = {
+      ...worldMapUniforms(maps),
+      uFallsTop: { value: WATERFALL.top.clone() },
+      uFallsBase: { value: WATERFALL.base.clone() },
+    };
     m.onBeforeCompile = (shader) => {
       Object.assign(shader.uniforms, uniforms);
       shader.vertexShader = shader.vertexShader
@@ -171,6 +177,17 @@ export function Terrain() {
             range = mix(range, vec3(0.92, 0.94, 0.97), snow);
             col = mix(col, range, m);
 
+            // The falls: dark, wet rock around the drop and the plunge pool.
+            {
+              vec2 ab = uFallsBase.xz - uFallsTop.xz;
+              float k = clamp(dot(xz - uFallsTop.xz, ab) / dot(ab, ab), 0.0, 1.2);
+              float dFalls = length(xz - (uFallsTop.xz + ab * k));
+              float wet = (1.0 - smoothstep(18.0, 46.0, dFalls)) * smoothstep(-0.1, 0.1, k);
+              vec3 wetRock = mix(vec3(0.17, 0.18, 0.17), vec3(0.3, 0.31, 0.27), tFbm(xz * 0.12));
+              wetRock = mix(wetRock, vec3(0.2, 0.27, 0.14), smoothstep(0.55, 0.75, tFbm(xz * 0.08 + 4.0)) * 0.6);
+              col = mix(col, wetRock, wet * (0.55 + 0.45 * smoothstep(0.15, 0.4, slope)) * (1.0 - cov.a));
+            }
+
             // Palette above is authored in sRGB; lighting works in linear.
             col = pow(col, vec3(2.2));
             float d = mix(0.6 + 0.9 * detail, 0.85 + 0.3 * tFbm(xz * 0.31), m);
@@ -179,7 +196,7 @@ export function Terrain() {
           `,
         );
     };
-    m.customProgramCacheKey = () => "territory-terrain-v3";
+    m.customProgramCacheKey = () => "territory-terrain-v4";
     return m;
   }, [tex, maps]);
 
