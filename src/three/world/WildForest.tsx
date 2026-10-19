@@ -11,7 +11,7 @@ import { generateConifer } from "../flora/generateConifer";
 import { buildTreeGeometries, type TreeGeometries } from "../flora/treeMeshes";
 import { getFoliageAtlas } from "../flora/foliageAtlas";
 import { getNeedleAtlas } from "./atlases";
-import { createBarkMaterial, createFoliageMaterial, createTreeUniforms, floraGlobals, supportsAlphaToCoverage, type LodFade } from "../flora/floraMaterials";
+import { createBarkMaterial, createFoliageMaterial, createTreeUniforms, floraGlobals, type LodFade } from "../flora/floraMaterials";
 import { BARK_TEX, configureBarkMaps } from "../flora/barkMaps";
 import { fbm, groundCover, mountainFactor, terrainHeight } from "../layout";
 import { skyUniforms } from "../sky/skyState";
@@ -138,9 +138,11 @@ function useSpeciesAssets(lod: LodFade) {
     const needle = getNeedleAtlas();
     const barkLod = createBarkMaterial(maps, uniforms, { moss: 0.6, lod });
     const barkCap = createBarkMaterial(maps, uniforms, { moss: 0.6 });
-    const leafLod = createFoliageMaterial(leaf, uniforms, { translucency: 0.6, lod });
+    // A plain alpha cut for the wild forest: the LOD hand-off to impostors is a
+    // complementary screen-space dither, which only lines up without coverage.
+    const leafLod = createFoliageMaterial(leaf, uniforms, { translucency: 0.6, alphaToCoverage: false, lod });
     const leafCap = createFoliageMaterial(leaf, uniforms, { translucency: 0.6, alphaToCoverage: false });
-    const needleLod = createFoliageMaterial(needle, uniforms, { translucency: 0.3, lod });
+    const needleLod = createFoliageMaterial(needle, uniforms, { translucency: 0.3, alphaToCoverage: false, lod });
     const needleCap = createFoliageMaterial(needle, uniforms, { translucency: 0.3, alphaToCoverage: false });
     return SPECIES.map((sp): SpeciesAssets => {
       const shape = sp.shape();
@@ -477,7 +479,6 @@ function ImpostorField({ trees, assets, lod }: { trees: TreeInstance[]; assets: 
         uShade: skyUniforms.uShade,
       },
       fog: true,
-      alphaToCoverage: supportsAlphaToCoverage(),
     });
     const m = new THREE.Mesh(geo, material);
     m.frustumCulled = false;

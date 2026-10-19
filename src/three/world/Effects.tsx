@@ -9,11 +9,13 @@ import { useTerritoryStore } from "@/store/useTerritoryStore";
  * sun and ripe fruit breathe, filmic tone mapping keeps highlights soft.
  * Touch devices skip AO and MSAA to protect frame rate.
  */
+const NO_AO = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("noao");
+
 export function Effects() {
   const isTouch = useTerritoryStore((s) => s.isTouch);
   return (
     <EffectComposer multisampling={isTouch ? 0 : 4} enableNormalPass={false}>
-      {isTouch ? <></> : <N8AO aoRadius={4} intensity={1.4} distanceFalloff={1} quality="medium" halfRes />}
+      {isTouch || NO_AO ? <></> : <N8AO aoRadius={4} intensity={1.4} distanceFalloff={1} quality="medium" halfRes />}
       <Bloom luminanceThreshold={0.9} luminanceSmoothing={0.2} intensity={0.4} mipmapBlur />
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
       <HueSaturation saturation={0.05} />

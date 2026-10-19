@@ -701,3 +701,14 @@ body {
     transform: scale(1);
   }
 }
+
+/* The sky pill sits between the wordmark and the top-bar capsule when there
+   is room, and drops just below the top bar when there isn't. */
+.sky-control-top {
+  top: max(14px, env(safe-area-inset-top));
+}
+@media (max-width: 1240px) {
+  .sky-control-top {
+    top: calc(max(14px, env(safe-area-inset-top)) + 50px);
+  }
+}

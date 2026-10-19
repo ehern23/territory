@@ -115,7 +115,7 @@ export function SkyControl() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.4, ease: [0.2, 0.8, 0.2, 1] }}
-          className={`absolute left-1/2 -translate-x-1/2 z-40 ${isCompact ? "top-[calc(max(14px,env(safe-area-inset-top))+48px)]" : "top-[max(14px,env(safe-area-inset-top))]"}`}
+          className={`absolute left-1/2 -translate-x-1/2 z-40 ${isCompact ? "top-[calc(max(14px,env(safe-area-inset-top))+48px)]" : "sky-control-top"}`}
         >
           <div className={`flex flex-col items-center transition-transform duration-500 ${shift}`}>
             <button
