@@ -75,6 +75,7 @@ export function SkyControl() {
   const isCompact = useTerritoryStore((s) => s.isCompact);
   const demoActive = useTerritoryStore((s) => s.demo.active);
   const mode = useTerritoryStore((s) => s.mode);
+  const onboarding = useTerritoryStore((s) => s.onboardingOpen);
   const readout = useSkyStore((s) => s.readout);
   const timeMode = useSkyStore((s) => s.timeMode);
   const weatherMode = useSkyStore((s) => s.weatherMode);
@@ -84,7 +85,7 @@ export function SkyControl() {
   const [open, setOpen] = useState(false);
   const pillRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const visible = introDone && !demoActive;
+  const visible = introDone && !demoActive && !(isCompact && onboarding);
   useLiquidGlass(pillRef, { radius: 999, strength: 22, blur: 6, saturate: 1.6, bevel: 12, enabled: visible });
   useLiquidGlass(panelRef, { radius: 22, strength: 48, blur: 9, saturate: 1.5, enabled: visible && open });
 
