@@ -31,7 +31,13 @@ export type FunctionKind =
   | "infrastructure"
   | "developer-experience"
   | "business"
-  | "procurement";
+  | "procurement"
+  // Business functions, for sellers whose buyers are not engineering leaders.
+  | "finance"
+  | "payments"
+  | "operations"
+  | "people"
+  | "revenue";
 
 export interface TitleTemplate {
   title: string;
@@ -102,5 +108,39 @@ export const TITLES: Record<FunctionKind, TitleTemplate[]> = {
   procurement: [
     { title: "Strategic Sourcing Manager", persona: "Procurement", influence: 2 },
     { title: "Vendor Management Lead", persona: "Procurement", influence: 3 },
+  ],
+  finance: [
+    { title: "Senior Accountant", persona: "Developer", influence: 1 },
+    { title: "Accounts Payable Manager", persona: "Champion", influence: 3 },
+    { title: "Assistant Controller", persona: "Influencer", influence: 3 },
+    { title: "Director, FP&A", persona: "Influencer", influence: 3 },
+    { title: "Corporate Controller", persona: "Technical Buyer", influence: 4 },
+    { title: "Finance Systems Manager", persona: "Technical Buyer", influence: 3 },
+  ],
+  payments: [
+    { title: "Payments Product Manager", persona: "Influencer", influence: 2 },
+    { title: "Senior Payments Engineer", persona: "Developer", influence: 1 },
+    { title: "Payments Operations Lead", persona: "Champion", influence: 3 },
+    { title: "Director, Payments Engineering", persona: "Technical Buyer", influence: 4 },
+    { title: "Head of Payments", persona: "Technical Buyer", influence: 4 },
+    { title: "Fraud & Risk Manager", persona: "Security", influence: 2 },
+  ],
+  operations: [
+    { title: "Operations Analyst", persona: "Developer", influence: 1 },
+    { title: "Operations Manager", persona: "Champion", influence: 2 },
+    { title: "Senior Manager, Business Operations", persona: "Influencer", influence: 3 },
+    { title: "Director, Operations Excellence", persona: "Technical Buyer", influence: 4 },
+  ],
+  people: [
+    { title: "HR Business Partner", persona: "Influencer", influence: 2 },
+    { title: "People Systems Manager", persona: "Champion", influence: 3 },
+    { title: "Director, Talent Acquisition", persona: "Technical Buyer", influence: 3 },
+    { title: "VP, People Operations", persona: "Economic Buyer", influence: 4 },
+  ],
+  revenue: [
+    { title: "Marketing Operations Manager", persona: "Champion", influence: 2 },
+    { title: "Director, Customer Experience", persona: "Technical Buyer", influence: 3 },
+    { title: "Head of Sales Operations", persona: "Influencer", influence: 3 },
+    { title: "VP, Digital Marketing", persona: "Economic Buyer", influence: 4 },
   ],
 };

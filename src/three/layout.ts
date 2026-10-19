@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { seededRng } from "@/lib/random";
+import { useTerritoryStore } from "@/store/useTerritoryStore";
 
 /**
  * The territory as a place.
@@ -12,17 +13,22 @@ import { seededRng } from "@/lib/random";
  * The establishing camera looks from the south (+Z) toward the mountains (−Z).
  */
 
-/** Strategic accounts, spread across the map. */
-const ACCOUNT_SLOTS: Record<string, [number, number]> = {
-  jpmc: [40, 40],
-  walmart: [-290, 200],
-  disney: [300, 230],
-  amex: [-430, -150],
-  nike: [400, -110],
-  starbucks: [-210, -390],
-  marriott: [230, -430],
-  ford: [-40, -690],
-};
+/**
+ * Strategic accounts, spread across the map, by position in the territory.
+ * Any seller's eight accounts fill the same glades in order (the original
+ * Vercel order was jpmc, walmart, disney, amex, nike, starbucks, marriott,
+ * ford). Slot 0 is the central flagship; slot 7 sits up on the foothills.
+ */
+const ACCOUNT_SLOTS: [number, number][] = [
+  [40, 40],
+  [-290, 200],
+  [300, 230],
+  [-430, -150],
+  [400, -110],
+  [-210, -390],
+  [230, -430],
+  [-40, -690],
+];
 
 /** Radius of the open glade around each account tree. */
 export const GLADE_RADIUS = 58;
@@ -235,8 +241,18 @@ function streamLevelAt(t: number) {
 /* Accounts                                                                  */
 /* ------------------------------------------------------------------------ */
 
+/** Glade index of an account in the active territory (-1 when unknown). */
+export function accountSlotIndex(accountId: string): number {
+  const i = useTerritoryStore.getState().accounts.findIndex((a) => a.id === accountId);
+  return i < ACCOUNT_SLOTS.length ? i : -1;
+}
+
+function accountSlot(accountId: string): [number, number] | undefined {
+  return ACCOUNT_SLOTS[accountSlotIndex(accountId)];
+}
+
 export function accountPosition(accountId: string): THREE.Vector3 {
-  const slot = ACCOUNT_SLOTS[accountId];
+  const slot = accountSlot(accountId);
   if (!slot) return new THREE.Vector3();
   const rng = seededRng("slot", accountId);
   const x = slot[0] + rng.gauss() * 1.2;
@@ -245,11 +261,15 @@ export function accountPosition(accountId: string): THREE.Vector3 {
 }
 
 export function accountClearings(): { x: number; z: number }[] {
-  return Object.values(ACCOUNT_SLOTS).map(([x, z]) => ({ x, z }));
+  return ACCOUNT_SLOTS.map(([x, z]) => ({ x, z }));
 }
 
+/** Ids of the active territory's accounts that have a glade, in slot order. */
 export function accountIds(): string[] {
-  return Object.keys(ACCOUNT_SLOTS);
+  return useTerritoryStore
+    .getState()
+    .accounts.slice(0, ACCOUNT_SLOTS.length)
+    .map((a) => a.id);
 }
 
 /**
@@ -257,7 +277,7 @@ export function accountIds(): string[] {
  * overview sits), swung toward the sunlit side.
  */
 export function accountApproachAzimuth(accountId: string) {
-  const slot = ACCOUNT_SLOTS[accountId] ?? [0, 0];
+  const slot = accountSlot(accountId) ?? [0, 0];
   const lateral = THREE.MathUtils.clamp(slot[0] / 600, -0.6, 0.6);
   return 0.18 + lateral;
 }

@@ -31,6 +31,7 @@ The accounts are spread across a valley and up into the mountains, the way a rea
 - **Territory map** (bottom right): click an account to fly to it, or click anywhere else to glide there. The cone shows where you are looking.
 - **Move:** drag to orbit, scroll to zoom, **W A S D** to travel, **Q / E** to turn.
 - **Account rail:** jump straight to any account.
+- **Where do you sell?** On a first visit, after the establishing shot, a small card asks for your company and role (AE, SDR or AM) and regrows the forest around that seller's ICP. Stripe, Ramp, Anthropic, OpenAI, Cursor, Cognition, Datadog and Snowflake have hand-written territories; any other company gets an archetype territory instantly (payments, spend, AI platform, data, observability, developer tools, security, HR or general B2B) and, when the server has an `ANTHROPIC_API_KEY`, a Claude-researched one shortly after. The "Selling for …" chip in the top bar reopens it. Target companies are real; people, activity and dollars are always fictional.
 
 The world is meant to feel alive. A stream runs through the valley. The forest floor has grass, ferns, wildflowers, pebbles, boulders and fallen logs. Rabbits and squirrels work the clearings, flocks of birds pass overhead, small birds perch in the largest crowns, and now and then a wolf crosses.
 
@@ -82,7 +83,7 @@ npm run typecheck
 npm run build && npm start
 ```
 
-No login, database or external API. Everything runs locally and deterministically.
+No login or database. Everything runs locally and deterministically. The one optional external call is `POST /api/territory`, which researches an unknown seller's ICP with Claude (`claude-opus-5-5`) when `ANTHROPIC_API_KEY` is set and otherwise answers 501; the app never waits on it. The static preview build (`PREVIEW_EXPORT=1`) leaves the route out.
 
 QA URL flags (development):
 
@@ -100,6 +101,8 @@ QA URL flags (development):
 src/
   domain/       Types and pure business logic — health, pipeline, opportunity maturity, strategy engine
   data/         Deterministic demo territory (accounts, people, signals) + commercial overlay
+    profiles/   Seller profiles: curated presets, the seed builder, the seller classifier and
+                archetypes, and validation for researched territories
   store/        Zustand store (actions: sample activities, neglect, triggers, undo, reset, demo)
                 and selectors that build live account views
   three/

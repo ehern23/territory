@@ -5,7 +5,7 @@ import { useLiquidGlass } from "../glass/Glass";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { buildAccountView, summarize, useAccountViews } from "@/store/selectors";
-import { DEMO_BEATS, applyDemoStep } from "./script";
+import { DEMO_BEATS, applyDemoStep, beatTitle, demoPlan, lastMeetingAt } from "./script";
 
 /**
  * Presenter card for the guided demo. → / Space advance, ← goes back,
@@ -52,17 +52,21 @@ export function DemoNarrator() {
   }, [demo.active, go, exitDemo]);
 
   const beat = DEMO_BEATS[demo.step];
+  const plan = useMemo(() => demoPlan({ accounts: state.accounts }), [state.accounts]);
   const text = useMemo(() => {
     if (!demo.active || !beat) return "";
     const summary = summarize(views);
-    const jp = state.daysSince.jpmc ?? 0;
-    const before = buildAccountView({ ...state, daysSince: { ...state.daysSince, jpmc: Math.max(0, jp - 75) } }, "jpmc");
+    const focus = plan.focusId;
+    const days = state.daysSince[focus] ?? 0;
+    const before = buildAccountView({ ...state, daysSince: { ...state.daysSince, [focus]: Math.max(0, days - 75) } }, focus);
     return beat.body({
       summary,
       view: (id) => views.find((v) => v.account.id === id),
       healthBeforeNeglect: before?.health.score ?? 0,
+      plan,
+      lastMeeting: lastMeetingAt(state, focus),
     });
-  }, [demo.active, beat, views, state]);
+  }, [demo.active, beat, views, state, plan]);
 
   const last = demo.step === DEMO_BEATS.length - 1;
 
@@ -99,7 +103,7 @@ export function DemoNarrator() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35 }}
           >
-              <h2 className={`display ${isCompact ? "text-[19px]" : "text-[22px]"} mt-2`}>{beat.title}</h2>
+              <h2 className={`display ${isCompact ? "text-[19px]" : "text-[22px]"} mt-2`}>{beatTitle(beat, plan)}</h2>
               <p className={`${isCompact ? "text-[12.5px]" : "text-[13.5px]"} text-paper-80 leading-relaxed mt-2`}>{text}</p>
           </motion.div>
           <div className="flex items-center justify-between gap-3 mt-4">
@@ -109,7 +113,7 @@ export function DemoNarrator() {
                   <button
                     type="button"
                     onClick={() => go(i)}
-                    aria-label={`Go to ${b.title}`}
+                    aria-label={`Go to ${beatTitle(b, plan)}`}
                     aria-current={i === demo.step ? "step" : undefined}
                     className="block h-1.5 rounded-full transition-all duration-300"
                     style={{

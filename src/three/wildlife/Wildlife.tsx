@@ -552,14 +552,19 @@ function Flock({ seed, center, radius, height, count }: { seed: number; center: 
 
 export function Wildlife() {
   const isTouch = useTerritoryStore((s) => s.isTouch);
+  // Glades follow the active territory's accounts.
+  const accounts = useTerritoryStore((s) => s.accounts);
   const glades = useMemo(
     () =>
       accountIds().map((id, i) => {
         const model = getAccountTree(id);
         return { id, home: accountPosition(id), trunk: (model?.shape.trunkRadius ?? 4) * 1.7, i };
       }),
-    [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- accountIds() reads the same accounts
+    [accounts],
   );
+  const flagship = accounts[0]?.id;
+  const third = accounts[2]?.id;
   return (
     <group>
       {glades.map((g) => (
@@ -569,8 +574,8 @@ export function Wildlife() {
           <Squirrel home={g.home} trunk={g.trunk} seed={g.i * 13 + 3} />
         </group>
       ))}
-      <PerchedBirds accountId="jpmc" count={5} />
-      <PerchedBirds accountId="disney" count={3} />
+      {flagship && <PerchedBirds key={flagship} accountId={flagship} count={5} />}
+      {third && <PerchedBirds key={third} accountId={third} count={3} />}
       <Wolf />
       <Flock seed={1} center={V(-80, 0, -120)} radius={260} height={190} count={isTouch ? 10 : 18} />
       <Flock seed={2} center={V(180, 0, 120)} radius={160} height={150} count={isTouch ? 7 : 12} />

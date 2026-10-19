@@ -4,6 +4,10 @@
  * Artifact). Output: preview/ (gitignored).
  *
  *   PREVIEW_EXPORT=1 npx next build && node scripts/build-preview.mjs
+ *
+ * The export build leaves out app/api (POST route handlers cannot be exported;
+ * see next.config.ts) and the client skips ICP research, so unknown sellers
+ * get their deterministic archetype territory.
  */
 import { cpSync, existsSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";

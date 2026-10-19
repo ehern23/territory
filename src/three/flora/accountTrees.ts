@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { Account } from "@/domain/types";
-import { territory } from "@/data";
+import { createRng } from "@/lib/random";
+import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { generateTree, type TreeShape } from "./generateTree";
 import { accountApproachAzimuth } from "../layout";
 import { buildTreeGeometries, type TreeGeometries } from "./treeMeshes";
@@ -17,6 +18,7 @@ interface Habit {
   lean: number;
 }
 
+/** Hand-tuned habits for the original territory; every other account derives one from its seed. */
 const HABIT: Record<string, Partial<Habit>> = {
   jpmc: { spread: 1.08, upright: 0.95, lean: 1.2 },
   walmart: { spread: 1.15, upright: 0.9 },
@@ -28,8 +30,21 @@ const HABIT: Record<string, Partial<Habit>> = {
   ford: { spread: 0.95, upright: 1.1, lean: 0.6 },
 };
 
+function habitFor(account: Account): Habit {
+  const tuned = HABIT[account.id];
+  if (tuned) return { spread: 1, upright: 1, lean: 1, ...tuned };
+  const rng = createRng(account.seed ^ 0x5bd1e995);
+  return {
+    spread: 0.92 + rng.next() * 0.26,
+    upright: 0.86 + rng.next() * 0.28,
+    lean: 0.4 + rng.next() * 1.1,
+  };
+}
+
 export interface AccountTreeModel {
   accountId: string;
+  /** The account this model was grown from; a new territory grows new trees. */
+  account: Account;
   shape: TreeShape;
   geometries: TreeGeometries;
   /** Business-unit id for each scaffold limb index. */
@@ -47,7 +62,7 @@ const cache = new Map<string, AccountTreeModel>();
  * finely divided crown rather than a scaled-up sapling.
  */
 export function accountTreeParams(account: Account) {
-  const habit = { spread: 1, upright: 1, lean: 1, ...HABIT[account.id] };
+  const habit = habitFor(account);
   const height = 104 + 48 * account.scale.opportunity;
   const sizes = account.businessUnits.map((bu) => bu.teams.reduce((s, t) => s + t.prospects.length, 0));
   const max = Math.max(1, ...sizes);
@@ -66,15 +81,26 @@ export function accountTreeParams(account: Account) {
   };
 }
 
+function disposeModel(model: AccountTreeModel) {
+  model.geometries.bark.dispose();
+  model.geometries.foliage.dispose();
+}
+
+/** Tree for an account of the active territory. Rebuilt when the territory changes. */
 export function getAccountTree(accountId: string): AccountTreeModel | null {
+  const account = useTerritoryStore.getState().accountsById[accountId];
   const hit = cache.get(accountId);
-  if (hit) return hit;
-  const account = territory.accounts.find((a) => a.id === accountId);
+  if (hit && hit.account === account) return hit;
+  if (hit) {
+    disposeModel(hit);
+    cache.delete(accountId);
+  }
   if (!account) return null;
   const shape = generateTree(accountTreeParams(account));
   const limbIds = account.businessUnits.map((bu) => bu.id);
   const model: AccountTreeModel = {
     accountId,
+    account,
     shape,
     geometries: buildTreeGeometries(shape),
     limbIds,
@@ -112,4 +138,14 @@ function placeFruit(shape: TreeShape, account: Account) {
     out[opp.id] = hang;
   }
   return out;
+}
+
+/** Free trees that no longer belong to the active territory. */
+export function pruneAccountTrees(activeIds: Iterable<string>) {
+  const keep = new Set(activeIds);
+  for (const [id, model] of cache) {
+    if (keep.has(id)) continue;
+    disposeModel(model);
+    cache.delete(id);
+  }
 }

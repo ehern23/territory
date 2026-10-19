@@ -8,7 +8,6 @@ import { computeStrategicScore } from "@/domain/score";
 import { computeHealth, needsAttention, type AccountHealth } from "@/domain/health";
 import { pipelineOf, formatMoney, type AccountCommercial, type PipelineSummary } from "@/domain/commercial";
 import { deterministicStrategyEngine } from "@/domain/strategy";
-import { COMMERCIAL } from "@/data/commercial";
 import {
   currentBusinessUnits,
   evaluateVisibleOpportunities,
@@ -57,7 +56,7 @@ const FALLBACK_COMMERCIAL: AccountCommercial = {
 
 type Slice = Pick<
   ReturnType<typeof useTerritoryStore.getState>,
-  "accountsById" | "businessUnitsById" | "prospectsById" | "opportunitiesById" | "signals" | "activities" | "daysSince"
+  "accountsById" | "businessUnitsById" | "prospectsById" | "opportunitiesById" | "signals" | "activities" | "daysSince" | "commercial"
 >;
 
 function isRich(p: Prospect) {
@@ -67,7 +66,7 @@ function isRich(p: Prospect) {
 export function buildAccountView(s: Slice, accountId: string): AccountView | null {
   const account = s.accountsById[accountId];
   if (!account) return null;
-  const commercial = COMMERCIAL[accountId] ?? FALLBACK_COMMERCIAL;
+  const commercial = s.commercial[accountId] ?? FALLBACK_COMMERCIAL;
   const units = currentBusinessUnits(s, accountId).map((unit) => {
     const teams = unit.teams.map((team) => {
       const prospects = team.prospects.map((p) => s.prospectsById[p.id] ?? p);
@@ -157,9 +156,10 @@ function useSlice(): Slice {
   const signals = useTerritoryStore((s) => s.signals);
   const activities = useTerritoryStore((s) => s.activities);
   const daysSince = useTerritoryStore((s) => s.daysSince);
+  const commercial = useTerritoryStore((s) => s.commercial);
   return useMemo(
-    () => ({ accountsById, businessUnitsById, prospectsById, opportunitiesById, signals, activities, daysSince }),
-    [accountsById, businessUnitsById, prospectsById, opportunitiesById, signals, activities, daysSince],
+    () => ({ accountsById, businessUnitsById, prospectsById, opportunitiesById, signals, activities, daysSince, commercial }),
+    [accountsById, businessUnitsById, prospectsById, opportunitiesById, signals, activities, daysSince, commercial],
   );
 }
 

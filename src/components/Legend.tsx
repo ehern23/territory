@@ -3,9 +3,27 @@
 import { motion } from "motion/react";
 import { HEALTH_HEX } from "@/domain/health";
 import { FRUIT_HEX } from "@/three/palette";
+import { useTerritoryStore } from "@/store/useTerritoryStore";
+import { ARCHETYPE_LABEL } from "@/data/profiles";
+import type { SellerProfile } from "@/domain/profile";
+
+/** The honesty line, per kind of territory. */
+function provenance(p: SellerProfile): string {
+  if (p.id === "vercel") {
+    return "Company research is public and labelled; people, CRM activity and dollar values are fictional demo data.";
+  }
+  if (p.source === "researched") {
+    return "Target companies and their context were researched by Claude and are unverified; people, CRM activity and dollar values are fictional demo data.";
+  }
+  if (p.source === "archetype") {
+    return `Targets come from a ${ARCHETYPE_LABEL[p.archetype].toLowerCase()} archetype; organizations, people, CRM activity and dollar values are illustrative.`;
+  }
+  return "Target companies are real and their context is labelled seller inference; people, CRM activity and dollar values are fictional demo data.";
+}
 
 /** The visual language, in one card. */
 export function Legend({ onClose }: { onClose: () => void }) {
+  const profile = useTerritoryStore((s) => s.profile);
   return (
     <motion.div
       initial={{ opacity: 0, y: -6 }}
@@ -41,8 +59,7 @@ export function Legend({ onClose }: { onClose: () => void }) {
         </span>
       </Row>
       <p className="text-[11px] text-paper-40 leading-relaxed">
-        Illustrative Vercel Majors territory. Company research is public and labelled; people, CRM activity and
-        dollar values are fictional demo data.
+        Illustrative {profile.territoryLabel} territory. {provenance(profile)}
       </p>
     </motion.div>
   );

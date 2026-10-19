@@ -7,6 +7,7 @@ import { useTerritoryStore } from "@/store/useTerritoryStore";
 /** Title card over the establishing shot; gone the moment the camera settles. */
 export function IntroTitle() {
   const introDone = useTerritoryStore((s) => s.introDone);
+  const label = useTerritoryStore((s) => s.profile.territoryLabel);
   const { active, progress } = useProgress();
   const loaded = !active && progress >= 100;
   return (
@@ -24,7 +25,7 @@ export function IntroTitle() {
             className="eyebrow px-3 py-1.5 rounded-full"
             style={{ color: "var(--color-paper)", background: "rgba(13,16,14,0.42)", backdropFilter: "blur(8px)" }}
           >
-            Illustrative Vercel Majors territory
+            Illustrative {label} territory
           </span>
           <h1 className="display text-[40px] md:text-[64px] mt-3" style={{ textShadow: "0 2px 30px rgba(6,10,8,0.45)" }}>
             Every account is alive.

@@ -14,11 +14,15 @@ import { DemoNarrator } from "./demo/DemoNarrator";
 import { Minimap } from "./Minimap";
 import { SkyControl } from "./SkyControl";
 import { useGlassGlare } from "./glass/Glass";
+import { SellerOnboarding } from "./onboarding/SellerOnboarding";
+import { flushPendingResearch, restoreSeller } from "./onboarding/seller";
+import { hasOnboarded } from "@/store/persistence";
 
 const Scene = dynamic(() => import("@/three/Scene").then((m) => m.Scene), { ssr: false });
 
 export function TerritoryApp() {
   useGlassGlare();
+  useSellerLifecycle();
   // Escape peels back one layer: selection → account → territory.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -65,9 +69,35 @@ export function TerritoryApp() {
       <AccountPanel />
       <Minimap />
       <SkyControl />
+      <SellerOnboarding />
       <DemoNarrator />
       <Notices />
       <Loader />
     </div>
   );
+}
+
+/**
+ * Seller lifecycle: restore the remembered seller, offer onboarding once the
+ * establishing shot ends on a first visit, and apply researched territories
+ * that arrived while the user was inside an account.
+ */
+function useSellerLifecycle() {
+  const introDone = useTerritoryStore((s) => s.introDone);
+
+  useEffect(() => {
+    restoreSeller();
+    return useTerritoryStore.subscribe((s, prev) => {
+      if (s.mode === "forest" && prev.mode !== "forest") flushPendingResearch();
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!introDone || hasOnboarded()) return;
+    const t = setTimeout(() => {
+      const s = useTerritoryStore.getState();
+      if (!s.demo.active && !hasOnboarded()) s.setOnboardingOpen(true);
+    }, 900);
+    return () => clearTimeout(t);
+  }, [introDone]);
 }
