@@ -197,10 +197,15 @@ export function mountainFactor(x: number, z: number) {
 }
 
 function landHeight(x: number, z: number) {
-  const roll =
-    (fbm(x * 0.0042 + 11.3, z * 0.0042 - 3.1, 4) - 0.5) * 34 +
-    (fbm(x * 0.017 - 7.7, z * 0.017 + 2.2, 3) - 0.5) * 6;
   const m = mountainFactor(x, z);
+  // The valley floor rolls: long low swells, a few rounded knolls, and the
+  // small undulations underfoot.
+  const swells = (fbm(x * 0.0019 + 21.7, z * 0.0019 - 4.3, 3) - 0.47) * 62;
+  const knolls = smooth(0.56, 0.78, fbm(x * 0.0042 + 5.1, z * 0.0042 + 9.3, 3)) * 22;
+  const roll =
+    (swells + knolls) * (1 - m * 0.6) +
+    (fbm(x * 0.0042 + 11.3, z * 0.0042 - 3.1, 4) - 0.5) * 22 +
+    (fbm(x * 0.017 - 7.7, z * 0.017 + 2.2, 3) - 0.5) * 6;
   if (m <= 0.001) return roll;
   const peaks = ridged(x * 0.0021 + 3.7, z * 0.0021 - 8.4, 6);
   const massif = fbm(x * 0.0009 + 1.3, z * 0.0009 + 5.6, 3);
