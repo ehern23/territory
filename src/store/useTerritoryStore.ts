@@ -11,9 +11,10 @@ import type {
 } from "@/domain/types";
 import { STATUS_LABEL } from "@/domain/relationship";
 import { evaluateOpportunity, type OpportunityState } from "@/domain/opportunity";
-import { STAGE_BY_MATURITY, formatMoney } from "@/domain/commercial";
-import { territory } from "@/data";
-import { COMMERCIAL } from "@/data/commercial";
+import { STAGE_BY_MATURITY, formatMoney, type AccountCommercial } from "@/domain/commercial";
+import type { AccountSeed, SellerProfile } from "@/domain/profile";
+import { DEFAULT_TERRITORY, resolveTerritory, type ActiveTerritory } from "@/data/profiles";
+import { saveSeller } from "./persistence";
 
 export type Mode = "forest" | "account";
 export type PanelTab = "overview" | "organization" | "intelligence" | "activity";
@@ -56,7 +57,22 @@ interface Snapshot {
   daysSince: Record<string, number>;
 }
 
+export type ResearchStatus = "idle" | "researching" | "done" | "unavailable" | "failed";
+
 interface TerritoryState {
+  /** Who is selling: drives which accounts grow and how they are described. */
+  profile: SellerProfile;
+  /** Seeds behind a generated territory; persisted for researched profiles. */
+  profileSeeds: AccountSeed[] | null;
+  /** Commercial overlay for the active territory. */
+  commercial: Record<string, AccountCommercial>;
+  /** The active territory's starting state; reset returns here. */
+  baseline: Snapshot;
+  /** Onboarding card ("Where do you sell?") visible. */
+  onboardingOpen: boolean;
+  /** Optional Claude research of an unknown seller's ICP. */
+  research: { status: ResearchStatus; company: string | null };
+
   accounts: Account[];
   accountsById: Record<string, Account>;
   prospectsById: Record<string, Prospect>;
@@ -94,6 +110,11 @@ interface TerritoryState {
   reactivations: Reactivation[];
   notices: Notice[];
   undoStack: UndoEntry[];
+
+  // seller profile
+  loadProfile: (profile: SellerProfile, seeds?: AccountSeed[] | null, opts?: { persist?: boolean; announce?: boolean }) => void;
+  setOnboardingOpen: (open: boolean) => void;
+  setResearch: (research: { status: ResearchStatus; company: string | null }) => void;
 
   // navigation
   enterAccount: (id: string) => void;
@@ -140,62 +161,75 @@ function index<T extends { id: string }>(items: T[]): Record<string, T> {
   return out;
 }
 
-const accountsById = index(territory.accounts);
-const initialProspects = index(
-  territory.accounts.flatMap((a) => a.businessUnits.flatMap((bu) => bu.teams.flatMap((t) => t.prospects))),
-);
-const initialBusinessUnits = index(territory.accounts.flatMap((a) => a.businessUnits));
-const opportunitiesById = index(territory.accounts.flatMap((a) => a.opportunities));
-const initialSignals = territory.accounts.flatMap((a) => a.signals);
-const initialDays: Record<string, number> = Object.fromEntries(
-  territory.accounts.map((a) => [a.id, COMMERCIAL[a.id]?.lastActivityDaysAgo ?? 14]),
-);
-
 let activityCounter = 0;
 function makeActivity(accountId: string, kind: ActivityKind, message: string, extra: Partial<Activity> = {}): Activity {
   activityCounter += 1;
   return { id: `act-${activityCounter}`, accountId, kind, message, timestamp: Date.now(), ...extra };
 }
 
-function seedActivities(): Activity[] {
+const DAY = 86_400_000;
+const SYNTHETIC_ID = /\.[pl]\d+$/;
+
+/**
+ * Starting history, derived from the territory itself: the last recorded touch
+ * per account, then (older) each booked meeting with a named stakeholder and
+ * each opportunity that already has a stage.
+ */
+function seedActivities(accounts: Account[], commercial: Record<string, AccountCommercial>): Activity[] {
   const now = Date.now();
-  const day = 86_400_000;
   const items: Activity[] = [];
-  for (const a of territory.accounts) {
-    const c = COMMERCIAL[a.id];
+  const push = (accountId: string, kind: ActivityKind, message: string, daysAgo: number, extra: Partial<Activity> = {}) => {
+    activityCounter += 1;
+    items.push({ id: `act-seed-${activityCounter}`, accountId, kind, message, timestamp: now - daysAgo * DAY, ...extra });
+  };
+  for (const a of accounts) {
+    const c = commercial[a.id];
     if (!c) continue;
-    activityCounter += 1;
-    items.push({
-      id: `act-seed-${activityCounter}`,
-      accountId: a.id,
-      kind: "contacted",
-      message: c.lastActivity,
-      timestamp: now - c.lastActivityDaysAgo * day,
-    });
-  }
-  const extra: [string, ActivityKind, string, number][] = [
-    ["jpmc", "meeting", "Meeting booked with Director, Internal Developer Platform", 8],
-    ["jpmc", "opportunity", "Engineer's Platform AI-Assisted Delivery qualified", 5],
-    ["walmart", "opportunity", "Developer Experience Platform Evaluation formed", 11],
-    ["disney", "meeting", "Meeting booked with Director, Web Experiences", 15],
-    ["starbucks", "meeting", "Discovery meeting with Director, Mobile Experience", 33],
-  ];
-  for (const [accountId, kind, message, daysAgo] of extra) {
-    activityCounter += 1;
-    items.push({ id: `act-seed-${activityCounter}`, accountId, kind, message, timestamp: now - daysAgo * day });
+    push(a.id, "contacted", c.lastActivity, c.lastActivityDaysAgo);
+    const meetings = a.businessUnits
+      .flatMap((bu) => bu.teams.flatMap((t) => t.prospects))
+      .filter((p) => !p.latent && p.relationshipStatus === "meeting" && !SYNTHETIC_ID.test(p.id));
+    meetings.forEach((p, i) =>
+      push(a.id, "meeting", `Meeting booked with ${p.title}`, c.lastActivityDaysAgo + 6 + i * 3, { prospectId: p.id, businessUnitId: p.businessUnitId }),
+    );
+    a.opportunities
+      .filter((o) => !o.latent && o.baselineMaturity)
+      .forEach((o, i) =>
+        push(
+          a.id,
+          "opportunity",
+          `${o.name} ${o.baselineMaturity === "bud" ? "formed" : "qualified"}`,
+          c.lastActivityDaysAgo + 3 + i * 4,
+          { opportunityId: o.id, businessUnitId: o.businessUnitId },
+        ),
+      );
   }
   return items.sort((x, y) => x.timestamp - y.timestamp);
 }
 
-const initialActivities = seedActivities();
+/** Everything derived from a territory: lookups and the starting snapshot. */
+function derive(active: ActiveTerritory) {
+  const { territory, commercial } = active;
+  const baseline: Snapshot = {
+    prospectsById: index(territory.accounts.flatMap((a) => a.businessUnits.flatMap((bu) => bu.teams.flatMap((t) => t.prospects)))),
+    businessUnitsById: index(territory.accounts.flatMap((a) => a.businessUnits)),
+    signals: territory.accounts.flatMap((a) => a.signals),
+    activities: seedActivities(territory.accounts, commercial),
+    daysSince: Object.fromEntries(territory.accounts.map((a) => [a.id, commercial[a.id]?.lastActivityDaysAgo ?? 14])),
+  };
+  return {
+    profile: active.profile,
+    profileSeeds: active.seeds ?? null,
+    commercial,
+    baseline,
+    accounts: territory.accounts,
+    accountsById: index(territory.accounts),
+    opportunitiesById: index(territory.accounts.flatMap((a) => a.opportunities)),
+    ...baseline,
+  };
+}
 
-const INITIAL: Snapshot = {
-  prospectsById: initialProspects,
-  businessUnitsById: initialBusinessUnits,
-  signals: initialSignals,
-  activities: initialActivities,
-  daysSince: initialDays,
-};
+const INITIAL = derive(DEFAULT_TERRITORY);
 
 let noticeCounter = 0;
 let pulseCounter = 0;
@@ -207,15 +241,25 @@ const SELECTION_CLEARED = {
   selectedOpportunityId: null,
 } as const;
 
+/** UI state that returns to its starting point whenever the territory changes. */
+const FRESH_VIEW = {
+  mode: "forest" as Mode,
+  activeAccountId: null,
+  hoveredAccountId: null,
+  panelTab: "overview" as PanelTab,
+  ...SELECTION_CLEARED,
+  filter: "all" as TerritoryFilter,
+  overviewOpen: false,
+  reactivations: [] as Reactivation[],
+  notices: [] as Notice[],
+  undoStack: [] as UndoEntry[],
+  pulses: [] as Pulse[],
+};
+
 export const useTerritoryStore = create<TerritoryState>((set, get) => ({
-  accounts: territory.accounts,
-  accountsById,
-  prospectsById: INITIAL.prospectsById,
-  businessUnitsById: INITIAL.businessUnitsById,
-  opportunitiesById,
-  signals: INITIAL.signals,
-  activities: INITIAL.activities,
-  daysSince: INITIAL.daysSince,
+  ...INITIAL,
+  onboardingOpen: false,
+  research: { status: "idle", company: null },
 
   mode: "forest",
   activeAccountId: null,
@@ -237,6 +281,31 @@ export const useTerritoryStore = create<TerritoryState>((set, get) => ({
   reactivations: [],
   notices: [],
   undoStack: [],
+
+  loadProfile: (profile, seeds, opts = {}) => {
+    const next = derive(resolveTerritory(profile, seeds ?? undefined));
+    set((s) => ({
+      ...next,
+      ...FRESH_VIEW,
+      demo: { active: false, step: 0 },
+      cameraNonce: s.cameraNonce + 1,
+      notices:
+        opts.announce === false
+          ? []
+          : [
+              {
+                id: `notice-${++noticeCounter}`,
+                kind: "growth",
+                title: `Selling for ${profile.company}`,
+                body: `${next.accounts.length} ICP accounts regrown · illustrative ${profile.territoryLabel} territory`,
+              },
+            ],
+    }));
+    if (opts.persist !== false) saveSeller(next.profile, profile.source === "researched" ? next.profileSeeds : null);
+  },
+
+  setOnboardingOpen: (open) => set({ onboardingOpen: open }),
+  setResearch: (research) => set({ research }),
 
   enterAccount: (id) =>
     set({
@@ -373,7 +442,7 @@ export const useTerritoryStore = create<TerritoryState>((set, get) => ({
     const after = evaluateVisibleOpportunities({ ...s, prospectsById: prospectsNext }, prospect.accountId);
     for (const state of after) {
       const prev = before.find((b) => b.opportunity.id === state.opportunity.id);
-      const value = COMMERCIAL[prospect.accountId]?.dealValues[state.opportunity.id] ?? 0;
+      const value = s.commercial[prospect.accountId]?.dealValues[state.opportunity.id] ?? 0;
       if (!prev?.maturity && state.maturity) {
         activities.push(
           makeActivity(prospect.accountId, "opportunity", `Opportunity formed: ${state.opportunity.name}`, {
@@ -574,18 +643,8 @@ export const useTerritoryStore = create<TerritoryState>((set, get) => ({
 
   resetDemo: () =>
     set((s) => ({
-      ...INITIAL,
-      mode: "forest",
-      activeAccountId: null,
-      hoveredAccountId: null,
-      panelTab: "overview",
-      ...SELECTION_CLEARED,
-      filter: "all",
-      overviewOpen: false,
-      reactivations: [],
-      notices: [],
-      undoStack: [],
-      pulses: [],
+      ...s.baseline,
+      ...FRESH_VIEW,
       demo: { active: false, step: 0 },
       cameraNonce: s.cameraNonce + 1,
     })),

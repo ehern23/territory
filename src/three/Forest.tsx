@@ -11,7 +11,7 @@ import { formatMoney } from "@/domain/commercial";
 import { AccountTree, type TreeVisualState } from "./flora/AccountTree";
 import { FruitCluster, type FruitSpec } from "./flora/Fruit";
 import { MAX_LIMBS } from "./flora/floraMaterials";
-import type { AccountTreeModel } from "./flora/accountTrees";
+import { pruneAccountTrees, type AccountTreeModel } from "./flora/accountTrees";
 import { accountPosition } from "./layout";
 
 /**
@@ -227,8 +227,12 @@ function LimbLabels({ view, model }: { view: AccountView; model: AccountTreeMode
 
 export function Forest() {
   const views = useAccountViews();
+  const profileId = useTerritoryStore((s) => s.profile.id);
+  const accounts = useTerritoryStore((s) => s.accounts);
+  // A new seller grows a new forest: free the old trees once they are gone.
+  useEffect(() => pruneAccountTrees(accounts.map((a) => a.id)), [accounts]);
   return (
-    <group>
+    <group key={profileId}>
       {views.map((v) => (
         <ForestTree key={v.account.id} view={v} />
       ))}

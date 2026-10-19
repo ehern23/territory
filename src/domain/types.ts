@@ -51,7 +51,11 @@ export type SignalType =
   | "governance"
   | "competitive-displacement"
   | "earnings-priority"
-  | "technical-announcement";
+  | "technical-announcement"
+  // Seller-agnostic additions (payments, finance, data, AI platforms…)
+  | "market-expansion"
+  | "platform-migration"
+  | "finance-transformation";
 
 export type SignalStrength = "weak" | "moderate" | "strong";
 
@@ -166,17 +170,30 @@ export interface Opportunity extends Evidence {
   stage: string;
 }
 
+/**
+ * Strategic score dimensions. Keys are stable identifiers; every component
+ * carries its own human label, so a seller of payments, spend management or AI
+ * platforms can describe the same dimension in their own language. Only
+ * `competitive-friction` changes the arithmetic (it counts against the score).
+ */
+export type ScoreKey =
+  // Seller-agnostic dimensions
+  | "account-scale"
+  | "use-case-fit"
+  | "expansion-potential"
+  | "ai-intensity"
+  | "logo-value"
+  | "surface-area"
+  | "timing"
+  | "governance-fit"
+  | "competitive-friction"
+  // Developer-platform dimensions (the original Vercel territory)
+  | "technical-scale"
+  | "engineering-complexity"
+  | "seat-expansion";
+
 export interface StrategicScoreComponent {
-  key:
-    | "technical-scale"
-    | "ai-intensity"
-    | "engineering-complexity"
-    | "seat-expansion"
-    | "logo-value"
-    | "surface-area"
-    | "timing"
-    | "governance-fit"
-    | "competitive-friction";
+  key: ScoreKey;
   label: string;
   /** 0-10 */
   value: number;
@@ -190,16 +207,25 @@ export interface StrategicScore {
   components: StrategicScoreComponent[];
 }
 
+/**
+ * Intelligence categories ("roots"). The first group is seller-agnostic; the
+ * developer-specific categories remain for the developer-platform territory.
+ */
 export type RootCategory =
-  | "Developer Scale"
+  | "Company Scale"
+  | "Business Model"
+  | "Digital Surface"
+  | "Current Stack"
   | "AI Adoption"
-  | "Engineering Complexity"
-  | "Developer Tooling"
   | "Security / Governance"
   | "Transformation Initiatives"
   | "Competitive Environment"
   | "Executive Priorities"
-  | "Timing Signals";
+  | "Timing Signals"
+  // Developer-platform categories
+  | "Developer Scale"
+  | "Engineering Complexity"
+  | "Developer Tooling";
 
 export interface RootIntelligence extends Evidence {
   id: string;

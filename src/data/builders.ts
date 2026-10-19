@@ -122,6 +122,16 @@ export interface AccountSpec {
   businessUnits: BusinessUnitSpec[];
   opportunities: OpportunitySpec[];
   signals: SignalSpec[];
+  /**
+   * Optional seller voice for generated prospects. Defaults describe a
+   * developer-platform seller; other sellers pass their own framing.
+   */
+  voice?: ProspectVoice;
+}
+
+export interface ProspectVoice {
+  hypotheses?: Partial<Record<FunctionKind, string[]>>;
+  pain?: Partial<Record<FunctionKind, string[]>>;
 }
 
 const STATUS_MIX: Record<TeamCondition, [RelationshipStatus, number][]> = {
@@ -178,6 +188,26 @@ const GENERIC_HYPOTHESES: Record<FunctionKind, string[]> = {
     "Manages enterprise vendor terms; engage once a sponsor exists.",
     "Cares about contract flexibility and consolidation.",
   ],
+  finance: [
+    "Owns the close and the controls around it; measured on accuracy and days-to-close.",
+    "Feels manual work in AP and reconciliation first; a natural early champion.",
+  ],
+  payments: [
+    "Owns payment acceptance and its economics; authorization rate and cost are the scoreboard.",
+    "Balances conversion against fraud and compliance in every change.",
+  ],
+  operations: [
+    "Runs the processes everyone else depends on; values fewer handoffs.",
+    "Measured on throughput and cost to serve.",
+  ],
+  people: [
+    "Owns the employee lifecycle systems; adoption and data quality matter most.",
+    "Will weigh change management as heavily as features.",
+  ],
+  revenue: [
+    "Accountable for customer-facing growth programs; wants measurable lift.",
+    "Sponsors pilots when they map to a quarterly target.",
+  ],
 };
 
 const GENERIC_PAIN: Record<FunctionKind, string[]> = {
@@ -189,6 +219,11 @@ const GENERIC_PAIN: Record<FunctionKind, string[]> = {
   "developer-experience": ["Build times", "Context switching", "Tool sprawl"],
   business: ["Cost visibility", "Vendor consolidation", "Demonstrable ROI"],
   procurement: ["Contract complexity", "Security review time", "Renewal timing"],
+  finance: ["Manual reconciliation", "Slow month-end close", "Policy compliance"],
+  payments: ["Authorization rates", "Processing cost", "Fragmented providers"],
+  operations: ["Manual handoffs", "Process visibility", "Cost to serve"],
+  people: ["System sprawl", "Onboarding time", "Data quality"],
+  revenue: ["Attribution", "Personalization at scale", "Campaign velocity"],
 };
 
 const NEXT_ACTIONS: Record<RelationshipStatus, string[]> = {
@@ -237,7 +272,10 @@ function buildTeam(
   bu: BusinessUnitSpec,
   spec: TeamSpec,
   usedNames: Set<string>,
+  voice?: ProspectVoice,
 ): Team {
+  const hypotheses = voice?.hypotheses?.[spec.fn] ?? GENERIC_HYPOTHESES[spec.fn];
+  const pains = voice?.pain?.[spec.fn] ?? GENERIC_PAIN[spec.fn];
   const rng = seededRng(accountId, bu.id, spec.id);
   const teamId = `${accountId}.${bu.id}.${spec.id}`;
   const buId = `${accountId}.${bu.id}`;
@@ -262,7 +300,7 @@ function buildTeam(
       lastTouch: rich.lastTouch ?? (status === "unworked" ? undefined : demoDate(rng, 30)),
       nextAction: rich.nextAction ?? rng.pick(NEXT_ACTIONS[status]),
       hypothesis: rich.hypothesis,
-      painPoints: rich.painPoints ?? rng.pick(GENERIC_PAIN[spec.fn]).split("|"),
+      painPoints: rich.painPoints ?? rng.pick(pains).split("|"),
       signals: rich.signals ?? [],
       notes: rich.notes ?? [],
       evidenceType: "demo",
@@ -290,8 +328,8 @@ function buildTeam(
       priority,
       lastTouch: status === "unworked" ? undefined : demoDate(rng, 45),
       nextAction: rng.pick(NEXT_ACTIONS[status]),
-      hypothesis: rng.pick(GENERIC_HYPOTHESES[spec.fn]),
-      painPoints: [rng.pick(GENERIC_PAIN[spec.fn])],
+      hypothesis: rng.pick(hypotheses),
+      painPoints: [rng.pick(pains)],
       signals: [],
       notes: [],
       evidenceType: "demo",
@@ -312,8 +350,8 @@ function buildTeam(
       influence: tmpl.influence,
       relationshipStatus: "unworked",
       priority: tmpl.influence >= 4 ? "high" : "medium",
-      hypothesis: rng.pick(GENERIC_HYPOTHESES[spec.fn]),
-      painPoints: [rng.pick(GENERIC_PAIN[spec.fn])],
+      hypothesis: rng.pick(hypotheses),
+      painPoints: [rng.pick(pains)],
       signals: [],
       notes: [],
       evidenceType: "demo",
@@ -345,7 +383,7 @@ export function defineAccount(spec: AccountSpec): Account {
     season: bu.season,
     status: bu.status ?? "active",
     thesis: bu.thesis,
-    teams: bu.teams.map((t) => buildTeam(spec.id, bu, t, usedNames)),
+    teams: bu.teams.map((t) => buildTeam(spec.id, bu, t, usedNames, spec.voice)),
     dormancyReason: bu.dormancyReason,
     reactivation: bu.reactivation,
   }));

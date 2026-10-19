@@ -2,7 +2,7 @@
   "name": "territory",
   "version": "0.1.0",
   "private": true,
-  "description": "Territory \u2014 a living map of a book of business. Accounts are trees, canopy is engagement health, fruit is pipeline.",
+  "description": "Territory — a living map of a book of business. Accounts are trees, canopy is engagement health, fruit is pipeline.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
     "@react-three/drei": "^10.7.8",
     "@react-three/fiber": "^9.7.0",
     "@react-three/postprocessing": "^3.2.0",
@@ -21,6 +22,7 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "three": "^0.185.1",
+    "zod": "^4.6.7",
     "zustand": "^5.0.15"
   },
   "devDependencies": {
