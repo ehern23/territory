@@ -11,10 +11,13 @@ import { Notices } from "./Notices";
 import { Loader } from "./Loader";
 import { IntroTitle } from "./IntroTitle";
 import { DemoNarrator } from "./demo/DemoNarrator";
+import { Minimap } from "./Minimap";
+import { useGlassGlare } from "./glass/Glass";
 
 const Scene = dynamic(() => import("@/three/Scene").then((m) => m.Scene), { ssr: false });
 
 export function TerritoryApp() {
+  useGlassGlare();
   // Escape peels back one layer: selection → account → territory.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -59,6 +62,7 @@ export function TerritoryApp() {
       <TerritoryPanel />
       <AccountRail />
       <AccountPanel />
+      <Minimap />
       <DemoNarrator />
       <Notices />
       <Loader />

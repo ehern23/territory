@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { Account } from "@/domain/types";
 import { territory } from "@/data";
 import { generateTree, type TreeShape } from "./generateTree";
+import { accountApproachAzimuth } from "../layout";
 import { buildTreeGeometries, type TreeGeometries } from "./treeMeshes";
 
 /**
@@ -39,23 +40,29 @@ export interface AccountTreeModel {
 
 const cache = new Map<string, AccountTreeModel>();
 
+/**
+ * Account trees are emergent giants: roughly two and a half times the height
+ * of the surrounding forest, so the book of business stands above the canopy.
+ * Leaf clusters stay life-sized, so a giant reads as an old tree with a vast,
+ * finely divided crown rather than a scaled-up sapling.
+ */
 export function accountTreeParams(account: Account) {
   const habit = { spread: 1, upright: 1, lean: 1, ...HABIT[account.id] };
-  const height = 32 + 26 * account.scale.opportunity;
+  const height = 104 + 48 * account.scale.opportunity;
   const sizes = account.businessUnits.map((bu) => bu.teams.reduce((s, t) => s + t.prospects.length, 0));
   const max = Math.max(1, ...sizes);
   return {
     seed: account.seed,
     height,
-    trunkRadius: 1.5 + 1.2 * account.scale.enterprise,
+    trunkRadius: 4.2 + 2.8 * account.scale.enterprise,
     limbs: sizes.map((s) => ({ weight: 0.35 + 0.65 * (s / max) })),
-    spread: habit.spread,
+    spread: habit.spread * 1.12,
     upright: habit.upright,
     lean: habit.lean,
-    depth: 2 as const,
-    cardSize: height * 0.13,
-    leafDensity: 1.5,
-    clearBole: 0.34,
+    depth: 3 as const,
+    cardSize: 8,
+    leafDensity: 1.7,
+    clearBole: 0.3,
   };
 }
 
@@ -78,17 +85,31 @@ export function getAccountTree(accountId: string): AccountTreeModel | null {
 }
 
 /**
- * Fruit hangs on the camera-facing side of the lower canopy (the territory is
- * viewed from +Z), fanned out so several opportunities never overlap.
+ * Fruit hangs from real outer branches, on the side of the crown the camera
+ * approaches from, spread apart so clusters never overlap.
  */
 function placeFruit(shape: TreeShape, account: Account) {
   const out: Record<string, THREE.Vector3> = {};
-  const n = account.opportunities.length;
-  const front = Math.atan2(0.3, 1);
-  account.opportunities.forEach((opp, k) => {
-    const az = front + (k - (n - 1) / 2) * 0.75 + (k % 2 === 0 ? 0.08 : -0.12);
-    const dir = new THREE.Vector3(Math.sin(az), -0.32 - (k % 2) * 0.12, Math.cos(az)).normalize();
-    out[opp.id] = shape.crownCenter.clone().add(dir.multiply(shape.crownRadii).multiplyScalar(0.9));
-  });
+  const az = accountApproachAzimuth(account.id);
+  const toward = new THREE.Vector3(Math.sin(az), 0, Math.cos(az));
+  const used: THREE.Vector3[] = [];
+  const minGap = Math.max(shape.crownRadii.x, shape.crownRadii.z) * 0.35;
+  const ranked = shape.fruitSlots
+    .map((s) => {
+      const o = s.hang.clone().sub(shape.crownCenter);
+      const facing = new THREE.Vector3(o.x, 0, o.z).normalize().dot(toward);
+      return { s, score: facing * 1.4 - Math.max(0, o.y / shape.crownRadii.y) };
+    })
+    .sort((a, b) => b.score - a.score);
+  for (const opp of account.opportunities) {
+    const limb = account.businessUnits.findIndex((bu) => bu.id === opp.businessUnitId);
+    const pick =
+      ranked.find((r) => r.s.limb === limb && used.every((u) => u.distanceTo(r.s.hang) > minGap)) ??
+      ranked.find((r) => used.every((u) => u.distanceTo(r.s.hang) > minGap)) ??
+      ranked[0];
+    const hang = pick ? pick.s.hang.clone() : shape.crownCenter.clone();
+    used.push(hang);
+    out[opp.id] = hang;
+  }
   return out;
 }

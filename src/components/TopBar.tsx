@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { LensGroup } from "./glass/Lens";
+import { useLiquidGlass } from "./glass/Glass";
 import { AnimatePresence, motion } from "motion/react";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { useAccountView } from "@/store/selectors";
@@ -18,6 +20,8 @@ export function TopBar() {
   const setIntroDone = useTerritoryStore((s) => s.setIntroDone);
   const view = useAccountView(mode === "account" ? activeAccountId : null);
   const [legend, setLegend] = useState(false);
+  const capsuleRef = useRef<HTMLDivElement>(null);
+  useLiquidGlass(capsuleRef, { radius: 999, strength: 30, blur: 6, saturate: 1.6, bevel: 14 });
 
   return (
     <header
@@ -59,30 +63,33 @@ export function TopBar() {
             Skip intro
           </button>
         )}
-        {mode === "account" && !demoActive && (
-          <button type="button" className="btn btn-sm btn-pill glass !rounded-full" onClick={returnToForest}>
-            ← {isCompact ? "Forest" : "Territory"}
+        <LensGroup ref={capsuleRef} className="glass glass-pill flex items-center gap-0.5 p-1" radius={999}>
+          {mode === "account" && !demoActive && (
+            <button type="button" data-lens className="btn btn-sm btn-pill btn-ghost !text-paper" onClick={returnToForest}>
+              ← {isCompact ? "Forest" : "Territory"}
+            </button>
+          )}
+          <button
+            type="button"
+            data-lens
+            className="btn btn-sm btn-pill btn-ghost !text-paper"
+            onClick={() => setLegend((v) => !v)}
+            aria-expanded={legend}
+            aria-label="How to read the forest"
+          >
+            {isCompact ? "?" : "How to read it"}
           </button>
-        )}
-        <button
-          type="button"
-          className="btn btn-sm btn-pill glass !rounded-full"
-          onClick={() => setLegend((v) => !v)}
-          aria-expanded={legend}
-          aria-label="How to read the forest"
-        >
-          {isCompact ? "?" : "How to read it"}
-        </button>
-        {!demoActive && (
-          <>
-            <button type="button" className="btn btn-sm btn-pill glass !rounded-full" onClick={resetDemo} aria-label="Reset demo data">
-              {isCompact ? "↺" : "Reset"}
-            </button>
-            <button type="button" className="btn btn-sm btn-pill btn-primary !rounded-full" onClick={() => applyDemoStep(0)}>
-              <span aria-hidden>▶</span> {isCompact ? "Demo" : "Guided demo"}
-            </button>
-          </>
-        )}
+          {!demoActive && (
+            <>
+              <button type="button" data-lens className="btn btn-sm btn-pill btn-ghost !text-paper" onClick={resetDemo} aria-label="Reset demo data">
+                {isCompact ? "↺" : "Reset"}
+              </button>
+              <button type="button" data-lens className="btn btn-sm btn-pill btn-primary" onClick={() => applyDemoStep(0)}>
+                <span aria-hidden>▶</span> {isCompact ? "Demo" : "Guided demo"}
+              </button>
+            </>
+          )}
+        </LensGroup>
         <AnimatePresence>{legend && <Legend onClose={() => setLegend(false)} />}</AnimatePresence>
       </div>
     </header>

@@ -108,8 +108,8 @@ function OneFruit({
 
   // Bigger deals bear more fruit; each fruit grows with maturity.
   const count = Math.max(1, Math.min(4, Math.round(spec.value / 900_000)));
-  const radius = (0.95 + 0.35 * Math.sqrt(Math.min(4_000_000, spec.value) / 3_000_000)) * (0.62 + 0.11 * maturityRank(spec.maturity));
-  const stemLen = 1.6;
+  const radius = 2.1 * (0.95 + 0.35 * Math.sqrt(Math.min(4_000_000, spec.value) / 3_000_000)) * (0.62 + 0.11 * maturityRank(spec.maturity));
+  const stemLen = 2.4;
   const scaleRef = useRef(0);
   const phase = useMemo(() => (hang.x * 13.1 + hang.z * 7.3) % 10, [hang]);
 
@@ -156,7 +156,7 @@ function OneFruit({
   return (
     <group ref={group} position={hang}>
       <mesh position={[0, -stemLen / 2, 0]}>
-        <cylinderGeometry args={[0.05, 0.08, stemLen, 5]} />
+        <cylinderGeometry args={[0.07, 0.13, stemLen, 6]} />
         <meshStandardMaterial color="#4f4430" roughness={0.9} />
       </mesh>
       {Array.from({ length: count }, (_, i) => (

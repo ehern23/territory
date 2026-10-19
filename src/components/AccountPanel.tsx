@@ -1,6 +1,9 @@
 "use client";
 
+import { useRef } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useLiquidGlass } from "./glass/Glass";
+import { LensGroup } from "./glass/Lens";
 import { useTerritoryStore, type PanelTab } from "@/store/useTerritoryStore";
 import { useAccountView, type AccountView } from "@/store/selectors";
 import { HEALTH_HEX, HEALTH_LABEL } from "@/domain/health";
@@ -27,6 +30,10 @@ export function AccountPanel() {
   const demoActive = useTerritoryStore((s) => s.demo.active);
   const view = useAccountView(mode === "account" ? activeAccountId : null);
   const reduce = useReducedMotion();
+  const asideRef = useRef<HTMLElement>(null);
+  const sheetRef = useRef<HTMLElement>(null);
+  useLiquidGlass(asideRef, { radius: 22, strength: 64, blur: 9, saturate: 1.5, enabled: !!view && !isCompact });
+  useLiquidGlass(sheetRef, { radius: 22, strength: 48, blur: 9, saturate: 1.5, enabled: !!view && isCompact && !demoActive });
   // On phones the narrator carries the story during the demo; the tree needs the screen.
   if (isCompact && demoActive) return null;
 
@@ -35,6 +42,7 @@ export function AccountPanel() {
       {view &&
         (isCompact ? (
           <motion.section
+            ref={sheetRef}
             key="sheet"
             initial={reduce ? false : { y: 60, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -52,6 +60,7 @@ export function AccountPanel() {
           </motion.section>
         ) : (
           <motion.aside
+            ref={asideRef}
             key="side"
             initial={reduce ? false : { x: 24, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
@@ -122,20 +131,21 @@ function PanelBody({ view }: { view: AccountView }) {
             ✕
           </button>
         </div>
-        <div className="tabs" role="tablist" aria-label="Account sections">
+        <LensGroup className="tabs" radius={9} role="tablist" aria-label="Account sections">
           {TABS.map((t) => (
             <button
               key={t.id}
               type="button"
               role="tab"
               aria-selected={tab === t.id}
+              data-lens
               className={`tab ${tab === t.id ? "is-active" : ""}`}
               onClick={() => setTab(t.id)}
             >
               {t.label}
             </button>
           ))}
-        </div>
+        </LensGroup>
       </header>
       {body}
     </div>
@@ -222,10 +232,10 @@ function Overview({ view }: { view: AccountView }) {
         {live.length === 0 ? (
           <p className="text-[12.5px] text-paper-40">No qualified pipeline yet. Engage a second stakeholder to grow fruit.</p>
         ) : (
-          <ul className="flex flex-col -mx-2">
+          <LensGroup as="ul" radius={12} className="flex flex-col -mx-2">
             {live.map((o) => (
               <li key={o.opportunity.id}>
-                <button type="button" className="row-btn" onClick={() => selectOpportunity(o.opportunity.id)}>
+                <button type="button" data-lens className="row-btn" onClick={() => selectOpportunity(o.opportunity.id)}>
                   <span className="dot" style={{ background: FRUIT_HEX[o.maturity!], width: 10, height: 10 }} aria-hidden />
                   <span className="flex-1 min-w-0">
                     <span className="block text-[13px] truncate">{o.opportunity.name}</span>
@@ -237,17 +247,17 @@ function Overview({ view }: { view: AccountView }) {
                 </button>
               </li>
             ))}
-          </ul>
+          </LensGroup>
         )}
       </section>
 
       {/* Stakeholders */}
       <section className="flex flex-col gap-2">
         <span className="eyebrow">Key stakeholders</span>
-        <ul className="flex flex-col -mx-2">
+        <LensGroup as="ul" radius={12} className="flex flex-col -mx-2">
           {keyPeople.map((p) => (
             <li key={p.id}>
-              <button type="button" className="row-btn" onClick={() => selectProspect(p.id)}>
+              <button type="button" data-lens className="row-btn" onClick={() => selectProspect(p.id)}>
                 <StatusDot status={p.relationshipStatus} />
                 <span className="flex-1 min-w-0">
                   <span className="block text-[13px] truncate">{p.name}</span>
@@ -257,7 +267,7 @@ function Overview({ view }: { view: AccountView }) {
               </button>
             </li>
           ))}
-        </ul>
+        </LensGroup>
       </section>
 
       {/* Simulation */}
@@ -267,20 +277,20 @@ function Overview({ view }: { view: AccountView }) {
             <span className="eyebrow">Simulate sales activity</span>
             <p className="text-[11.5px] text-paper-40 mt-1">Run a sample action and watch the tree respond.</p>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button type="button" className="btn" onClick={() => runActivity(account.id, "discovery-call")}>
+          <LensGroup radius={10} className="grid grid-cols-2 gap-2">
+            <button type="button" data-lens className="btn" onClick={() => runActivity(account.id, "discovery-call")}>
               Discovery call
             </button>
-            <button type="button" className="btn" onClick={() => runActivity(account.id, "exec-meeting")}>
+            <button type="button" data-lens className="btn" onClick={() => runActivity(account.id, "exec-meeting")}>
               Executive meeting
             </button>
-            <button type="button" className="btn" onClick={() => runActivity(account.id, "multithread")}>
+            <button type="button" data-lens className="btn" onClick={() => runActivity(account.id, "multithread")}>
               Multithread deal
             </button>
-            <button type="button" className="btn" onClick={() => simulateNeglect(account.id, 60)}>
+            <button type="button" data-lens className="btn" onClick={() => simulateNeglect(account.id, 60)}>
               Skip 60 days
             </button>
-          </div>
+          </LensGroup>
         </section>
       )}
 
@@ -313,12 +323,12 @@ function Organization({ view }: { view: AccountView }) {
         Each limb is a business unit. Fullness follows engagement; a bare limb is dormant by choice; fresh green is a
         branch reactivated by a new signal.
       </p>
-      <ul className="flex flex-col -mx-2">
+      <LensGroup as="ul" radius={12} className="flex flex-col -mx-2">
         {view.units.map(({ unit, coverage }) => {
           const season = unit.status === "dormant" ? "winter" : unit.status === "reactivating" ? "spring" : "summer";
           return (
             <li key={unit.id}>
-              <button type="button" className="row-btn" onClick={() => focusBusinessUnit(unit.id)}>
+              <button type="button" data-lens className="row-btn" onClick={() => focusBusinessUnit(unit.id)}>
                 <span className="dot" style={{ background: SEASON_HEX[season] }} aria-hidden />
                 <span className="flex-1 min-w-0">
                   <span className="block text-[13px] truncate">{unit.name}</span>
@@ -340,7 +350,7 @@ function Organization({ view }: { view: AccountView }) {
             </li>
           );
         })}
-      </ul>
+      </LensGroup>
     </div>
   );
 }

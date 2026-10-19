@@ -21,7 +21,11 @@ export const floraDebug = {
  * so they fall back to a plain alpha cut.
  */
 export function supportsAlphaToCoverage() {
-  return typeof window !== "undefined" && !window.matchMedia("(pointer: coarse)").matches;
+  return (
+    typeof window !== "undefined" &&
+    !window.matchMedia("(pointer: coarse)").matches &&
+    !new URLSearchParams(window.location.search).has("lite")
+  );
 }
 
 export const floraGlobals = {
@@ -183,6 +187,34 @@ function quietGrade(focusExpr: string) {
   `;
 }
 
+/**
+ * Distance LOD for instanced backdrop trees: past `near` the detailed tree
+ * dithers out over to `far` while its impostor dithers in, so there is no pop.
+ */
+export interface LodFade {
+  near: number;
+  far: number;
+}
+
+const LOD_VERTEX = /* glsl */ `
+#ifdef FLORA_LOD
+  vLodDist = distance(cameraPosition, floraWorld(vec3(0.0)));
+#endif
+`;
+
+const LOD_FRAGMENT = /* glsl */ `
+#ifdef FLORA_LOD
+  {
+    float fade = 1.0 - smoothstep(uLodFade.x, uLodFade.y, vLodDist);
+    float ign = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+    if (ign > fade) discard;
+  }
+#endif
+`;
+
+const LOD_PARS_V = "#ifdef FLORA_LOD\nvarying float vLodDist;\n#endif";
+const LOD_PARS_F = "#ifdef FLORA_LOD\nvarying float vLodDist;\nuniform vec2 uLodFade;\n#endif";
+
 function bindUniforms(shader: THREE.WebGLProgramParametersWithUniforms, tree: TreeUniforms, extra: Record<string, { value: unknown }> = {}) {
   Object.assign(shader.uniforms, floraGlobals, tree, extra);
 }
@@ -191,7 +223,7 @@ function bindUniforms(shader: THREE.WebGLProgramParametersWithUniforms, tree: Tr
 export function createFoliageMaterial(
   atlas: THREE.Texture | null,
   tree: TreeUniforms,
-  opts: { translucency?: number; alphaToCoverage?: boolean } = {},
+  opts: { translucency?: number; alphaToCoverage?: boolean; lod?: LodFade } = {},
 ) {
   const material = new THREE.MeshStandardMaterial({
     map: atlas ?? undefined,
@@ -204,17 +236,19 @@ export function createFoliageMaterial(
   });
   const translucency = { value: opts.translucency ?? 0.85 };
   const atlasSize = { value: new THREE.Vector2(1024, 1024) };
+  const lodFade = { value: new THREE.Vector2(opts.lod?.near ?? 0, opts.lod?.far ?? 0) };
   material.onBeforeCompile = (shader) => {
-    bindUniforms(shader, tree, { uTranslucency: translucency, uAtlasSize: atlasSize });
-    shader.defines = { ...(shader.defines ?? {}), FLORA_COLOR: "" };
+    bindUniforms(shader, tree, { uTranslucency: translucency, uAtlasSize: atlasSize, uLodFade: lodFade });
+    shader.defines = { ...(shader.defines ?? {}), FLORA_COLOR: "", ...(opts.lod ? { FLORA_LOD: "" } : {}) };
     shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", `#include <common>\n${FOLIAGE_PARS}`)
-      .replace("#include <begin_vertex>", FOLIAGE_VERTEX);
+      .replace("#include <common>", `#include <common>\n${FOLIAGE_PARS}\n${LOD_PARS_V}`)
+      .replace("#include <begin_vertex>", FOLIAGE_VERTEX + LOD_VERTEX);
     shader.fragmentShader = shader.fragmentShader
       .replace(
         "#include <common>",
-        `#include <common>\n${SHARED_FRAGMENT_PARS}\nuniform float uTranslucency;\nuniform vec2 uAtlasSize;\nvarying vec3 vLeafTint;\nvarying float vFocus;`,
+        `#include <common>\n${SHARED_FRAGMENT_PARS}\n${LOD_PARS_F}\nuniform float uTranslucency;\nuniform vec2 uAtlasSize;\nvarying vec3 vLeafTint;\nvarying float vFocus;`,
       )
+      .replace("#include <clipping_planes_fragment>", `#include <clipping_planes_fragment>\n${LOD_FRAGMENT}`)
       .replace("#include <normal_fragment_begin>", UNFLIPPED_NORMAL)
       // Leaf cards facing the sun would otherwise glint as white speckle.
       .replace(
@@ -251,7 +285,7 @@ export function createFoliageMaterial(
         `,
       );
   };
-  material.customProgramCacheKey = () => "flora-foliage-v3";
+  material.customProgramCacheKey = () => `flora-foliage-v4${opts.lod ? "-lod" : ""}`;
 
   const depth = new THREE.MeshDepthMaterial({
     depthPacking: THREE.RGBADepthPacking,
@@ -298,10 +332,10 @@ const BARK_VERTEX = /* glsl */ `
 export function createBarkMaterial(
   maps: { map: THREE.Texture; normalMap: THREE.Texture; arm: THREE.Texture } | null,
   tree: TreeUniforms,
-  opts: { color?: THREE.ColorRepresentation; moss?: number } = {},
+  opts: { color?: THREE.ColorRepresentation; moss?: number; lod?: LodFade } = {},
 ) {
   const material = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(opts.color ?? "#6f665c"),
+    color: new THREE.Color(opts.color ?? "#5b5249"),
     map: maps?.map,
     normalMap: maps?.normalMap,
     roughnessMap: maps?.arm,
@@ -313,16 +347,19 @@ export function createBarkMaterial(
     envMapIntensity: 0.5,
   });
   const moss = { value: opts.moss ?? 0.5 };
+  const lodFade = { value: new THREE.Vector2(opts.lod?.near ?? 0, opts.lod?.far ?? 0) };
   material.onBeforeCompile = (shader) => {
-    bindUniforms(shader, tree, { uMoss: moss });
+    bindUniforms(shader, tree, { uMoss: moss, uLodFade: lodFade });
+    if (opts.lod) shader.defines = { ...(shader.defines ?? {}), FLORA_LOD: "" };
     shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", `#include <common>\n${BARK_PARS}`)
-      .replace("#include <begin_vertex>", BARK_VERTEX);
+      .replace("#include <common>", `#include <common>\n${BARK_PARS}\n${LOD_PARS_V}`)
+      .replace("#include <begin_vertex>", BARK_VERTEX + LOD_VERTEX);
     shader.fragmentShader = shader.fragmentShader
       .replace(
         "#include <common>",
-        `#include <common>\n${SHARED_FRAGMENT_PARS}\nuniform vec3 uMossColor;\nuniform float uMoss;\nvarying float vDormant;\nvarying float vFocus;\nvarying float vUp;`,
+        `#include <common>\n${SHARED_FRAGMENT_PARS}\n${LOD_PARS_F}\nuniform vec3 uMossColor;\nuniform float uMoss;\nvarying float vDormant;\nvarying float vFocus;\nvarying float vUp;`,
       )
+      .replace("#include <clipping_planes_fragment>", `#include <clipping_planes_fragment>\n${LOD_FRAGMENT}`)
       .replace(
         "#include <map_fragment>",
         /* glsl */ `
@@ -331,7 +368,7 @@ export function createBarkMaterial(
           // The photo bark is treated as luminance detail over a controlled
           // grey-brown, so crevices never crush to black.
           float l = dot(diffuseColor.rgb, vec3(0.33)) / max(dot(diffuse, vec3(0.33)), 0.001);
-          diffuseColor.rgb = diffuse * (0.22 + 1.7 * l);
+          diffuseColor.rgb = diffuse * (0.3 + 1.05 * l);
           float m = smoothstep(0.25, 0.85, vUp) * uMoss;
           diffuseColor.rgb = mix(diffuseColor.rgb, uMossColor * (0.55 + 0.9 * l), m);
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(l) * vec3(1.05, 1.02, 1.0), vDormant * 0.65);
@@ -341,10 +378,10 @@ export function createBarkMaterial(
       .replace(
         "#include <opaque_fragment>",
         // A little bounce light keeps shaded bark from collapsing to black.
-        `outgoingLight += diffuseColor.rgb * vec3(0.22, 0.23, 0.2);\n${quietGrade("vFocus")}`,
+        `outgoingLight += diffuseColor.rgb * vec3(0.12, 0.13, 0.11);\n${quietGrade("vFocus")}`,
       );
   };
-  material.customProgramCacheKey = () => "flora-bark-v2";
+  material.customProgramCacheKey = () => `flora-bark-v3${opts.lod ? "-lod" : ""}`;
   return material;
 }
 

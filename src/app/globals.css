@@ -18,6 +18,12 @@
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+@property --glare {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
 :root {
   color-scheme: dark;
   --glass: rgba(13, 16, 14, 0.7);
@@ -64,19 +70,77 @@ body {
       linear-gradient(to top, rgba(8, 12, 10, 0.36), rgba(8, 12, 10, 0) 26%);
   }
 
+  /*
+   * Liquid glass. A tinted, saturated body; a bright specular rim that is
+   * stronger along the top edge; a soft sheen; and a glare that follows the
+   * cursor. In Chromium an SVG backdrop filter (see glass/liquid.ts) replaces
+   * the blur below with real edge refraction.
+   */
   .glass {
-    background: var(--glass);
-    -webkit-backdrop-filter: blur(22px) saturate(1.25);
-    backdrop-filter: blur(22px) saturate(1.25);
-    border: 1px solid rgba(242, 238, 229, 0.09);
-    border-radius: 18px;
+    --glass-tint: rgba(16, 20, 17, 0.5);
+    background:
+      radial-gradient(520px circle at var(--gx, 50%) var(--gy, -40%), rgba(255, 255, 255, calc(0.085 * var(--glare, 0))), transparent 62%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.02) 22%, rgba(255, 255, 255, 0) 55%, rgba(255, 255, 255, 0.03) 100%),
+      var(--glass-tint);
+    -webkit-backdrop-filter: blur(22px) saturate(1.6) brightness(1.04);
+    backdrop-filter: blur(22px) saturate(1.6) brightness(1.04);
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    border-radius: 22px;
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.04) inset,
-      0 18px 50px rgba(4, 8, 6, 0.28);
+      inset 0 1px 0.5px rgba(255, 255, 255, 0.42),
+      inset 0 -1px 0.5px rgba(255, 255, 255, 0.1),
+      inset 1px 0 0.5px rgba(255, 255, 255, 0.1),
+      inset -1px 0 0.5px rgba(255, 255, 255, 0.1),
+      inset 0 0 28px rgba(255, 255, 255, 0.045),
+      0 1px 2px rgba(4, 8, 6, 0.18),
+      0 22px 60px rgba(4, 8, 6, 0.3);
+    transition:
+      --glare 260ms ease,
+      box-shadow 260ms ease;
   }
   .glass-strong {
-    background: var(--glass-strong);
+    --glass-tint: rgba(14, 18, 15, 0.66);
   }
+  /* With true refraction the backdrop is bent rather than heavily blurred, so the tint does more of the legibility work. */
+  .glass.lg-refract {
+    --glass-tint: rgba(14, 18, 15, 0.58);
+  }
+  .glass-strong.lg-refract {
+    --glass-tint: rgba(12, 16, 13, 0.72);
+  }
+  .glass-pill {
+    border-radius: 999px;
+    --glass-tint: rgba(16, 20, 17, 0.42);
+  }
+
+  /* The sliding selection lens. */
+  .lens {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 0;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.07));
+    -webkit-backdrop-filter: blur(4px) saturate(1.8) brightness(1.18);
+    backdrop-filter: blur(4px) saturate(1.8) brightness(1.18);
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.6),
+      inset 0 -1px 1px rgba(255, 255, 255, 0.18),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.16),
+      inset 0 0 14px rgba(255, 255, 255, 0.1),
+      0 6px 18px rgba(0, 0, 0, 0.22);
+    will-change: transform, width, height;
+  }
+  /* Refracting lens sits above the label and magnifies it. */
+  .lens--refract {
+    z-index: 3;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
+  }
+  [data-lens] {
+    position: relative;
+    z-index: 1;
+  }
+
   .surface-quiet {
     background: rgba(242, 238, 229, 0.045);
     border: 1px solid rgba(242, 238, 229, 0.07);
@@ -137,7 +201,7 @@ body {
     background: rgba(242, 238, 229, 0.13);
   }
   .btn:active {
-    transform: translateY(1px);
+    transform: scale(0.97);
   }
   .btn:disabled {
     opacity: 0.4;

@@ -6,7 +6,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { Environment } from "@react-three/drei";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { floraGlobals, updateSunView } from "../flora/floraMaterials";
-import { FOREST_CENTER, SUN_DIR } from "../layout";
+import { SUN_DIR, WORLD_CENTER } from "../layout";
 
 /**
  * Late-afternoon light: a low warm sun behind the left shoulder of the
@@ -106,7 +106,7 @@ function SkyDome() {
   });
   return (
     <mesh ref={ref} material={material} frustumCulled={false} renderOrder={-100}>
-      <sphereGeometry args={[1800, 48, 24]} />
+      <sphereGeometry args={[6000, 48, 24]} />
     </mesh>
   );
 }
@@ -121,38 +121,55 @@ function FloraClock() {
   return null;
 }
 
+/**
+ * The sun's shadow region travels with the view: it is centred on where the
+ * camera looks (snapped to a grid so shadows don't shimmer as it moves).
+ */
 function Sun() {
   const isTouch = useTerritoryStore((s) => s.isTouch);
   const light = useRef<THREE.DirectionalLight>(null);
-  const { scene } = useThree();
+  const { scene, controls } = useThree();
   useEffect(() => {
     const l = light.current;
     if (!l) return;
-    l.target.position.copy(FOREST_CENTER);
     scene.add(l.target);
     return () => {
       scene.remove(l.target);
     };
   }, [scene]);
-  const pos = FOREST_CENTER.clone().addScaledVector(SUN_DIR, 420);
+  const focus = useMemo(() => new THREE.Vector3(), []);
+  useFrame(({ camera }) => {
+    const l = light.current;
+    if (!l) return;
+    const c = controls as unknown as { getTarget?: (v: THREE.Vector3) => THREE.Vector3 } | null;
+    if (c?.getTarget) c.getTarget(focus);
+    else focus.copy(WORLD_CENTER);
+    // Keep the shadowed region between the camera and what it looks at.
+    focus.lerp(new THREE.Vector3(camera.position.x, focus.y, camera.position.z), 0.25);
+    const snap = 16;
+    focus.set(Math.round(focus.x / snap) * snap, Math.round(focus.y / snap) * snap, Math.round(focus.z / snap) * snap);
+    l.target.position.copy(focus);
+    l.position.copy(focus).addScaledVector(SUN_DIR, 600);
+    l.target.updateMatrixWorld();
+  });
   const size = isTouch ? 2048 : 4096;
+  const extent = isTouch ? 160 : 230;
   return (
     <directionalLight
       ref={light}
-      position={pos}
       intensity={3.0}
       color={SUN_COLOR}
       castShadow
       shadow-mapSize-width={size}
       shadow-mapSize-height={size}
-      shadow-camera-left={-235}
-      shadow-camera-right={235}
-      shadow-camera-top={200}
-      shadow-camera-bottom={-200}
-      shadow-camera-near={60}
-      shadow-camera-far={900}
+      shadow-camera-left={-extent}
+      shadow-camera-right={extent}
+      shadow-camera-top={extent}
+      shadow-camera-bottom={-extent}
+      shadow-camera-near={200}
+      shadow-camera-far={1100}
       shadow-bias={-0.0004}
-      shadow-normalBias={0.35}
+      shadow-normalBias={0.4}
     />
   );
 }
@@ -161,12 +178,12 @@ export function Atmosphere() {
   return (
     <>
       <color attach="background" args={[FOG_COLOR]} />
-      <fogExp2 attach="fog" args={[FOG_COLOR, 0.00078]} />
+      <fogExp2 attach="fog" args={[FOG_COLOR, 0.00029]} />
       <SkyDome />
       <FloraClock />
       <Sun />
       <hemisphereLight args={["#c8dcf2", "#857c58", 1.35]} />
-      <directionalLight position={[180, 90, 200]} intensity={0.35} color="#a9c0dc" />
+      <directionalLight position={[600, 300, 700]} intensity={0.35} color="#a9c0dc" />
     </>
   );
 }

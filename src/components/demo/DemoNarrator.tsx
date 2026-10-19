@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useLiquidGlass } from "../glass/Glass";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { buildAccountView, summarize, useAccountViews } from "@/store/selectors";
@@ -18,6 +19,8 @@ export function DemoNarrator() {
   const reduce = useReducedMotion();
   const views = useAccountViews();
   const state = useTerritoryStore();
+  const cardRef = useRef<HTMLElement>(null);
+  useLiquidGlass(cardRef, { radius: 22, strength: 56, blur: 9, saturate: 1.5, enabled: demo.active });
 
   const go = useCallback((step: number) => {
     const s = useTerritoryStore.getState();
@@ -67,6 +70,7 @@ export function DemoNarrator() {
     <AnimatePresence>
       {demo.active && beat && (
         <motion.section
+          ref={cardRef}
           key="narrator"
           initial={reduce ? false : { y: 24, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}

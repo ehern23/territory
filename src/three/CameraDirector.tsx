@@ -6,22 +6,25 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { CameraControls } from "@react-three/drei";
 import CameraControlsImpl from "camera-controls";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
-import { accountPosition, FOREST_CENTER, terrainHeight } from "./layout";
+import { WORLD_CENTER, accountApproachAzimuth, accountPosition, terrainHeight } from "./layout";
 import { getAccountTree } from "./flora/accountTrees";
 import { floraDebug } from "./flora/floraMaterials";
+import { cameraPose } from "./cameraPose";
 
 /**
  * Camera direction.
  *
- * Load: a single establishing move — from high above the treeline, down and
- * across the meadow to the overview. Afterwards every state change (account,
- * business unit, fruit, back to forest) is one smooth glide, keeping the
- * current azimuth where that preserves orientation. Idle in the overview, the
- * camera drifts almost imperceptibly so the forest never looks frozen.
+ * Load: one establishing move that starts low over the stream and rises over
+ * the canopy until the whole territory and the ranges behind it are in frame.
+ * Afterwards every state change (account, business unit, fruit, a minimap
+ * jump, back to the territory) is a single glide. The camera never dips below
+ * the ground, WASD pans across the map, and when idle in the overview it
+ * drifts almost imperceptibly so the forest never looks frozen.
  */
 
 const FOV = 38;
-const INTRO_SECONDS = 7.5;
+const INTRO_SECONDS = 9;
+const BOUNDS = new THREE.Box3(new THREE.Vector3(-1500, -60, -1750), new THREE.Vector3(1500, 1600, 1350));
 
 interface Shot {
   target: THREE.Vector3;
@@ -34,15 +37,15 @@ interface Shot {
 
 function overviewShot(aspect: number): Shot {
   const portrait = aspect < 0.9;
-  // On desktop the territory panel sits on the left: push the forest right.
-  const shift = portrait ? 0 : -58;
+  // On desktop the territory panel sits on the left: push the territory right.
+  const shift = portrait ? 0 : -150;
   return {
-    target: new THREE.Vector3(FOREST_CENTER.x + 6 + shift, 10 + terrainHeight(FOREST_CENTER.x, FOREST_CENTER.z), FOREST_CENTER.z - 18 + shift * 0.3),
-    distance: portrait ? 430 : aspect < 1.3 ? 380 : 340,
-    polar: portrait ? 1.0 : 1.06,
-    azimuth: 0.32,
-    minDistance: 60,
-    maxDistance: 620,
+    target: new THREE.Vector3(WORLD_CENTER.x + shift, 60, WORLD_CENTER.z - 120),
+    distance: portrait ? 1500 : aspect < 1.3 ? 1300 : 1150,
+    polar: portrait ? 1.12 : 1.26,
+    azimuth: 0.06,
+    minDistance: 30,
+    maxDistance: 2600,
   };
 }
 
@@ -60,6 +63,7 @@ export function CameraDirector() {
   const focusBusinessUnitId = useTerritoryStore((s) => s.focusBusinessUnitId);
   const selectedOpportunityId = useTerritoryStore((s) => s.selectedOpportunityId);
   const cameraNonce = useTerritoryStore((s) => s.cameraNonce);
+  const flyTarget = useTerritoryStore((s) => s.flyTarget);
   const reducedMotion = useTerritoryStore((s) => s.reducedMotion);
   const introDone = useTerritoryStore((s) => s.introDone);
   const setIntroDone = useTerritoryStore((s) => s.setIntroDone);
@@ -67,21 +71,24 @@ export function CameraDirector() {
 
   const intro = useRef<{ t: number; from: Shot; to: Shot } | null>(null);
   const lastInput = useRef(performance.now());
+  const keys = useRef(new Set<string>());
 
   // Controls configuration.
   useEffect(() => {
     const c = controlsRef.current;
     if (!c) return;
-    c.smoothTime = 0.85;
+    c.smoothTime = 0.9;
     c.draggingSmoothTime = 0.14;
-    c.dollySpeed = 0.6;
+    c.dollySpeed = 0.7;
+    c.dollyToCursor = true;
     c.azimuthRotateSpeed = 0.55;
     c.polarRotateSpeed = 0.5;
-    c.minPolarAngle = 0.35;
-    c.maxPolarAngle = 1.46;
+    c.truckSpeed = 1.6;
+    c.minPolarAngle = 0.25;
+    c.maxPolarAngle = 1.5;
     c.mouseButtons.right = CameraControlsImpl.ACTION.TRUCK;
     c.touches.two = CameraControlsImpl.ACTION.TOUCH_DOLLY_TRUCK;
-    c.setBoundary(new THREE.Box3(new THREE.Vector3(-260, -5, -300), new THREE.Vector3(270, 120, 140)));
+    c.setBoundary(BOUNDS);
     c.boundaryEnclosesCamera = false;
     const mark = () => {
       lastInput.current = performance.now();
@@ -90,24 +97,43 @@ export function CameraDirector() {
     return () => c.removeEventListener("controlstart", mark);
   }, []);
 
+  // Keyboard panning: WASD (arrows stay with the guided demo).
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLElement && ["INPUT", "TEXTAREA"].includes(e.target.tagName)) return;
+      const k = e.key.toLowerCase();
+      if (["w", "a", "s", "d", "q", "e"].includes(k)) keys.current.add(k);
+    };
+    const up = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
+    const blur = () => keys.current.clear();
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("blur", blur);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", blur);
+    };
+  }, []);
+
   // Establishing shot.
   useEffect(() => {
     const c = controlsRef.current;
     if (!c) return;
     const to = overviewShot(aspect);
     if (introDone || reducedMotion) {
-      applyShot(c, to, false);
+      applyShot(c, to, false, true);
       if (!introDone) setIntroDone();
       return;
     }
-    // A low arc in from the left flank, sky and sun in frame, settling on the overview.
+    // Low over the stream, looking up the valley toward the mountains.
     const from: Shot = {
-      target: new THREE.Vector3(FOREST_CENTER.x - 70, 34, FOREST_CENTER.z - 30),
-      distance: 540,
-      polar: 1.36,
-      azimuth: -1.15,
+      target: new THREE.Vector3(-40, terrainHeight(-40, 230) + 55, 230),
+      distance: 240,
+      polar: 1.4,
+      azimuth: -0.35,
       minDistance: 10,
-      maxDistance: 2000,
+      maxDistance: 3000,
     };
     applyShot(c, from, false, true);
     intro.current = { t: 0, from, to };
@@ -115,17 +141,27 @@ export function CameraDirector() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useFrame((_, rawDt) => {
+  const tmp = useRef({ target: new THREE.Vector3(), fwd: new THREE.Vector3(), right: new THREE.Vector3() });
+
+  useFrame(({ camera }, rawDt) => {
     const c = controlsRef.current;
     if (!c) return;
     const dt = Math.min(rawDt, 0.05);
+    c.getTarget(tmp.current.target);
+    cameraPose.x = camera.position.x;
+    cameraPose.z = camera.position.z;
+    cameraPose.targetX = tmp.current.target.x;
+    cameraPose.targetZ = tmp.current.target.z;
+    cameraPose.yaw = Math.atan2(tmp.current.target.x - camera.position.x, tmp.current.target.z - camera.position.z);
     const run = intro.current;
     if (run) {
       run.t += dt / INTRO_SECONDS;
       const k = easeInOut(Math.min(1, run.t));
+      // The rise leads the pull-back, so the camera clears the canopy first.
+      const lift = easeInOut(Math.min(1, run.t * 1.4));
       const target = run.from.target.clone().lerp(run.to.target, k);
       const distance = THREE.MathUtils.lerp(run.from.distance, run.to.distance, k);
-      const polar = THREE.MathUtils.lerp(run.from.polar, run.to.polar, k);
+      const polar = THREE.MathUtils.lerp(run.from.polar, run.to.polar, lift);
       const azimuth = THREE.MathUtils.lerp(run.from.azimuth ?? 0, run.to.azimuth ?? 0, k);
       const pos = new THREE.Vector3().setFromSphericalCoords(distance, polar, azimuth).add(target);
       void c.setLookAt(pos.x, pos.y, pos.z, target.x, target.y, target.z, false);
@@ -137,9 +173,37 @@ export function CameraDirector() {
       }
       return;
     }
+
+    // WASD pans the map in the overview.
+    if (keys.current.size > 0 && mode === "forest" && !demoActive) {
+      const t = tmp.current;
+      c.getTarget(t.target);
+      camera.getWorldDirection(t.fwd);
+      t.fwd.y = 0;
+      t.fwd.normalize();
+      t.right.set(-t.fwd.z, 0, t.fwd.x);
+      const speed = Math.max(60, c.distance * 0.55) * dt;
+      const k = keys.current;
+      const mx = (k.has("d") ? 1 : 0) - (k.has("a") ? 1 : 0);
+      const mz = (k.has("w") ? 1 : 0) - (k.has("s") ? 1 : 0);
+      t.target.addScaledVector(t.right, mx * speed).addScaledVector(t.fwd, mz * speed);
+      t.target.clamp(BOUNDS.min, BOUNDS.max);
+      void c.moveTo(t.target.x, t.target.y, t.target.z, false);
+      if (k.has("q")) c.azimuthAngle -= dt * 0.8;
+      if (k.has("e")) c.azimuthAngle += dt * 0.8;
+      lastInput.current = performance.now();
+    }
+
+    // Never below the ground.
+    const ground = terrainHeight(camera.position.x, camera.position.z) + 4;
+    if (camera.position.y < ground) {
+      c.getTarget(tmp.current.target);
+      void c.setLookAt(camera.position.x, ground, camera.position.z, tmp.current.target.x, tmp.current.target.y, tmp.current.target.z, false);
+    }
+
     // Idle drift in the overview.
     if (mode === "forest" && !reducedMotion && performance.now() - lastInput.current > 14000) {
-      c.azimuthAngle += dt * (demoActive ? 0.03 : 0.012);
+      c.azimuthAngle += dt * (demoActive ? 0.02 : 0.008);
     }
   });
 
@@ -161,18 +225,25 @@ export function CameraDirector() {
     const c = controlsRef.current;
     if (!c || intro.current) return;
     lastInput.current = performance.now();
-    const shot = computeShot({
-      mode,
-      activeAccountId,
-      focusBusinessUnitId,
-      selectedOpportunityId,
-      aspect,
-      isCompact,
-      currentAzimuth: c.azimuthAngle,
-    });
+    const shot = computeShot({ mode, activeAccountId, focusBusinessUnitId, selectedOpportunityId, aspect, isCompact });
     applyShot(c, shot, !reducedMotion && !floraDebug.settle, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, activeAccountId, focusBusinessUnitId, selectedOpportunityId, cameraNonce, aspect, isCompact, reducedMotion]);
+
+  // Minimap jumps: glide to a point of the map, keeping the current heading.
+  useEffect(() => {
+    const c = controlsRef.current;
+    if (!c || !flyTarget || intro.current) return;
+    lastInput.current = performance.now();
+    const target = new THREE.Vector3(flyTarget.x, terrainHeight(flyTarget.x, flyTarget.z) + 20, flyTarget.z);
+    applyShot(
+      c,
+      { target, distance: 430, polar: 1.15, azimuth: c.azimuthAngle, minDistance: 30, maxDistance: 2600 },
+      !reducedMotion && !floraDebug.settle,
+      true,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flyTarget]);
 
   return <CameraControls ref={controlsRef} makeDefault />;
 }
@@ -184,6 +255,8 @@ function applyShot(c: CameraControlsImpl, shot: Shot, animate: boolean, setLimit
   }
   const azimuth = shot.azimuth ?? c.azimuthAngle;
   const pos = new THREE.Vector3().setFromSphericalCoords(shot.distance, shot.polar, azimuth).add(shot.target);
+  const ground = terrainHeight(pos.x, pos.z) + 6;
+  if (pos.y < ground) pos.y = ground;
   void c.setLookAt(pos.x, pos.y, pos.z, shot.target.x, shot.target.y, shot.target.z, animate);
 }
 
@@ -194,7 +267,6 @@ interface ShotInput {
   selectedOpportunityId: string | null;
   aspect: number;
   isCompact: boolean;
-  currentAzimuth: number;
 }
 
 function computeShot(input: ShotInput): Shot {
@@ -206,36 +278,25 @@ function computeShot(input: ShotInput): Shot {
   if (!model) return overviewShot(aspect);
   const { shape } = model;
   const vHalf = THREE.MathUtils.degToRad(FOV / 2);
-
-  // Approach from the overview side, swung slightly toward the sun-lit flank.
-  const fromOverview = Math.atan2(base.x - FOREST_CENTER.x, base.z - FOREST_CENTER.z + 260);
-  const azimuth = THREE.MathUtils.clamp(fromOverview * 0.6 + 0.25, -0.9, 1.1);
+  const azimuth = accountApproachAzimuth(input.activeAccountId);
 
   const crownH = shape.crownTop;
-  const fitH = (crownH * 0.62) / Math.tan(vHalf);
-  const width = Math.max(shape.crownRadii.x, shape.crownRadii.z) * 2.3;
+  const fitH = (crownH * 0.6) / Math.tan(vHalf);
+  const width = Math.max(shape.crownRadii.x, shape.crownRadii.z) * 2.2;
   // Desktop: a side panel takes ~420px on the right; frame into the remaining width.
   const usable = isCompact ? 1 : 0.68;
   const fitW = width / 2 / (Math.tan(vHalf) * aspect * usable);
-  let distance = Math.max(fitH, fitW) * 1.05;
-  const target = base.clone().add(new THREE.Vector3(0, crownH * 0.46, 0));
+  let distance = Math.max(fitH, fitW) * 1.04;
+  const target = base.clone().add(new THREE.Vector3(0, crownH * 0.45, 0));
   if (isCompact) {
     // Bottom sheet covers the lower ~45%: lift the subject and step back.
     distance *= 1.25;
     target.y -= Math.tan(vHalf) * distance * 0.38;
   } else {
-    // Shift the subject left of the side panel.
     const right = new THREE.Vector3(Math.cos(azimuth), 0, -Math.sin(azimuth));
     target.addScaledVector(right, Math.tan(vHalf) * distance * aspect * 0.3);
   }
-  const account: Shot = {
-    target,
-    distance,
-    polar: 1.36,
-    azimuth,
-    minDistance: 14,
-    maxDistance: distance * 2.4,
-  };
+  const account: Shot = { target, distance, polar: 1.4, azimuth, minDistance: 14, maxDistance: distance * 2.6 };
 
   const offsetForPanel = (t: THREE.Vector3, d: number, az: number) => {
     if (isCompact) {
@@ -250,11 +311,11 @@ function computeShot(input: ShotInput): Shot {
     const hang = model.fruitHang[input.selectedOpportunityId];
     if (hang) {
       const outward = new THREE.Vector3(hang.x, 0, hang.z).normalize();
-      const az = Math.atan2(outward.x, outward.z) + 0.3;
-      const d = isCompact ? 52 : 42;
-      const t = base.clone().add(hang).add(new THREE.Vector3(0, -3, 0));
+      const az = THREE.MathUtils.lerp(Math.atan2(outward.x, outward.z), azimuth, 0.35);
+      const d = isCompact ? 64 : 52;
+      const t = base.clone().add(hang).add(new THREE.Vector3(0, -4, 0));
       offsetForPanel(t, d, az);
-      return { ...account, target: t, distance: d, polar: 1.42, azimuth: az };
+      return { ...account, target: t, distance: d, polar: 1.45, azimuth: az };
     }
   }
 
@@ -263,10 +324,10 @@ function computeShot(input: ShotInput): Shot {
     const frame = model.shape.limbs[limbIndex];
     if (frame) {
       const az = Math.atan2(frame.outward.x, frame.outward.z) + 0.75;
-      const d = Math.max(frame.length * 2.3, 30) * (isCompact ? 1.25 : 1);
+      const d = Math.max(frame.length * 2.3, 40) * (isCompact ? 1.25 : 1);
       const t = base.clone().add(frame.centroid);
       offsetForPanel(t, d, az);
-      return { ...account, target: t, distance: d, polar: 1.25, azimuth: az };
+      return { ...account, target: t, distance: d, polar: 1.3, azimuth: az };
     }
   }
 

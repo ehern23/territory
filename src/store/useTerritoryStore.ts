@@ -82,9 +82,13 @@ interface TerritoryState {
   introDone: boolean;
   demo: { active: boolean; step: number };
   cameraNonce: number;
+  /** Minimap jump request: glide to this point of the map. */
+  flyTarget: { x: number; z: number; nonce: number } | null;
   reducedMotion: boolean;
   isTouch: boolean;
   isCompact: boolean;
+  /** Lowered automatically when the device can't hold its frame rate. */
+  lowPower: boolean;
 
   pulses: Pulse[];
   reactivations: Reactivation[];
@@ -105,9 +109,11 @@ interface TerritoryState {
   setOverviewOpen: (open: boolean) => void;
   setIntroDone: () => void;
   resetCamera: () => void;
+  flyTo: (x: number, z: number) => void;
   setReducedMotion: (v: boolean) => void;
   setIsTouch: (v: boolean) => void;
   setIsCompact: (v: boolean) => void;
+  setLowPower: (v: boolean) => void;
 
   // relationship lifecycle
   setProspectStatus: (id: string, status: RelationshipStatus, opts?: { silent?: boolean }) => void;
@@ -221,9 +227,11 @@ export const useTerritoryStore = create<TerritoryState>((set, get) => ({
   introDone: false,
   demo: { active: false, step: 0 },
   cameraNonce: 0,
+  flyTarget: null,
   reducedMotion: false,
   isTouch: false,
   isCompact: false,
+  lowPower: false,
 
   pulses: [],
   reactivations: [],
@@ -311,9 +319,18 @@ export const useTerritoryStore = create<TerritoryState>((set, get) => ({
   setOverviewOpen: (open) => set({ overviewOpen: open }),
   setIntroDone: () => set({ introDone: true }),
   resetCamera: () => set((s) => ({ cameraNonce: s.cameraNonce + 1 })),
+  flyTo: (x, z) =>
+    set((s) => ({
+      mode: "forest",
+      activeAccountId: null,
+      ...SELECTION_CLEARED,
+      introDone: true,
+      flyTarget: { x, z, nonce: (s.flyTarget?.nonce ?? 0) + 1 },
+    })),
   setReducedMotion: (v) => set({ reducedMotion: v }),
   setIsTouch: (v) => set({ isTouch: v }),
   setIsCompact: (v) => set({ isCompact: v }),
+  setLowPower: (v) => set({ lowPower: v }),
 
   setProspectStatus: (id, status, opts = {}) => {
     const s = get();

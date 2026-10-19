@@ -1,6 +1,9 @@
 "use client";
 
+import { useRef } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useLiquidGlass } from "./glass/Glass";
+import { LensGroup } from "./glass/Lens";
 import { useTerritoryStore, type TerritoryFilter } from "@/store/useTerritoryStore";
 import { FILTER_LABEL, matchesFilter, summarize, useAccountViews } from "@/store/selectors";
 import { formatMoney } from "@/domain/commercial";
@@ -22,12 +25,17 @@ export function TerritoryPanel() {
   const demoActive = useTerritoryStore((s) => s.demo.active);
   const reduce = useReducedMotion();
   const visible = mode === "forest" && introDone;
+  const asideRef = useRef<HTMLElement>(null);
+  const sheetRef = useRef<HTMLElement>(null);
+  useLiquidGlass(asideRef, { radius: 22, strength: 64, blur: 9, saturate: 1.5, enabled: visible && !isCompact });
+  useLiquidGlass(sheetRef, { radius: 22, strength: 48, blur: 9, saturate: 1.5, enabled: visible && isCompact && !demoActive });
 
   if (isCompact) {
     return (
       <AnimatePresence>
         {visible && !demoActive && (
           <motion.section
+            ref={sheetRef}
             key="territory-sheet"
             initial={reduce ? false : { y: 40, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -63,6 +71,7 @@ export function TerritoryPanel() {
     <AnimatePresence>
       {visible && (
         <motion.aside
+          ref={asideRef}
           key="territory-panel"
           initial={reduce ? false : { x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
@@ -153,7 +162,7 @@ function Filters() {
   return (
     <div className="flex flex-col gap-2">
       <span className="eyebrow">Light up the forest</span>
-      <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Filter accounts">
+      <LensGroup className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Filter accounts">
         {FILTERS.map((f) => {
           const n = views.filter((v) => matchesFilter(v, f)).length;
           return (
@@ -162,6 +171,7 @@ function Filters() {
               type="button"
               role="radio"
               aria-checked={filter === f}
+              data-lens
               className={`chip ${filter === f ? "is-active" : ""}`}
               onClick={() => setFilter(f)}
             >
@@ -170,7 +180,7 @@ function Filters() {
             </button>
           );
         })}
-      </div>
+      </LensGroup>
     </div>
   );
 }
@@ -186,13 +196,14 @@ function Priorities() {
         <span className="eyebrow">Where to focus next</span>
         <span className="text-[10.5px] text-paper-40">health × dollars at stake</span>
       </div>
-      <ol className="flex flex-col -mx-2">
+      <LensGroup as="ol" radius={12} className="flex flex-col -mx-2">
         {s.priorities.slice(0, 3).map((p, i) => {
           const v = views.find((x) => x.account.id === p.accountId);
           return (
             <li key={p.accountId}>
               <button
                 type="button"
+                data-lens
                 className="row-btn items-start"
                 onClick={() => enterAccount(p.accountId)}
                 onPointerEnter={() => setHovered(p.accountId)}
@@ -211,7 +222,7 @@ function Priorities() {
             </li>
           );
         })}
-      </ol>
+      </LensGroup>
     </div>
   );
 }
