@@ -38,7 +38,7 @@ export function LensGroup({
   // Stretch along the direction of travel, squash across it.
   const sx = useTransform(vx, [-2400, 0, 2400], [1.18, 1, 1.18]);
   const sy = useTransform(vx, [-2400, 0, 2400], [0.88, 1, 0.88]);
-  const refracting = useLiquidGlass(lensRef, { radius: Math.min(radius, 22), strength: 26, blur: 0, saturate: 1.6, bevel: 10, magnify: 0.22 });
+  const refracting = useLiquidGlass(lensRef, { radius: Math.min(radius, 22), strength: 12, blur: 0.3, saturate: 1.5, bevel: 7, magnify: 0.1 });
 
   const moveTo = useCallback(
     (el: HTMLElement) => {

@@ -44,11 +44,11 @@ function paintTerrain(): string {
       let r = 34 + c.open * 40;
       let g = 58 + c.open * 50;
       let b = 32 + c.open * 18;
-      const rock = Math.min(1, Math.max(0, (h - 330) / 90));
+      const rock = Math.min(1, Math.max(0, (h - 380) / 90));
       r += (120 - r) * rock;
       g += (118 - g) * rock;
       b += (112 - b) * rock;
-      const snow = Math.min(1, Math.max(0, (h - 520) / 50));
+      const snow = Math.min(1, Math.max(0, (h - 600) / 60));
       r += (225 - r) * snow;
       g += (230 - g) * snow;
       b += (235 - b) * snow;

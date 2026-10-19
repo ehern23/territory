@@ -20,7 +20,7 @@ export function AccountRail() {
   const setHovered = useTerritoryStore((s) => s.setHovered);
   const railRef = useRef<HTMLDivElement>(null);
   const show = mode === "forest" && introDone && !demoActive && !isCompact;
-  useLiquidGlass(railRef, { radius: 999, strength: 30, blur: 6, saturate: 1.6, bevel: 14, enabled: show });
+  useLiquidGlass(railRef, { radius: 999, strength: 22, blur: 6, saturate: 1.6, bevel: 12, enabled: show });
   if (mode !== "forest" || !introDone || demoActive || isCompact) return null;
   return (
     <nav aria-label="Accounts" className="absolute bottom-5 left-[372px] right-[236px] z-30 flex justify-center pointer-events-none">

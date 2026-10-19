@@ -21,7 +21,7 @@ export function TopBar() {
   const view = useAccountView(mode === "account" ? activeAccountId : null);
   const [legend, setLegend] = useState(false);
   const capsuleRef = useRef<HTMLDivElement>(null);
-  useLiquidGlass(capsuleRef, { radius: 999, strength: 30, blur: 6, saturate: 1.6, bevel: 14 });
+  useLiquidGlass(capsuleRef, { radius: 999, strength: 22, blur: 6, saturate: 1.6, bevel: 12 });
 
   return (
     <header

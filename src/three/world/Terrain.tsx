@@ -150,10 +150,10 @@ export function Terrain() {
             canopy = mix(canopy, vec3(0.20, 0.24, 0.14), smoothstep(0.62, 0.8, tFbm(xz * 0.013 + 3.0)));
             float strata = tNoise(vec2(xz.x * 0.01 + h * 0.08, xz.y * 0.01));
             vec3 rock = mix(vec3(0.42, 0.40, 0.37), vec3(0.58, 0.56, 0.52), strata) * (0.8 + 0.35 * tFbm(xz * 0.09));
-            float treeline = 330.0 + (tFbm(xz * 0.004) - 0.5) * 140.0;
+            float treeline = 380.0 + (tFbm(xz * 0.004) - 0.5) * 140.0;
             float rocky = clamp(smoothstep(0.28, 0.5, slope) + smoothstep(treeline, treeline + 70.0, h), 0.0, 1.0);
             vec3 range = mix(canopy, rock, rocky);
-            float snowLine = 520.0 + (tFbm(xz * 0.006 + 2.0) - 0.5) * 120.0;
+            float snowLine = 600.0 + (tFbm(xz * 0.006 + 2.0) - 0.5) * 120.0;
             float snow = smoothstep(snowLine, snowLine + 40.0, h) * (1.0 - smoothstep(0.42, 0.62, slope));
             range = mix(range, vec3(0.92, 0.94, 0.97), snow);
             col = mix(col, range, m);

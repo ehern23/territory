@@ -175,7 +175,7 @@ function landHeight(x: number, z: number) {
   if (m <= 0.001) return roll;
   const peaks = ridged(x * 0.0021 + 3.7, z * 0.0021 - 8.4, 6);
   const massif = fbm(x * 0.0009 + 1.3, z * 0.0009 + 5.6, 3);
-  const mountains = peaks * 560 * (0.55 + massif) + 30;
+  const mountains = peaks * 760 * (0.55 + massif) + 40;
   return roll + mountains * m * m * (3 - 2 * m);
 }
 
@@ -294,7 +294,7 @@ export function groundCover(x: number, z: number): GroundCover {
   const meadow = smooth(0.66, 0.74, fbm(x * 0.0035 + 40, z * 0.0035 - 17, 3));
   const m = mountainFactor(x, z);
   const h = m > 0.01 ? terrainHeight(x, z) : 0;
-  const treeline = 1 - smooth(300, 420, h + (fbm(x * 0.01, z * 0.01, 2) - 0.5) * 80);
+  const treeline = 1 - smooth(350, 470, h + (fbm(x * 0.01, z * 0.01, 2) - 0.5) * 80);
   let water = 0;
   let bank = 0;
   if (Math.abs(x) < 400 && z > -1300 && z < 1100) {
