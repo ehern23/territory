@@ -13,7 +13,7 @@ import { STATUS_LABEL } from "@/domain/relationship";
 import { evaluateOpportunity, type OpportunityState } from "@/domain/opportunity";
 import { STAGE_BY_MATURITY, formatMoney, type AccountCommercial } from "@/domain/commercial";
 import type { AccountSeed, SellerProfile } from "@/domain/profile";
-import { DEFAULT_TERRITORY, resolveTerritory, type ActiveTerritory } from "@/data/profiles";
+import { ARCHETYPE_LABEL, DEFAULT_TERRITORY, resolveTerritory, type ActiveTerritory } from "@/data/profiles";
 import { saveSeller } from "./persistence";
 
 export type Mode = "forest" | "account";
@@ -297,7 +297,12 @@ export const useTerritoryStore = create<TerritoryState>((set, get) => ({
                 id: `notice-${++noticeCounter}`,
                 kind: "growth",
                 title: `Selling for ${profile.company}`,
-                body: `${next.accounts.length} ICP accounts regrown · illustrative ${profile.territoryLabel} territory`,
+                body:
+                  profile.source === "researched"
+                    ? `Researched ICP · ${next.accounts.length} target accounts regrown · illustrative data`
+                    : profile.source === "archetype"
+                      ? `${next.accounts.length} accounts from a ${ARCHETYPE_LABEL[profile.archetype].toLowerCase()} ICP · illustrative data`
+                      : `${next.accounts.length} ICP accounts regrown · illustrative ${profile.territoryLabel} territory`,
               },
             ],
     }));
