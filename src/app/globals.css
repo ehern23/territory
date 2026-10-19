@@ -605,3 +605,53 @@ body {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* Seller onboarding ("Where do you sell?") */
+@layer components {
+  .field {
+    flex: 1;
+    min-width: 0;
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 10px;
+    font-size: 14px;
+    color: var(--color-paper);
+    background: rgba(242, 238, 229, 0.06);
+    border: 1px solid rgba(242, 238, 229, 0.1);
+    outline: none;
+    transition:
+      border-color 160ms ease,
+      background 160ms ease;
+  }
+  .field::placeholder {
+    color: var(--color-paper-40);
+  }
+  .field:focus {
+    background: rgba(242, 238, 229, 0.09);
+    border-color: rgba(233, 199, 123, 0.55);
+  }
+  /* Other sellers' account names run longer; the rail scrolls instead of wrapping. */
+  .rail__item {
+    white-space: nowrap;
+  }
+  .research-dot {
+    width: 6px;
+    height: 6px;
+    flex: none;
+    border-radius: 999px;
+    background: var(--color-accent);
+    animation: research-pulse 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes research-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

@@ -23,6 +23,8 @@ export function TerritoryPanel() {
   const overviewOpen = useTerritoryStore((s) => s.overviewOpen);
   const setOverviewOpen = useTerritoryStore((s) => s.setOverviewOpen);
   const demoActive = useTerritoryStore((s) => s.demo.active);
+  // On phones the onboarding card needs the screen to itself.
+  const onboardingOpen = useTerritoryStore((s) => s.onboardingOpen);
   const reduce = useReducedMotion();
   const visible = mode === "forest" && introDone;
   const asideRef = useRef<HTMLElement>(null);
@@ -33,7 +35,7 @@ export function TerritoryPanel() {
   if (isCompact) {
     return (
       <AnimatePresence>
-        {visible && !demoActive && (
+        {visible && !demoActive && !onboardingOpen && (
           <motion.section
             ref={sheetRef}
             key="territory-sheet"

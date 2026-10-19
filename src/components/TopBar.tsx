@@ -64,6 +64,7 @@ export function TopBar() {
           </button>
         )}
         <LensGroup ref={capsuleRef} className="glass glass-pill flex items-center gap-0.5 p-1" radius={999}>
+          {!demoActive && !(isCompact && mode === "account") && <SellerChip compact={isCompact} />}
           {mode === "account" && !demoActive && (
             <button type="button" data-lens className="btn btn-sm btn-pill btn-ghost !text-paper" onClick={returnToForest}>
               ← {isCompact ? "Forest" : "Territory"}
@@ -93,6 +94,55 @@ export function TopBar() {
         <AnimatePresence>{legend && <Legend onClose={() => setLegend(false)} />}</AnimatePresence>
       </div>
     </header>
+  );
+}
+
+/** "Selling for Vercel ▾": who the territory is for; reopens onboarding. */
+function SellerChip({ compact }: { compact: boolean }) {
+  const profile = useTerritoryStore((s) => s.profile);
+  const research = useTerritoryStore((s) => s.research);
+  const open = useTerritoryStore((s) => s.onboardingOpen);
+  const researching = research.status === "researching" && research.company === profile.company;
+  const toggle = () => {
+    const s = useTerritoryStore.getState();
+    if (s.mode === "account") s.returnToForest();
+    s.setOnboardingOpen(!(open && s.mode === "forest"));
+    if (!s.introDone) s.setIntroDone();
+  };
+  return (
+    <button
+      type="button"
+      data-lens
+      className="btn btn-sm btn-pill btn-ghost !text-paper min-w-0"
+      onClick={toggle}
+      aria-haspopup="dialog"
+      aria-expanded={open}
+      aria-label={researching ? `Researching ${profile.company}'s ICP. Change seller` : `Selling for ${profile.company}. Change seller`}
+      title={`${profile.product} · ${profile.role}`}
+    >
+      {researching && <span className="research-dot" aria-hidden />}
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.span
+          key={researching ? "researching" : profile.id}
+          initial={{ opacity: 0, y: 3 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -3 }}
+          transition={{ duration: 0.2 }}
+          className="truncate leading-[1.4] max-w-[150px] sm:max-w-[260px]"
+        >
+          {compact ? (
+            profile.company
+          ) : researching ? (
+            <>Researching {profile.company}&rsquo;s ICP…</>
+          ) : (
+            <>
+              <span className="text-paper-60">Selling for</span> {profile.company}
+            </>
+          )}
+        </motion.span>
+      </AnimatePresence>
+      <span aria-hidden className="text-paper-40 text-[10px] -ml-0.5">▾</span>
+    </button>
   );
 }
 
