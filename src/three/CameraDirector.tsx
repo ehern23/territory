@@ -126,12 +126,13 @@ export function CameraDirector() {
       if (!introDone) setIntroDone();
       return;
     }
-    // Low over the stream, looking up the valley toward the mountains.
+    // Just over the canopy, looking down the stream toward the first giant and
+    // the mountains beyond.
     const from: Shot = {
-      target: new THREE.Vector3(-40, terrainHeight(-40, 230) + 55, 230),
-      distance: 240,
-      polar: 1.4,
-      azimuth: -0.35,
+      target: new THREE.Vector3(20, terrainHeight(20, 200) + 70, 200),
+      distance: 300,
+      polar: 1.3,
+      azimuth: 0.25,
       minDistance: 10,
       maxDistance: 3000,
     };

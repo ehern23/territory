@@ -24,6 +24,16 @@ It is a working, data-driven 3D product rather than a mock-up. Every visual stat
 | Fruit | Opportunity. Cluster size follows deal value; colour and glow ripen with stage (discovery → qualified → validation → commercial) |
 | Glow at the base | The account you are hovering or inside |
 
+### Exploring the territory
+
+The accounts are spread across a valley and up into the mountains, the way a real patch is spread across a region. Each is a giant that rises over the surrounding forest.
+
+- **Territory map** (bottom right): click an account to fly to it, or click anywhere else to glide there. The cone shows where you are looking.
+- **Move:** drag to orbit, scroll to zoom, **W A S D** to travel, **Q / E** to turn.
+- **Account rail:** jump straight to any account.
+
+The world is meant to feel alive. A stream runs through the valley. The forest floor has grass, ferns, wildflowers, pebbles, boulders and fallen logs. Rabbits and squirrels work the clearings, flocks of birds pass overhead, small birds perch in the largest crowns, and now and then a wolf crosses.
+
 ### How health is computed
 
 `src/domain/health.ts`: an explainable 0–100 score, shown with its drivers in the account panel.
@@ -74,7 +84,13 @@ npm run build && npm start
 
 No login, database or external API. Everything runs locally and deterministically.
 
-QA helper (development): append `?settle=1` to snap eased visuals and camera moves to their targets, which is useful for screenshots in software-rendered browsers.
+QA URL flags (development):
+
+| Flag | Effect |
+| --- | --- |
+| `?settle=1` | Snap eased visuals and camera moves to their targets (for screenshots in software-rendered browsers) |
+| `?lite` | Touch-device budget on desktop: less ground cover and forest, no alpha-to-coverage |
+| `?off=terrain,stream,cover,rocks,forest,accounts,wildlife,fx` | Drop layers to isolate rendering or performance issues |
 
 ---
 
@@ -88,26 +104,33 @@ src/
                 and selectors that build live account views
   three/
     flora/      Procedural tree generator, mesh builders, leaf atlas, wind/health shaders, fruit
-    world/      Sky, light, terrain, grass, wildflowers, backdrop forest, ridgelines, post-processing
+    world/      GPU world maps, terrain, stream, ground cover, rocks and logs, wild forest
+                (instanced trees + impostors), sky, light, post-processing
+    wildlife/   Procedural creatures: rabbits, squirrels, a wolf, perched birds, flocks
+    layout.ts   The map: account sites, terrain and mountain noise, stream path, ground cover
     Forest.tsx  Account state → visual targets (one-way), tree and limb labels
-    CameraDirector.tsx  Establishing shot, state-driven shots, idle drift
-  components/   Territory panel, account intelligence panel, top bar, legend, demo narrator
+    CameraDirector.tsx  Intro, state-driven shots, free travel, terrain collision, idle drift
+  components/   Territory panel, account intelligence panel, top bar, account rail, territory map,
+                legend, demo narrator, liquid glass (glass/)
 ```
 
 Business logic never touches Three.js. The scene reads account views from selectors and eases toward them, so the same model drives the panels and the trees.
 
 ### Rendering notes
 
-- **Procedural broadleaf trees.** A recursive generator grows trunk → scaffold limbs (one per business unit) → secondary → tertiary branches, ending in leaf-cluster cards. It is deterministic per account seed. The same generator, at lower detail, grows four species for the instanced backdrop forest.
+- **Procedural broadleaf trees.** A recursive generator grows a continuous trunk and leader, then scaffold limbs (one per business unit), then secondary and tertiary branches, ending in leaf-cluster cards. Each child branch leaves its parent along the parent's tangent, so the wood reads as one grown piece. Generation is deterministic per account seed. Fruit hangs on stems from real outer-crown branch tips.
+- **Wild forest.** Four broadleaf and two conifer species (`generateConifer.ts`), with conifers taking over as the ground climbs. Instanced detailed trees near the camera crossfade, through a dither, into 8-view impostors captured at load. That keeps tens of thousands of trees on screen.
+- **World.** The terrain is a warped grid out to 5 km, coloured in-shader by meadow, forest floor, bank, rock and snow. Ridged-noise mountains are forested up to the treeline. The stream is a spline-carved channel with a flowing Fresnel water surface. Ground cover (about 150k grass blades, plus ferns, flowers and pebbles) is placed entirely on the GPU from height and cover maps, in a field that wraps toroidally around the camera.
+- **Liquid glass UI.** In Chromium, panels and the hover lens refract the scene through SVG displacement filters (a rounded-rect bevel plus lens magnification), with a cursor-following glare. A spring lens glides between options. Other browsers get frosted glass.
 - **Foliage shader** (MeshStandardMaterial + `onBeforeCompile`): crown-volume normals for soft, volumetric shading; baked crown occlusion; sun translucency; wind sway and leaf flutter; and health-driven thinning and colour per card. Per-limb uniforms handle dormant, spring and focus states. A matching depth material keeps shadows consistent with wind and thinning.
 - **Alpha-to-coverage** with mip-aware alpha preservation on desktop, and a plain alpha cut on touch devices (no MSAA).
-- **Lighting:** a low warm sun with 4K PCF shadows, hemisphere fill, HDRI image-based light, exponential haze, and a procedural sky with drifting fbm clouds and layered ridgelines.
+- **Lighting:** a low warm sun with 4K PCF shadows, hemisphere fill, HDRI image-based light, exponential haze, and a procedural sky with drifting fbm clouds.
 - **Post-processing:** N8AO (desktop), soft bloom, ACES tone mapping, a gentle grade and vignette.
-- **Performance:** about 1.9M triangles in the scene. Backdrop bark is reduced, only trees near the meadow cast shadows, and touch devices get less grass and forest and no AO.
+- **Performance:** the shadow frustum follows the camera target, and distant trees are impostors. An adaptive governor lowers the pixel ratio, then halves ground cover, if frame rate drops. Touch devices get a lighter budget and no AO.
 
 ## Assets
 
-The trees, leaves, grass, flowers, sky and fruit are all generated at runtime. Bark and ground detail textures and the fill-light HDRI are CC0 from Poly Haven. See [`public/assets/CREDITS.md`](public/assets/CREDITS.md).
+The trees, conifers, leaves, grass, ferns, flowers, rocks, wildlife, sky and fruit are all generated at runtime. Bark and ground detail textures and the fill-light HDRI are CC0 from Poly Haven. See [`public/assets/CREDITS.md`](public/assets/CREDITS.md).
 
 ## Product vision
 
