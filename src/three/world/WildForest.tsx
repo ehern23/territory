@@ -13,7 +13,7 @@ import { getFoliageAtlas } from "../flora/foliageAtlas";
 import { getNeedleAtlas } from "./atlases";
 import { createBarkMaterial, createFoliageMaterial, createTreeUniforms, floraGlobals, type LodFade } from "../flora/floraMaterials";
 import { BARK_TEX, configureBarkMaps } from "../flora/barkMaps";
-import { fbm, groundCover, mountainFactor, terrainHeight } from "../layout";
+import { fbm, groundCover, mountainFactor, streamDistance, streamWidth, terrainHeight } from "../layout";
 import { skyUniforms } from "../sky/skyState";
 
 /**
@@ -29,18 +29,35 @@ import { skyUniforms } from "../sky/skyState";
  */
 
 interface Species {
+  name: string;
   kind: "broadleaf" | "conifer";
+  /** Needle cards instead of leaf clusters. */
+  needles?: boolean;
+  bark?: string;
+  /** Leaf colour relative to the shared health palette. */
+  tint: [number, number, number];
   shape: () => TreeShape;
 }
 
+/**
+ * Nine kinds of tree, chosen for silhouette as much as colour, so the forest
+ * reads as a mix: round maples, columnar poplars, broad low oaks, pale
+ * birches in groves, willows weeping over the water, and spruce, fir and
+ * tall flat-topped pines up the slopes.
+ */
 const SPECIES: Species[] = [
-  { kind: "broadleaf", shape: () => generateTree({ seed: 9101, height: 34, trunkRadius: 1.2, limbs: limbs(5), spread: 1.05, depth: 1, cardSize: 5.8, leafDensity: 1.4 }) },
-  { kind: "broadleaf", shape: () => generateTree({ seed: 9202, height: 42, trunkRadius: 1.3, limbs: limbs(4), spread: 0.72, upright: 1.35, depth: 1, cardSize: 6.4, leafDensity: 1.4 }) },
-  { kind: "broadleaf", shape: () => generateTree({ seed: 9303, height: 26, trunkRadius: 0.9, limbs: limbs(4), spread: 1.0, upright: 1.05, depth: 1, cardSize: 4.8, leafDensity: 1.4 }) },
-  { kind: "broadleaf", shape: () => generateTree({ seed: 9404, height: 38, trunkRadius: 1.4, limbs: limbs(6), spread: 1.2, upright: 0.9, depth: 1, cardSize: 6.2, leafDensity: 1.4 }) },
-  { kind: "conifer", shape: () => generateConifer({ seed: 7101, height: 40, trunkRadius: 0.95, width: 0.25, cardSize: 3.6, density: 1.1 }) },
-  { kind: "conifer", shape: () => generateConifer({ seed: 7202, height: 28, trunkRadius: 0.7, width: 0.3, cardSize: 3.0, density: 1.1 }) },
+  { name: "maple", kind: "broadleaf", tint: [1, 1, 1], shape: () => generateTree({ seed: 9101, height: 34, trunkRadius: 1.2, limbs: limbs(5), spread: 1.05, depth: 1, cardSize: 5.8, leafDensity: 1.4 }) },
+  { name: "poplar", kind: "broadleaf", tint: [0.95, 1.06, 0.88], shape: () => generateTree({ seed: 9202, height: 46, trunkRadius: 1.0, limbs: limbs(7), spread: 0.42, upright: 1.9, depth: 1, cardSize: 5.0, leafDensity: 1.6, clearBole: 0.12 }) },
+  { name: "hornbeam", kind: "broadleaf", tint: [1, 1.02, 0.96], shape: () => generateTree({ seed: 9303, height: 26, trunkRadius: 0.9, limbs: limbs(4), spread: 1.0, upright: 1.05, depth: 1, cardSize: 4.8, leafDensity: 1.4 }) },
+  { name: "oak", kind: "broadleaf", tint: [0.84, 0.93, 0.78], shape: () => generateTree({ seed: 9404, height: 30, trunkRadius: 1.9, limbs: limbs(7), spread: 1.5, upright: 0.62, lean: 1.7, depth: 1, cardSize: 6.4, leafDensity: 1.5, clearBole: 0.22 }) },
+  { name: "birch", kind: "broadleaf", bark: "#ddd6c8", tint: [1.12, 1.18, 0.8], shape: () => generateTree({ seed: 9505, height: 30, trunkRadius: 0.55, limbs: limbs(5), spread: 0.62, upright: 1.35, lean: 1.3, depth: 1, cardSize: 3.8, leafDensity: 1.6, clearBole: 0.35 }) },
+  { name: "willow", kind: "broadleaf", tint: [1.06, 1.14, 0.78], shape: () => generateTree({ seed: 9606, height: 22, trunkRadius: 1.3, limbs: limbs(6), spread: 1.15, upright: 1.05, lean: 1.5, depth: 2, cardSize: 3.2, leafDensity: 0.95, clearBole: 0.25, droop: 1 }) },
+  { name: "spruce", kind: "conifer", needles: true, tint: [0.84, 0.98, 0.9], shape: () => generateConifer({ seed: 7101, height: 40, trunkRadius: 0.95, width: 0.25, cardSize: 3.6, density: 1.1 }) },
+  { name: "fir", kind: "conifer", needles: true, tint: [0.8, 0.96, 0.92], shape: () => generateConifer({ seed: 7202, height: 28, trunkRadius: 0.7, width: 0.3, cardSize: 3.0, density: 1.1 }) },
+  { name: "pine", kind: "conifer", needles: true, bark: "#6e5040", tint: [0.92, 1.0, 0.86], shape: () => generateTree({ seed: 9707, height: 44, trunkRadius: 1.0, limbs: limbs(5), spread: 0.8, upright: 0.75, depth: 1, cardSize: 4.2, leafDensity: 1.3, clearBole: 0.62 }) },
 ];
+
+const SP = Object.fromEntries(SPECIES.map((sp, i) => [sp.name, i])) as Record<string, number>;
 
 function limbs(n: number) {
   return Array.from({ length: n }, (_, i) => ({ weight: 0.55 + (0.45 * ((i * 7) % 5)) / 4 }));
@@ -60,6 +77,8 @@ interface TreeInstance {
   tint: THREE.Color;
 }
 
+type Rng = ReturnType<typeof seededRng>;
+
 function placeForest(dense: boolean): TreeInstance[] {
   const rng = seededRng("wild-forest", dense ? 1 : 0);
   const spacing = dense ? 12.5 : 17;
@@ -77,7 +96,7 @@ function placeForest(dense: boolean): TreeInstance[] {
       // Conifers take over as the ground climbs; broadleaf keeps the valley.
       const coniferP = 0.12 + mf * 0.6 + smoothstep(y, 60, 240) * 0.75 + (fbm(x * 0.004 + 9, z * 0.004, 2) - 0.5) * 0.7;
       const conifer = rng.next() < THREE.MathUtils.clamp(coniferP, 0, 0.97);
-      out.push(makeTree(rng, x, y, z, conifer, mf));
+      out.push(makeTree(rng, x, y, z, conifer ? pickConifer(rng, y) : pickBroadleaf(rng, x, z, c.open), mf));
     }
   }
   // Mountain slopes are seen face-on, so they need a denser stand to read as
@@ -91,10 +110,31 @@ function placeForest(dense: boolean): TreeInstance[] {
       if (mf < 0.2) continue;
       const c = groundCover(x, z);
       if (rng.next() > c.trees * smoothstep(mf, 0.2, 0.55)) continue;
-      out.push(makeTree(rng, x, terrainHeight(x, z), z, true, mf));
+      const y = terrainHeight(x, z);
+      out.push(makeTree(rng, x, y, z, pickConifer(rng, y), mf));
     }
   }
   return out;
+}
+
+function pickConifer(rng: Rng, y: number) {
+  // Pines on the lower, warmer slopes; spruce and fir higher up.
+  if (y < 260 && rng.chance(0.3)) return SP.pine;
+  return rng.chance(0.55) ? SP.spruce : SP.fir;
+}
+
+function pickBroadleaf(rng: Rng, x: number, z: number, open: number) {
+  // Willows lean over the water.
+  if (Math.abs(x) < 420 && z > -1300 && z < 1100) {
+    const { d, t } = streamDistance(x, z);
+    if (d < streamWidth(t) + 26 && rng.chance(0.6)) return SP.willow;
+  }
+  // Birches stand in pale groves.
+  if (fbm(x * 0.006 + 31, z * 0.006 - 12, 2) > 0.6 && rng.chance(0.75)) return SP.birch;
+  // Broad oaks hold the edges of clearings.
+  if ((open > 0.15 || fbm(x * 0.005 - 7, z * 0.005 + 17, 2) > 0.64) && rng.chance(0.55)) return SP.oak;
+  if (rng.chance(0.08)) return SP.poplar;
+  return rng.chance(0.6) ? SP.maple : SP.hornbeam;
 }
 
 function smoothstep(v: number, a: number, b: number) {
@@ -102,14 +142,19 @@ function smoothstep(v: number, a: number, b: number) {
   return t * t * (3 - 2 * t);
 }
 
-function makeTree(rng: ReturnType<typeof seededRng>, x: number, y: number, z: number, conifer: boolean, mf: number): TreeInstance {
-  const species = conifer ? 4 + (rng.chance(0.55) ? 0 : 1) : rng.int(0, 3);
+function makeTree(rng: Rng, x: number, y: number, z: number, species: number, mf: number): TreeInstance {
+  const sp = SPECIES[species];
   const scale = rng.range(0.78, 1.28) * (1 - mf * 0.2);
-  const warm = !conifer && rng.chance(0.1) ? rng.range(0.1, 0.28) : 0;
-  const v = rng.range(0.82, 1.08);
-  const tint = conifer
-    ? new THREE.Color(v * 0.84, v * 0.98, v * 0.9)
-    : new THREE.Color(v * (1 + warm * 0.8), v * (1 + warm * 0.2), v * (1 - warm));
+  const v = rng.range(0.84, 1.08);
+  const tint = new THREE.Color(sp.tint[0] * v, sp.tint[1] * v, sp.tint[2] * v);
+  if (sp.kind === "broadleaf") {
+    // A few copper beeches and early-turning crowns break up the green.
+    if (species === SP.maple && rng.chance(0.05)) tint.setRGB(1.15 * v, 0.62 * v, 0.55 * v);
+    else if (rng.chance(0.08)) {
+      const warm = rng.range(0.1, 0.28);
+      tint.setRGB(tint.r * (1 + warm * 0.8), tint.g * (1 + warm * 0.2), tint.b * (1 - warm));
+    }
+  }
   return { x, y: y - 0.4, z, species, scale, yaw: rng.range(0, Math.PI * 2), tint };
 }
 
@@ -136,8 +181,17 @@ function useSpeciesAssets(lod: LodFade) {
     const uniforms = createTreeUniforms(0.86);
     const leaf = getFoliageAtlas();
     const needle = getNeedleAtlas();
-    const barkLod = createBarkMaterial(maps, uniforms, { moss: 0.6, lod });
-    const barkCap = createBarkMaterial(maps, uniforms, { moss: 0.6 });
+    // One bark pair per bark colour: the shared grey-brown, birch, pine.
+    const barks = new Map<string, { lod: THREE.Material; cap: THREE.Material }>();
+    const barkFor = (color = "#5b5249") => {
+      let b = barks.get(color);
+      if (!b) {
+        const moss = color === "#5b5249" ? 0.6 : 0.15;
+        b = { lod: createBarkMaterial(maps, uniforms, { color, moss, lod }), cap: createBarkMaterial(maps, uniforms, { color, moss }) };
+        barks.set(color, b);
+      }
+      return b;
+    };
     // A plain alpha cut for the wild forest: the LOD hand-off to impostors is a
     // complementary screen-space dither, which only lines up without coverage.
     const leafLod = createFoliageMaterial(leaf, uniforms, { translucency: 0.6, alphaToCoverage: false, lod });
@@ -146,7 +200,7 @@ function useSpeciesAssets(lod: LodFade) {
     const needleCap = createFoliageMaterial(needle, uniforms, { translucency: 0.3, alphaToCoverage: false });
     return SPECIES.map((sp): SpeciesAssets => {
       const shape = sp.shape();
-      const geometries = buildTreeGeometries(shape, { lowDetail: true, cardScale: sp.kind === "broadleaf" ? 1.35 : 1.15 });
+      const geometries = buildTreeGeometries(shape, { lowDetail: true, cardScale: sp.needles ? 1.15 : 1.35 });
       const box = new THREE.Box3().setFromBufferAttribute(geometries.foliage.attributes.position as THREE.BufferAttribute);
       box.union(new THREE.Box3().setFromBufferAttribute(geometries.bark.attributes.position as THREE.BufferAttribute));
       let reach = 0;
@@ -155,13 +209,14 @@ function useSpeciesAssets(lod: LodFade) {
         for (let i = 0; i < p.count; i++) reach = Math.max(reach, Math.hypot(p.getX(i), p.getZ(i)));
       }
       const frame = Math.max(reach * 2, box.max.y - box.min.y) * 1.02;
-      const conifer = sp.kind === "conifer";
+      const needles = !!sp.needles;
+      const bark = barkFor(sp.bark);
       return {
         geometries,
-        bark: barkLod,
-        foliage: conifer ? needleLod : leafLod,
-        captureBark: barkCap,
-        captureFoliage: conifer ? needleCap.material : leafCap.material,
+        bark: bark.lod,
+        foliage: needles ? needleLod : leafLod,
+        captureBark: bark.cap,
+        captureFoliage: needles ? needleCap.material : leafCap.material,
         frame,
         bottom: box.min.y,
       };
@@ -431,7 +486,8 @@ function ImpostorField({ trees, assets, lod }: { trees: TreeInstance[]; assets: 
   const [mesh, setMesh] = useState<THREE.Mesh | null>(null);
 
   useEffect(() => {
-    const cell = isTouch ? 256 : 512;
+    // Keep the atlas within 4096 px on either side.
+    const cell = Math.min(isTouch ? 256 : 512, Math.floor(4096 / Math.max(VIEWS, assets.length) / 32) * 32);
     const rt = captureAtlas(gl, assets, cell, !isTouch);
     const quad = new THREE.PlaneGeometry(1, 1);
     quad.translate(0, 0.5, 0);

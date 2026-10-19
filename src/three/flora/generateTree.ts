@@ -39,6 +39,8 @@ export interface TreeParams {
   leafDensity?: number;
   /** Fraction of the trunk that is clear of limbs. */
   clearBole?: number;
+  /** 0 = branches reach for the light; 1 = long weeping whips (willow). */
+  droop?: number;
 }
 
 export interface Branch {
@@ -199,6 +201,7 @@ export function generateTree(params: TreeParams): TreeShape {
   const cardSize = params.cardSize ?? H * 0.11;
   const leafDensity = params.leafDensity ?? 1;
   const clearBole = params.clearBole ?? 0.3;
+  const droop = params.droop ?? 0;
 
   const branches: Branch[] = [];
   const cards: LeafCard[] = [];
@@ -260,21 +263,25 @@ export function generateTree(params: TreeParams): TreeShape {
       const s = sample(parent, t);
       // Fuller in the middle of the parent, shorter toward the tip: an ovoid crown.
       const shape = 0.55 + 0.45 * Math.sin(Math.PI * Math.min(1, t * 0.9 + 0.12));
-      const len = parentLength * (level === 2 ? 0.5 : 0.48) * shape * rng.range(0.8, 1.15);
+      const len = parentLength * (level === 2 ? 0.5 : 0.48) * shape * rng.range(0.8, 1.15) * (1 + droop * (level >= 3 ? 0.9 : 0.25));
       const angle = rng.range(0.55, 0.95);
       const dir = childDirection(s.tan, az0 + i * GOLDEN, angle, level === 2 ? 0.25 : 0.15);
+      // Weeping trees: the finest shoots fall as long curtains of whips.
+      const whip = droop > 0 && level >= depth + 1;
+      if (whip) dir.lerp(new THREE.Vector3(dir.x * 0.25, -1, dir.z * 0.25), 0.8 * droop).normalize();
+      const whipLen = whip ? Math.min(len * (1 + droop * 1.6), Math.max(2, s.pos.y - H * 0.12)) : len;
       const child = grow(rng, {
         start: s.pos,
-        from: s.tan,
+        from: whip ? undefined : s.tan,
         dir,
-        length: len,
+        length: whipLen,
         r0: Math.max(0.04, s.radius * 0.68),
         r1: level >= 3 ? 0.03 : 0.05,
         flex0: s.flex,
         flexGain: 0.18 + 0.2 * (len / H),
-        tropism: level === 2 ? 0.07 : 0.05,
-        wobble: 0.16,
-        steps: level === 2 ? 4 : 3,
+        tropism: whip ? -0.06 : level === 2 ? 0.07 - droop * 0.12 : 0.05 - droop * 0.2,
+        wobble: 0.16 * (1 - droop * 0.4),
+        steps: level === 2 ? 4 : 3 + Math.round(droop * 2),
         level,
         limb,
       });
@@ -283,7 +290,7 @@ export function generateTree(params: TreeParams): TreeShape {
         growChildren(child, level + 1, limb, len);
         addLeaves(child, 0.45, 3, limb);
       } else {
-        addLeaves(child, 0.15, 4, limb);
+        addLeaves(child, whip ? 0.08 : 0.15, whip ? 4 + Math.round(droop * 5) : 4, limb);
       }
       if (level >= 2 && limb >= 0) {
         // Fruit hangs from the outer half of fine branches.
