@@ -3,6 +3,8 @@
 import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useSkyStore } from "@/store/useSkyStore";
+import { useBiomeStore } from "@/store/useBiomeStore";
+import { BIOMES } from "../biomes/biomes";
 import { floraDebug } from "../flora/floraMaterials";
 import { celestial, clockFromDate, partOfDay, type Celestial } from "./celestial";
 import { composeSky, sky, syncSkyUniforms } from "./skyState";
@@ -24,6 +26,7 @@ export function SkyController() {
   const cel = useRef<Celestial | null>(null);
   const current = useMemo<WeatherParams>(() => ({ ...WEATHER.fair }), []);
   const target = useMemo<WeatherParams>(() => emptyWeather(), []);
+  const composed = useMemo<WeatherParams>(() => emptyWeather(), []);
   const state = useRef({
     lapseOffset: 0,
     displayHours: -1,
@@ -87,7 +90,10 @@ export function SkyController() {
     }
     sky.flash *= Math.exp(-dt * 9);
 
-    composeSky(cel.current, current);
+    // The biome's own air: redwood fog, sea haze.
+    Object.assign(composed, current);
+    composed.haze = Math.min(1, current.haze + BIOMES[useBiomeStore.getState().biome].haze);
+    composeSky(cel.current, composed);
     syncSkyUniforms();
 
     // UI readout, a few times a second.

@@ -6,20 +6,20 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useTexture } from "@react-three/drei";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { seededRng } from "@/lib/random";
-import { generateTree, type TreeShape } from "../flora/generateTree";
-import { generateConifer } from "../flora/generateConifer";
 import { buildTreeGeometries, type TreeGeometries } from "../flora/treeMeshes";
 import { getFoliageAtlas } from "../flora/foliageAtlas";
 import { getNeedleAtlas } from "./atlases";
 import { createBarkMaterial, createFoliageMaterial, createTreeUniforms, floraGlobals, type LodFade } from "../flora/floraMaterials";
 import { BARK_TEX, configureBarkMaps } from "../flora/barkMaps";
-import { fbm, groundCover, mountainFactor, streamDistance, streamWidth, terrainHeight } from "../layout";
+import { groundCover, mountainFactor, terrainHeight } from "../layout";
+import { BIOMES, speciesIndex, type Biome } from "../biomes/biomes";
+import { useBiomeStore } from "@/store/useBiomeStore";
 import { skyUniforms } from "../sky/skyState";
 
 /**
- * The wild forest around the accounts: tens of thousands of trees of six
- * species (four broadleaf, two conifer) from the same generators as the
- * account trees.
+ * The wild forest around the accounts: tens of thousands of trees of the
+ * active biome's species (see biomes/biomes.ts), grown by the same
+ * generators as the account trees.
  *
  * Near the camera each tree is real geometry with wind, shadows and
  * translucency. Farther out it is an impostor: the same tree captured at load
@@ -27,41 +27,6 @@ import { skyUniforms } from "../sky/skyState";
  * blends between the two nearest captures. The hand-off is a dithered
  * cross-fade, so trees never pop.
  */
-
-interface Species {
-  name: string;
-  kind: "broadleaf" | "conifer";
-  /** Needle cards instead of leaf clusters. */
-  needles?: boolean;
-  bark?: string;
-  /** Leaf colour relative to the shared health palette. */
-  tint: [number, number, number];
-  shape: () => TreeShape;
-}
-
-/**
- * Nine kinds of tree, chosen for silhouette as much as colour, so the forest
- * reads as a mix: round maples, columnar poplars, broad low oaks, pale
- * birches in groves, willows weeping over the water, and spruce, fir and
- * tall flat-topped pines up the slopes.
- */
-const SPECIES: Species[] = [
-  { name: "maple", kind: "broadleaf", tint: [1, 1, 1], shape: () => generateTree({ seed: 9101, height: 34, trunkRadius: 1.2, limbs: limbs(5), spread: 1.05, depth: 1, cardSize: 5.8, leafDensity: 1.4 }) },
-  { name: "poplar", kind: "broadleaf", tint: [0.95, 1.06, 0.88], shape: () => generateTree({ seed: 9202, height: 46, trunkRadius: 1.0, limbs: limbs(7), spread: 0.42, upright: 1.9, depth: 1, cardSize: 5.0, leafDensity: 1.6, clearBole: 0.12 }) },
-  { name: "hornbeam", kind: "broadleaf", tint: [1, 1.02, 0.96], shape: () => generateTree({ seed: 9303, height: 26, trunkRadius: 0.9, limbs: limbs(4), spread: 1.0, upright: 1.05, depth: 1, cardSize: 4.8, leafDensity: 1.4 }) },
-  { name: "oak", kind: "broadleaf", tint: [0.84, 0.93, 0.78], shape: () => generateTree({ seed: 9404, height: 30, trunkRadius: 1.9, limbs: limbs(7), spread: 1.5, upright: 0.62, lean: 1.7, depth: 1, cardSize: 6.4, leafDensity: 1.5, clearBole: 0.22 }) },
-  { name: "birch", kind: "broadleaf", bark: "#ddd6c8", tint: [1.12, 1.18, 0.8], shape: () => generateTree({ seed: 9505, height: 30, trunkRadius: 0.55, limbs: limbs(5), spread: 0.62, upright: 1.35, lean: 1.3, depth: 1, cardSize: 3.8, leafDensity: 1.6, clearBole: 0.35 }) },
-  { name: "willow", kind: "broadleaf", tint: [1.06, 1.14, 0.78], shape: () => generateTree({ seed: 9606, height: 22, trunkRadius: 1.3, limbs: limbs(6), spread: 1.15, upright: 1.05, lean: 1.5, depth: 2, cardSize: 3.2, leafDensity: 0.95, clearBole: 0.25, droop: 1 }) },
-  { name: "spruce", kind: "conifer", needles: true, tint: [0.84, 0.98, 0.9], shape: () => generateConifer({ seed: 7101, height: 40, trunkRadius: 0.95, width: 0.25, cardSize: 3.6, density: 1.1 }) },
-  { name: "fir", kind: "conifer", needles: true, tint: [0.8, 0.96, 0.92], shape: () => generateConifer({ seed: 7202, height: 28, trunkRadius: 0.7, width: 0.3, cardSize: 3.0, density: 1.1 }) },
-  { name: "pine", kind: "conifer", needles: true, bark: "#6e5040", tint: [0.92, 1.0, 0.86], shape: () => generateTree({ seed: 9707, height: 44, trunkRadius: 1.0, limbs: limbs(5), spread: 0.8, upright: 0.75, depth: 1, cardSize: 4.2, leafDensity: 1.3, clearBole: 0.62 }) },
-];
-
-const SP = Object.fromEntries(SPECIES.map((sp, i) => [sp.name, i])) as Record<string, number>;
-
-function limbs(n: number) {
-  return Array.from({ length: n }, (_, i) => ({ weight: 0.55 + (0.45 * ((i * 7) % 5)) / 4 }));
-}
 
 const VIEWS = 8;
 const LOD: LodFade = { near: 150, far: 195 };
@@ -79,8 +44,9 @@ interface TreeInstance {
 
 type Rng = ReturnType<typeof seededRng>;
 
-function placeForest(dense: boolean): TreeInstance[] {
+function placeForest(dense: boolean, biome: Biome): TreeInstance[] {
   const rng = seededRng("wild-forest", dense ? 1 : 0);
+  const sp = speciesIndex(biome);
   const spacing = dense ? 12.5 : 17;
   const out: TreeInstance[] = [];
   for (let gz = -1900; gz < 1500; gz += spacing) {
@@ -93,10 +59,7 @@ function placeForest(dense: boolean): TreeInstance[] {
       if (rng.next() > c.trees) continue;
       const mf = mountainFactor(x, z);
       const y = terrainHeight(x, z);
-      // Conifers take over as the ground climbs; broadleaf keeps the valley.
-      const coniferP = 0.12 + mf * 0.6 + smoothstep(y, 60, 240) * 0.75 + (fbm(x * 0.004 + 9, z * 0.004, 2) - 0.5) * 0.7;
-      const conifer = rng.next() < THREE.MathUtils.clamp(coniferP, 0, 0.97);
-      out.push(makeTree(rng, x, y, z, conifer ? pickConifer(rng, y) : pickBroadleaf(rng, x, z, c.open), mf));
+      out.push(makeTree(rng, biome, x, y, z, biome.pick({ rng, x, y, z, mf, open: c.open }, sp), mf));
     }
   }
   // Mountain slopes are seen face-on, so they need a denser stand to read as
@@ -111,30 +74,13 @@ function placeForest(dense: boolean): TreeInstance[] {
       const c = groundCover(x, z);
       if (rng.next() > c.trees * smoothstep(mf, 0.2, 0.55)) continue;
       const y = terrainHeight(x, z);
-      out.push(makeTree(rng, x, y, z, pickConifer(rng, y), mf));
+      // Force the conifer branch of the biome's picker: these are slope stands.
+      let species = biome.pick({ rng, x, y: Math.max(y, 400), z, mf: 1, open: 0 }, sp);
+      if (biome.species[species].kind !== "conifer") species = biome.species.findIndex((s) => s.kind === "conifer");
+      out.push(makeTree(rng, biome, x, y, z, species, mf));
     }
   }
   return out;
-}
-
-function pickConifer(rng: Rng, y: number) {
-  // Pines on the lower, warmer slopes; spruce and fir higher up.
-  if (y < 260 && rng.chance(0.3)) return SP.pine;
-  return rng.chance(0.55) ? SP.spruce : SP.fir;
-}
-
-function pickBroadleaf(rng: Rng, x: number, z: number, open: number) {
-  // Willows lean over the water.
-  if (Math.abs(x) < 420 && z > -1300 && z < 1100) {
-    const { d, t } = streamDistance(x, z);
-    if (d < streamWidth(t) + 26 && rng.chance(0.6)) return SP.willow;
-  }
-  // Birches stand in pale groves.
-  if (fbm(x * 0.006 + 31, z * 0.006 - 12, 2) > 0.6 && rng.chance(0.75)) return SP.birch;
-  // Broad oaks hold the edges of clearings.
-  if ((open > 0.15 || fbm(x * 0.005 - 7, z * 0.005 + 17, 2) > 0.64) && rng.chance(0.55)) return SP.oak;
-  if (rng.chance(0.08)) return SP.poplar;
-  return rng.chance(0.6) ? SP.maple : SP.hornbeam;
 }
 
 function smoothstep(v: number, a: number, b: number) {
@@ -142,14 +88,15 @@ function smoothstep(v: number, a: number, b: number) {
   return t * t * (3 - 2 * t);
 }
 
-function makeTree(rng: Rng, x: number, y: number, z: number, species: number, mf: number): TreeInstance {
-  const sp = SPECIES[species];
+function makeTree(rng: Rng, biome: Biome, x: number, y: number, z: number, species: number, mf: number): TreeInstance {
+  const sp = biome.species[species];
+  const maple = biome.species.findIndex((s) => s.name === "maple");
   const scale = rng.range(0.78, 1.28) * (1 - mf * 0.2);
   const v = rng.range(0.84, 1.08);
   const tint = new THREE.Color(sp.tint[0] * v, sp.tint[1] * v, sp.tint[2] * v);
   if (sp.kind === "broadleaf") {
     // A few copper beeches and early-turning crowns break up the green.
-    if (species === SP.maple && rng.chance(0.05)) tint.setRGB(1.15 * v, 0.62 * v, 0.55 * v);
+    if (species === maple && rng.chance(0.05)) tint.setRGB(1.15 * v, 0.62 * v, 0.55 * v);
     else if (rng.chance(0.08)) {
       const warm = rng.range(0.1, 0.28);
       tint.setRGB(tint.r * (1 + warm * 0.8), tint.g * (1 + warm * 0.2), tint.b * (1 - warm));
@@ -174,7 +121,7 @@ interface SpeciesAssets {
   bottom: number;
 }
 
-function useSpeciesAssets(lod: LodFade) {
+function useSpeciesAssets(lod: LodFade, biome: Biome) {
   const maps = useTexture(BARK_TEX);
   return useMemo(() => {
     configureBarkMaps(maps);
@@ -198,7 +145,7 @@ function useSpeciesAssets(lod: LodFade) {
     const leafCap = createFoliageMaterial(leaf, uniforms, { translucency: 0.6, alphaToCoverage: false });
     const needleLod = createFoliageMaterial(needle, uniforms, { translucency: 0.3, alphaToCoverage: false, lod });
     const needleCap = createFoliageMaterial(needle, uniforms, { translucency: 0.3, alphaToCoverage: false });
-    return SPECIES.map((sp): SpeciesAssets => {
+    return biome.species.map((sp): SpeciesAssets => {
       const shape = sp.shape();
       const geometries = buildTreeGeometries(shape, { lowDetail: true, cardScale: sp.needles ? 1.15 : 1.35 });
       const box = new THREE.Box3().setFromBufferAttribute(geometries.foliage.attributes.position as THREE.BufferAttribute);
@@ -221,7 +168,7 @@ function useSpeciesAssets(lod: LodFade) {
         bottom: box.min.y,
       };
     });
-  }, [maps, lod]);
+  }, [maps, lod, biome]);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -553,9 +500,10 @@ function ImpostorField({ trees, assets, lod }: { trees: TreeInstance[]; assets: 
 
 export function WildForest() {
   const isTouch = useTerritoryStore((s) => s.isTouch);
+  const biome = BIOMES[useBiomeStore((s) => s.biome)];
   const lod = isTouch ? LOD_TOUCH : LOD;
-  const assets = useSpeciesAssets(lod);
-  const trees = useMemo(() => placeForest(!isTouch), [isTouch]);
+  const assets = useSpeciesAssets(lod, biome);
+  const trees = useMemo(() => placeForest(!isTouch, biome), [isTouch, biome]);
   return (
     <group>
       <NearForest trees={trees} assets={assets} lod={lod} shadows={!isTouch} />

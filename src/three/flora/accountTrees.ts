@@ -2,6 +2,8 @@ import * as THREE from "three";
 import type { Account } from "@/domain/types";
 import { createRng } from "@/lib/random";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
+import { activeBiome, useBiomeStore } from "@/store/useBiomeStore";
+import type { BiomeId } from "../biomes/biomes";
 import { generateTree, type TreeShape } from "./generateTree";
 import { accountApproachAzimuth } from "../layout";
 import { buildTreeGeometries, type TreeGeometries } from "./treeMeshes";
@@ -45,6 +47,8 @@ export interface AccountTreeModel {
   accountId: string;
   /** The account this model was grown from; a new territory grows new trees. */
   account: Account;
+  /** The biome it was grown in; switching forests regrows it. */
+  biome: BiomeId;
   shape: TreeShape;
   geometries: TreeGeometries;
   /** Business-unit id for each scaffold limb index. */
@@ -78,6 +82,7 @@ export function accountTreeParams(account: Account) {
     cardSize: 8,
     leafDensity: 1.7,
     clearBole: 0.3,
+    ...activeBiome().accountHabit,
   };
 }
 
@@ -90,7 +95,8 @@ function disposeModel(model: AccountTreeModel) {
 export function getAccountTree(accountId: string): AccountTreeModel | null {
   const account = useTerritoryStore.getState().accountsById[accountId];
   const hit = cache.get(accountId);
-  if (hit && hit.account === account) return hit;
+  const biome = useBiomeStore.getState().biome;
+  if (hit && hit.account === account && hit.biome === biome) return hit;
   if (hit) {
     disposeModel(hit);
     cache.delete(accountId);
@@ -101,6 +107,7 @@ export function getAccountTree(accountId: string): AccountTreeModel | null {
   const model: AccountTreeModel = {
     accountId,
     account,
+    biome,
     shape,
     geometries: buildTreeGeometries(shape),
     limbIds,

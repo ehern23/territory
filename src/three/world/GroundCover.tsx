@@ -4,6 +4,8 @@ import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
+import { useBiomeStore } from "@/store/useBiomeStore";
+import { BIOMES } from "../biomes/biomes";
 import { createRng } from "@/lib/random";
 import { UNFLIPPED_NORMAL, floraGlobals } from "../flora/floraMaterials";
 import { WORLD_MAP_GLSL, getWorldMaps, worldMapUniforms } from "./worldMaps";
@@ -146,7 +148,8 @@ function CoverLayer({ spec }: { spec: LayerSpec }) {
   const isTouch = useTerritoryStore((s) => s.isTouch);
   const lowPower = useTerritoryStore((s) => s.lowPower);
   const maps = getWorldMaps(isTouch);
-  const count = Math.round(spec.count * (isTouch ? 0.38 : 1) * (lowPower ? 0.5 : 1));
+  const biome = BIOMES[useBiomeStore((s) => s.biome)];
+  const count = Math.round(spec.count * (isTouch ? 0.38 : 1) * (lowPower ? 0.5 : 1) * biome.cover[spec.channel]);
   const size = spec.size * (isTouch ? 0.78 : 1);
 
   const { mesh, center } = useMemo(() => {

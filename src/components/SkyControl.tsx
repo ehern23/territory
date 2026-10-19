@@ -5,6 +5,8 @@ import { AnimatePresence, motion } from "motion/react";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { useSkyStore } from "@/store/useSkyStore";
 import { WEATHER_KINDS, WEATHER_LABEL, type WeatherKind } from "@/three/sky/weather";
+import { BIOMES, BIOME_ORDER } from "@/three/biomes/biomes";
+import { useBiomeStore } from "@/store/useBiomeStore";
 import { useLiquidGlass } from "./glass/Glass";
 import { LensGroup } from "./glass/Lens";
 
@@ -82,6 +84,8 @@ export function SkyControl() {
   const setManualHours = useSkyStore((s) => s.setManualHours);
   const setTimeMode = useSkyStore((s) => s.setTimeMode);
   const setWeatherMode = useSkyStore((s) => s.setWeatherMode);
+  const biome = useBiomeStore((s) => s.biome);
+  const setBiome = useBiomeStore((s) => s.setBiome);
   const [open, setOpen] = useState(false);
   const pillRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -150,7 +154,7 @@ export function SkyControl() {
                   transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}
                   className="glass glass-strong mt-2 p-4 w-[min(340px,calc(100vw-24px))] flex flex-col gap-4"
                   role="dialog"
-                  aria-label="Time and weather"
+                  aria-label="Time, weather and forest"
                 >
                   <div className="flex flex-col gap-2">
                     <div className="flex items-baseline justify-between">
@@ -197,6 +201,35 @@ export function SkyControl() {
                           {label}
                         </button>
                       ))}
+                    </LensGroup>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <span className="eyebrow">Forest</span>
+                    <LensGroup className="grid grid-cols-2 gap-1.5" role="radiogroup" aria-label="Forest" radius={14}>
+                      {BIOME_ORDER.map((id) => {
+                        const b = BIOMES[id];
+                        const active = biome === id;
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            role="radio"
+                            aria-checked={active}
+                            aria-disabled={!b.available}
+                            data-lens
+                            title={b.tagline}
+                            className={`biome-card ${active ? "is-active" : ""} ${b.available ? "" : "is-soon"}`}
+                            onClick={() => b.available && setBiome(id)}
+                          >
+                            <span className="biome-card__swatch" style={{ background: `linear-gradient(135deg, ${b.swatch[0]}, ${b.swatch[1]})` }} aria-hidden />
+                            <span className="flex flex-col items-start min-w-0">
+                              <span className="text-[12px] font-medium truncate">{b.name}</span>
+                              <span className="text-[10.5px] text-paper-40">{b.available ? (active ? "Growing here" : "Explore") : "Coming soon"}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
                     </LensGroup>
                   </div>
 

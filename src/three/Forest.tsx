@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
+import { useBiomeStore } from "@/store/useBiomeStore";
 import { matchesFilter, useAccountViews, type AccountView } from "@/store/selectors";
 import { HEALTH_HEX, HEALTH_LABEL } from "@/domain/health";
 import { formatMoney } from "@/domain/commercial";
@@ -226,13 +227,14 @@ function LimbLabels({ view, model }: { view: AccountView; model: AccountTreeMode
 }
 
 export function Forest() {
+  const biome = useBiomeStore((s) => s.biome);
   const views = useAccountViews();
   const profileId = useTerritoryStore((s) => s.profile.id);
   const accounts = useTerritoryStore((s) => s.accounts);
   // A new seller grows a new forest: free the old trees once they are gone.
   useEffect(() => pruneAccountTrees(accounts.map((a) => a.id)), [accounts]);
   return (
-    <group key={profileId}>
+    <group key={`${profileId}:${biome}`}>
       {views.map((v) => (
         <ForestTree key={v.account.id} view={v} />
       ))}

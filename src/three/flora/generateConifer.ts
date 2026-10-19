@@ -17,6 +17,10 @@ export interface ConiferParams {
   width?: number;
   cardSize?: number;
   density?: number;
+  /** Fraction of the trunk below the lowest whorl (redwoods hold their crown high). */
+  firstWhorl?: number;
+  /** Buttress flare at the base, as a multiple of the trunk radius. */
+  flare?: number;
 }
 
 export function generateConifer(p: ConiferParams): TreeShape {
@@ -26,6 +30,7 @@ export function generateConifer(p: ConiferParams): TreeShape {
   const width = p.width ?? 0.28;
   const card = p.cardSize ?? H * 0.09;
   const density = p.density ?? 1;
+  const flare = p.flare ?? 0;
   const branches: Branch[] = [];
   const cards: LeafCard[] = [];
 
@@ -38,12 +43,12 @@ export function generateConifer(p: ConiferParams): TreeShape {
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;
     tp.push(new THREE.Vector3(lean.x * t * H, -0.8 + t * H, lean.y * t * H));
-    tr.push(Math.max(0.06, R * (1 - t) ** 1.1));
+    tr.push(Math.max(0.06, R * (1 - t) ** 1.1 * (1 + flare * Math.exp(-t * 28))));
     tf.push(0.02 + 0.25 * t * t);
   }
   branches.push({ points: tp, radii: tr, flex: tf, level: 0, limb: -1 });
 
-  const firstWhorl = 0.16;
+  const firstWhorl = p.firstWhorl ?? 0.16;
   const whorls = Math.round(H / 1.9);
   for (let w = 0; w < whorls; w++) {
     const t = firstWhorl + (0.97 - firstWhorl) * (w / (whorls - 1));
@@ -67,7 +72,8 @@ export function generateConifer(p: ConiferParams): TreeShape {
           .addScaledVector(dir, reach * f)
           .add(new THREE.Vector3(0, reach * (lift * f - 0.32 * f * f), 0));
         pts.push(pt);
-        radii.push(Math.max(0.03, R * 0.32 * (1 - t) * (1 - f) + 0.03));
+        // Big trunks still carry slender limbs.
+        radii.push(Math.max(0.03, Math.min(R * 0.32, 0.36) * (1 - t) * (1 - f) + 0.03));
         flex.push(0.05 + 0.4 * f * (reach / H));
       }
       branches.push({ points: pts, radii, flex, level: 2, limb: -1 });

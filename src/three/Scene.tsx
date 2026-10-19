@@ -7,6 +7,7 @@ import { PerformanceMonitor } from "@react-three/drei";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { Atmosphere, ImageBasedLight } from "./world/Atmosphere";
 import { Precipitation } from "./sky/Precipitation";
+import { useBiomeStore } from "@/store/useBiomeStore";
 import { Waterfall } from "./world/Waterfall";
 import { Terrain } from "./world/Terrain";
 import { GroundCover } from "./world/GroundCover";
@@ -46,6 +47,7 @@ function Governor() {
 }
 
 export function Scene() {
+  const biome = useBiomeStore((s) => s.biome);
   const isTouch = useTerritoryStore((s) => s.isTouch);
   const setIsTouch = useTerritoryStore((s) => s.setIsTouch);
   const setReducedMotion = useTerritoryStore((s) => s.setReducedMotion);
@@ -94,7 +96,7 @@ export function Scene() {
         {!OFF.has("stream") && <Waterfall />}
         {!OFF.has("cover") && <GroundCover />}
         {!OFF.has("rocks") && <Rocks />}
-        {!OFF.has("forest") && <WildForest />}
+        {!OFF.has("forest") && <WildForest key={biome} />}
         {!OFF.has("accounts") && <Forest />}
         {!OFF.has("wildlife") && <Wildlife />}
         {!OFF.has("weather") && <Precipitation />}
