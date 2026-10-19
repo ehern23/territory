@@ -35,6 +35,17 @@ The accounts are spread across a valley and up into the mountains, the way a rea
 
 The world is meant to feel alive. A stream runs through the valley. The forest floor has grass, ferns, wildflowers, pebbles, boulders and fallen logs. Rabbits and squirrels work the clearings, flocks of birds pass overhead, small birds perch in the largest crowns, and now and then a wolf crosses.
 
+### Sky, weather and forests
+
+The territory keeps the seller's own clock. The sun rises in the east as their morning starts and sets in the west, the moon follows with its real phase, and at night the sky fills with stars and the Milky Way while fireflies drift over the clearings. The intro greets them for the time of day: open it at dawn and the territory is waking up with you.
+
+Weather comes from a deterministic forecast in three-hour blocks: clear, fair, cloudy, overcast, rain, thunderstorms with lightning and storm wind, and morning mist. Everyone opening the territory at the same hour shares the same sky.
+
+The sky pill at the top opens a panel to:
+- scrub to any hour, or run the day as a two-minute time-lapse;
+- pin the weather;
+- switch forests: **Mountain forest** (mixed woodland, a waterfall off a hanging valley, a river that comes and goes under the canopy) or **Redwood grove** (foggy coast redwoods, Douglas fir, deep ferns). Mangrove and kelp forest are listed as coming soon.
+
 ### How health is computed
 
 `src/domain/health.ts`: an explainable 0–100 score, shown with its drivers in the account panel.
@@ -91,7 +102,11 @@ QA URL flags (development):
 | --- | --- |
 | `?settle=1` | Snap eased visuals and camera moves to their targets (for screenshots in software-rendered browsers) |
 | `?lite` | Touch-device budget on desktop: less ground cover and forest, no alpha-to-coverage |
-| `?off=terrain,stream,cover,rocks,forest,accounts,wildlife,fx` | Drop layers to isolate rendering or performance issues |
+| `?off=terrain,stream,cover,rocks,forest,accounts,wildlife,weather,fx` | Drop layers to isolate rendering or performance issues |
+| `?time=6.5` / `?time=lapse` | Start at a given hour, or in time-lapse |
+| `?weather=storm` | Pin the weather (`clear`, `fair`, `cloudy`, `overcast`, `rain`, `storm`, `mist`) |
+| `?biome=redwood` | Start in a given forest |
+| `?noao` / `?noa2c` | Turn off ambient occlusion / alpha-to-coverage to isolate artifacts |
 
 ---
 
@@ -106,7 +121,9 @@ src/
   store/        Zustand store (actions: sample activities, neglect, triggers, undo, reset, demo)
                 and selectors that build live account views
   three/
-    flora/      Procedural tree generator, mesh builders, leaf atlas, wind/health shaders, fruit
+    flora/      Procedural tree and conifer generators, mesh builders, leaf atlas, wind/health shaders, fruit
+    sky/        Sun and moon on the local clock, weather forecast, sky dome, rain, lightning, fireflies
+    biomes/     Forest types as data: species and where they grow, floor cover, haze, account habit
     world/      GPU world maps, terrain, stream, ground cover, rocks and logs, wild forest
                 (instanced trees + impostors), sky, light, post-processing
     wildlife/   Procedural creatures: rabbits, squirrels, a wolf, perched birds, flocks
@@ -122,12 +139,14 @@ Business logic never touches Three.js. The scene reads account views from select
 ### Rendering notes
 
 - **Procedural broadleaf trees.** A recursive generator grows a continuous trunk and leader, then scaffold limbs (one per business unit), then secondary and tertiary branches, ending in leaf-cluster cards. Each child branch leaves its parent along the parent's tangent, so the wood reads as one grown piece. Generation is deterministic per account seed. Fruit hangs on stems from real outer-crown branch tips.
-- **Wild forest.** Four broadleaf and two conifer species (`generateConifer.ts`), with conifers taking over as the ground climbs. Instanced detailed trees near the camera crossfade, through a dither, into 8-view impostors captured at load. That keeps tens of thousands of trees on screen.
+- **Wild forest.** Each biome brings its own species. The mountain forest has nine: maple, columnar poplar, broad oak at clearing edges, birch groves with pale bark, weeping willows along the river (a `droop` parameter hangs the finest shoots as whips), and spruce, fir and pine up the slopes. Instanced detailed trees near the camera crossfade, through a dither, into 8-view impostors captured at load. That keeps tens of thousands of trees on screen.
+- **Water.** The stream's longest drop renders as a waterfall: falling streaks, rapids where the bed steepens, foam in the plunge pool, wet rock around it, and mist that glows toward a low sun and shows a rainbow at 42° when the sun is behind you. In four open reaches the river widens and the canopy pulls back; elsewhere crowns close over it.
+- **Sky.** A low-precision solar and lunar model places the sun and moon from the local time and date. A keyframed palette by sun elevation drives sky, fog, hemisphere and key light, and weather greys and dims it. One shadow-casting light hands over from sun to moon. Unlit shaders (impostors, water, mist, rain) read a shared `uShade` so they darken with the scene.
 - **World.** The terrain is a warped grid out to 5 km, coloured in-shader by meadow, forest floor, bank, rock and snow. Ridged-noise mountains are forested up to the treeline. The stream is a spline-carved channel with a flowing Fresnel water surface. Ground cover (about 150k grass blades, plus ferns, flowers and pebbles) is placed entirely on the GPU from height and cover maps, in a field that wraps toroidally around the camera.
 - **Liquid glass UI.** In Chromium, panels and the hover lens refract the scene through SVG displacement filters (a rounded-rect bevel plus lens magnification), with a cursor-following glare. A spring lens glides between options. Other browsers get frosted glass.
 - **Foliage shader** (MeshStandardMaterial + `onBeforeCompile`): crown-volume normals for soft, volumetric shading; baked crown occlusion; sun translucency; wind sway and leaf flutter; and health-driven thinning and colour per card. Per-limb uniforms handle dormant, spring and focus states. A matching depth material keeps shadows consistent with wind and thinning.
-- **Alpha-to-coverage** with mip-aware alpha preservation on desktop, and a plain alpha cut on touch devices (no MSAA).
-- **Lighting:** a low warm sun with 4K PCF shadows, hemisphere fill, HDRI image-based light, exponential haze, and a procedural sky with drifting fbm clouds.
+- **Alpha-to-coverage** on the account trees, with the alpha ramp sharpened to one pixel around the cut (three's stock ramp halves coverage next to every gap, which turned distant crowns into a shimmering stipple). The wild forest uses a plain alpha cut so its dithered LOD hand-off lines up.
+- **Lighting:** the sun (or moon) with 4K PCF shadows, hemisphere fill, HDRI image-based light scaled by daylight, exponential haze, and a procedural sky with two cloud layers.
 - **Post-processing:** N8AO (desktop), soft bloom, ACES tone mapping, a gentle grade and vignette.
 - **Performance:** the shadow frustum follows the camera target, and distant trees are impostors. An adaptive governor lowers the pixel ratio, then halves ground cover, if frame rate drops. Touch devices get a lighter budget and no AO.
 
