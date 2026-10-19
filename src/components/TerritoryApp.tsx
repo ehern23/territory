@@ -12,6 +12,7 @@ import { Loader } from "./Loader";
 import { IntroTitle } from "./IntroTitle";
 import { DemoNarrator } from "./demo/DemoNarrator";
 import { Minimap } from "./Minimap";
+import { SkyControl } from "./SkyControl";
 import { useGlassGlare } from "./glass/Glass";
 
 const Scene = dynamic(() => import("@/three/Scene").then((m) => m.Scene), { ssr: false });
@@ -63,6 +64,7 @@ export function TerritoryApp() {
       <AccountRail />
       <AccountPanel />
       <Minimap />
+      <SkyControl />
       <DemoNarrator />
       <Notices />
       <Loader />

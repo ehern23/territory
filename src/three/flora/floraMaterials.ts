@@ -24,7 +24,8 @@ export function supportsAlphaToCoverage() {
   return (
     typeof window !== "undefined" &&
     !window.matchMedia("(pointer: coarse)").matches &&
-    !new URLSearchParams(window.location.search).has("lite")
+    !new URLSearchParams(window.location.search).has("lite") &&
+    !new URLSearchParams(window.location.search).has("noa2c")
   );
 }
 
@@ -204,11 +205,37 @@ const LOD_VERTEX = /* glsl */ `
 
 const LOD_FRAGMENT = /* glsl */ `
 #ifdef FLORA_LOD
+  float floraFade = 1.0 - smoothstep(uLodFade.x, uLodFade.y, vLodDist);
+  #ifndef ALPHA_TO_COVERAGE
   {
-    float fade = 1.0 - smoothstep(uLodFade.x, uLodFade.y, vLodDist);
     float ign = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
-    if (ign > fade) discard;
+    if (ign > floraFade) discard;
   }
+  #endif
+#endif
+`;
+
+/**
+ * Alpha test with sharpened alpha-to-coverage. three's stock A2C path maps
+ * alpha through smoothstep(cutoff, cutoff + fwidth), so an opaque texel next
+ * to a transparent one only gets half coverage. At a distance every leaf is
+ * next to a gap, so whole crowns turned into a shimmering 50% stipple. This
+ * centres the ramp on the cutoff and keeps it one pixel wide, which keeps
+ * crowns solid and leaves only the silhouettes antialiased.
+ */
+const SHARP_ALPHATEST = /* glsl */ `
+#ifdef USE_ALPHATEST
+  #ifdef ALPHA_TO_COVERAGE
+    diffuseColor.a = clamp((diffuseColor.a - alphaTest) / max(fwidth(diffuseColor.a), 0.0001) + 0.5, 0.0, 1.0);
+    #ifdef FLORA_LOD
+      // With coverage available the LOD hand-off fades through sub-pixel
+      // coverage instead of a screen-space dither.
+      diffuseColor.a *= floraFade;
+    #endif
+    if (diffuseColor.a <= 0.0) discard;
+  #else
+    if (diffuseColor.a < alphaTest) discard;
+  #endif
 #endif
 `;
 
@@ -249,6 +276,7 @@ export function createFoliageMaterial(
         `#include <common>\n${SHARED_FRAGMENT_PARS}\n${LOD_PARS_F}\nuniform float uTranslucency;\nuniform vec2 uAtlasSize;\nvarying vec3 vLeafTint;\nvarying float vFocus;`,
       )
       .replace("#include <clipping_planes_fragment>", `#include <clipping_planes_fragment>\n${LOD_FRAGMENT}`)
+      .replace("#include <alphatest_fragment>", SHARP_ALPHATEST)
       .replace("#include <normal_fragment_begin>", UNFLIPPED_NORMAL)
       // Leaf cards facing the sun would otherwise glint as white speckle.
       .replace(
@@ -266,8 +294,6 @@ export function createFoliageMaterial(
           vec2 ddy = dFdy(tc);
           float lod = max(0.0, 0.5 * log2(max(dot(ddx, ddx), dot(ddy, ddy))));
           texel.a *= 1.0 + lod * 0.45;
-          // Soft coverage only up close; at distance a hard cut avoids dithered stipple.
-          texel.a = mix(texel.a, step(0.5, texel.a), smoothstep(1.1, 2.4, lod));
           diffuseColor *= texel;
         #endif
         diffuseColor.rgb *= vLeafTint;
@@ -285,7 +311,7 @@ export function createFoliageMaterial(
         `,
       );
   };
-  material.customProgramCacheKey = () => `flora-foliage-v4${opts.lod ? "-lod" : ""}`;
+  material.customProgramCacheKey = () => `flora-foliage-v5${opts.lod ? "-lod" : ""}`;
 
   const depth = new THREE.MeshDepthMaterial({
     depthPacking: THREE.RGBADepthPacking,

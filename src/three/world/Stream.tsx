@@ -3,7 +3,8 @@
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { floraGlobals } from "../flora/floraMaterials";
-import { STREAM_LEVELS, STREAM_PATH, SUN_DIR, streamWidth } from "../layout";
+import { STREAM_LEVELS, STREAM_PATH, streamWidth } from "../layout";
+import { skyUniforms } from "../sky/skyState";
 
 /**
  * The stream: a ribbon along the carved channel. Two scrolling noise layers
@@ -33,7 +34,10 @@ const frag = /* glsl */ `
   #include <fog_pars_fragment>
   uniform float uTime;
   uniform vec3 uSun;
-  uniform vec3 uSky;
+  uniform vec3 uHorizon;
+  uniform vec3 uZenith;
+  uniform vec3 uShade;
+  uniform vec3 uLightColor;
   uniform vec3 uDeep;
   uniform vec3 uShallow;
   varying vec2 vFlow;
@@ -60,14 +64,15 @@ const frag = /* glsl */ `
     float fres = pow(1.0 - max(dot(n, V), 0.0), 4.0);
     float edge = abs(vFlow.y);
     float shallow = smoothstep(0.35, 1.0, edge);
-    vec3 base = mix(uDeep, uShallow, shallow);
-    vec3 col = mix(base, uSky, clamp(0.12 + fres * 0.85, 0.0, 1.0));
+    vec3 base = mix(uDeep, uShallow, shallow) * uShade;
+    vec3 skyCol = mix(uHorizon, uZenith, 0.3);
+    vec3 col = mix(base, skyCol, clamp(0.12 + fres * 0.85, 0.0, 1.0));
     vec3 R = reflect(-V, n);
     float spec = pow(max(dot(R, normalize(uSun)), 0.0), 220.0);
-    col += vec3(1.0, 0.9, 0.75) * spec * 3.0;
+    col += uLightColor * spec * 3.0 * step(0.0, uSun.y);
     // Bright flecks where ripples break near rocks and banks.
     float foam = smoothstep(0.72, 0.95, h0) * smoothstep(0.6, 1.0, edge);
-    col = mix(col, vec3(0.86, 0.88, 0.86), foam * 0.35);
+    col = mix(col, vec3(0.86, 0.88, 0.86) * uShade, foam * 0.35);
     float alpha = mix(0.92, 0.35, smoothstep(0.55, 1.0, edge));
     gl_FragColor = vec4(col, alpha);
     #include <tonemapping_fragment>
@@ -120,8 +125,11 @@ export function Stream() {
         uniforms: {
           ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog),
           uTime: floraGlobals.uTime,
-          uSun: { value: SUN_DIR.clone() },
-          uSky: { value: new THREE.Color("#9fb6c8") },
+          uSun: skyUniforms.uLightDir,
+          uHorizon: skyUniforms.uHorizon,
+          uZenith: skyUniforms.uZenith,
+          uShade: skyUniforms.uShade,
+          uLightColor: skyUniforms.uLightColor,
           uDeep: { value: new THREE.Color("#1d2a22") },
           uShallow: { value: new THREE.Color("#5b5a44") },
         },

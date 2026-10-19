@@ -7,125 +7,39 @@ import { Environment } from "@react-three/drei";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { floraGlobals, updateSunView } from "../flora/floraMaterials";
 import { SUN_DIR, WORLD_CENTER } from "../layout";
+import { SkyDome } from "../sky/SkyDome";
+import { SkyController } from "../sky/SkyController";
+import { sky } from "../sky/skyState";
 
 /**
- * Late-afternoon light: a low warm sun behind the left shoulder of the
- * meadow, cool sky fill, and haze that pushes the far forest back.
+ * Light and air. The SkyController moves the sun and moon on the seller's
+ * clock and blends the weather; everything here follows it: one
+ * shadow-casting light (the sun by day, the moon by night), sky fill, haze
+ * and the image-based light.
  */
 
 export const FOG_COLOR = new THREE.Color("#c3cdd2");
-const HORIZON = new THREE.Color("#b4c6d2");
-const ZENITH = new THREE.Color("#2a5fa8");
-const SUN_COLOR = new THREE.Color("#ffdcb0");
-
-const skyVert = /* glsl */ `
-  varying vec3 vDir;
-  void main() {
-    vec4 wp = modelMatrix * vec4(position, 1.0);
-    vDir = wp.xyz - cameraPosition;
-    gl_Position = projectionMatrix * viewMatrix * wp;
-    gl_Position.z = gl_Position.w;
-  }
-`;
-
-const skyFrag = /* glsl */ `
-  uniform vec3 uSun;
-  uniform vec3 uZenith;
-  uniform vec3 uHorizon;
-  uniform vec3 uSunCol;
-  uniform float uTime;
-  varying vec3 vDir;
-
-  float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-  float noise(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-    vec2 u = f * f * (3.0 - 2.0 * f);
-    return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
-  }
-  float fbm(vec2 p) {
-    float v = 0.0;
-    float a = 0.5;
-    for (int i = 0; i < 5; i++) {
-      v += a * noise(p);
-      p = p * 2.03 + vec2(1.7, 9.2);
-      a *= 0.5;
-    }
-    return v;
-  }
-
-  void main() {
-    vec3 d = normalize(vDir);
-    float h = d.y;
-    float sunDot = max(dot(d, uSun), 0.0);
-    vec3 col = mix(uHorizon, uZenith, pow(smoothstep(-0.03, 0.62, h), 0.6));
-    col += uSunCol * pow(sunDot, 5.0) * 0.7 * (1.0 - smoothstep(0.0, 0.6, h));
-    col += uSunCol * pow(sunDot, 80.0) * 0.8;
-    col += uSunCol * smoothstep(0.99935, 0.9997, sunDot) * 6.0;
-
-    if (h > 0.0) {
-      vec2 uv = d.xz / (h + 0.14) * 0.85 + vec2(uTime * 0.0035, uTime * 0.0012);
-      float c = fbm(uv * 1.5);
-      float cover = smoothstep(0.56, 0.86, c) * smoothstep(0.0, 0.16, h);
-      float lit = fbm(uv * 1.5 + uSun.xz * 0.06);
-      vec3 cloud = mix(vec3(0.78, 0.8, 0.86), vec3(1.08, 1.04, 0.98), smoothstep(0.35, 0.75, lit));
-      cloud += uSunCol * pow(sunDot, 4.0) * 0.6;
-      col = mix(col, cloud, cover * 0.6);
-    } else {
-      col = mix(uHorizon, uHorizon * 0.85, smoothstep(0.0, -0.25, h));
-    }
-    gl_FragColor = vec4(col, 1.0);
-    #include <tonemapping_fragment>
-    #include <colorspace_fragment>
-  }
-`;
-
-function SkyDome() {
-  const ref = useRef<THREE.Mesh>(null);
-  const material = useMemo(
-    () =>
-      new THREE.ShaderMaterial({
-        vertexShader: skyVert,
-        fragmentShader: skyFrag,
-        uniforms: {
-          uSun: { value: SUN_DIR.clone() },
-          uZenith: { value: ZENITH.clone() },
-          uHorizon: { value: HORIZON.clone() },
-          uSunCol: { value: SUN_COLOR.clone() },
-          uTime: floraGlobals.uTime,
-        },
-        side: THREE.BackSide,
-        depthWrite: false,
-        fog: false,
-      }),
-    [],
-  );
-  useEffect(() => () => material.dispose(), [material]);
-  useFrame(({ camera }) => {
-    ref.current?.position.copy(camera.position);
-  });
-  return (
-    <mesh ref={ref} material={material} frustumCulled={false} renderOrder={-100}>
-      <sphereGeometry args={[6000, 48, 24]} />
-    </mesh>
-  );
-}
 
 /** Advances global flora uniforms once per frame. */
 function FloraClock() {
   const reduced = useTerritoryStore((s) => s.reducedMotion);
+  const base = useMemo(() => floraGlobals.uWind.value.clone(), []);
   useFrame(({ camera }, dt) => {
     floraGlobals.uTime.value += Math.min(dt, 0.1) * (reduced ? 0.2 : 1);
-    updateSunView(SUN_DIR, camera);
+    // Storm wind bends harder, but the sway stays believable.
+    const k = Math.min(2.2, sky.wind);
+    floraGlobals.uWind.value.copy(base).multiplyScalar(k);
+    floraGlobals.uSunColor.value.copy(sky.lightColor).multiplyScalar(Math.min(1, sky.lightIntensity / 3.1) * 0.95 + 0.05);
+    updateSunView(sky.lightDir, camera);
   });
   return null;
 }
 
 /**
- * The sun's shadow region travels with the view: it is centred on where the
- * camera looks (snapped to a grid so shadows don't shimmer as it moves).
+ * The shadow region travels with the view: it is centred on where the camera
+ * looks (snapped to a grid so shadows don't shimmer as it moves).
  */
-function Sun() {
+function KeyLight() {
   const isTouch = useTerritoryStore((s) => s.isTouch);
   const light = useRef<THREE.DirectionalLight>(null);
   const { scene, controls } = useThree();
@@ -138,6 +52,7 @@ function Sun() {
     };
   }, [scene]);
   const focus = useMemo(() => new THREE.Vector3(), []);
+  const toward = useMemo(() => new THREE.Vector3(), []);
   useFrame(({ camera }) => {
     const l = light.current;
     if (!l) return;
@@ -145,12 +60,15 @@ function Sun() {
     if (c?.getTarget) c.getTarget(focus);
     else focus.copy(WORLD_CENTER);
     // Keep the shadowed region between the camera and what it looks at.
-    focus.lerp(new THREE.Vector3(camera.position.x, focus.y, camera.position.z), 0.25);
+    focus.lerp(toward.set(camera.position.x, focus.y, camera.position.z), 0.25);
     const snap = 16;
     focus.set(Math.round(focus.x / snap) * snap, Math.round(focus.y / snap) * snap, Math.round(focus.z / snap) * snap);
     l.target.position.copy(focus);
-    l.position.copy(focus).addScaledVector(SUN_DIR, 600);
+    l.position.copy(focus).addScaledVector(sky.lightDir, 600);
     l.target.updateMatrixWorld();
+    l.color.copy(sky.lightColor);
+    l.intensity = sky.lightIntensity;
+    l.castShadow = sky.lightIntensity > 0.05;
   });
   const size = isTouch ? 2048 : 4096;
   const extent = isTouch ? 160 : 230;
@@ -158,7 +76,6 @@ function Sun() {
     <directionalLight
       ref={light}
       intensity={3.0}
-      color={SUN_COLOR}
       castShadow
       shadow-mapSize-width={size}
       shadow-mapSize-height={size}
@@ -174,16 +91,50 @@ function Sun() {
   );
 }
 
+/** Sky fill, a cool bounce from the open side, haze and the background. */
+function Fill() {
+  const hemi = useRef<THREE.HemisphereLight>(null);
+  const bounce = useRef<THREE.DirectionalLight>(null);
+  const scene = useThree((s) => s.scene);
+  useFrame(() => {
+    const h = hemi.current;
+    if (h) {
+      h.color.copy(sky.hemiSky);
+      h.groundColor.copy(sky.hemiGround);
+      h.intensity = sky.hemiIntensity;
+    }
+    const b = bounce.current;
+    if (b) {
+      b.color.copy(sky.hemiSky);
+      b.intensity = 0.26 * sky.hemiIntensity;
+    }
+    const fog = scene.fog as THREE.FogExp2 | null;
+    if (fog) {
+      fog.color.copy(sky.fog);
+      fog.density = sky.fogDensity;
+    }
+    if (scene.background instanceof THREE.Color) scene.background.copy(sky.fog);
+    scene.environmentIntensity = 0.42 * sky.envIntensity;
+    SUN_DIR.copy(sky.lightDir);
+  });
+  return (
+    <>
+      <hemisphereLight ref={hemi} args={["#c8dcf2", "#857c58", 1.35]} />
+      <directionalLight ref={bounce} position={[600, 300, 700]} intensity={0.35} color="#a9c0dc" />
+    </>
+  );
+}
+
 export function Atmosphere() {
   return (
     <>
       <color attach="background" args={[FOG_COLOR]} />
       <fogExp2 attach="fog" args={[FOG_COLOR, 0.00029]} />
+      <SkyController />
       <SkyDome />
       <FloraClock />
-      <Sun />
-      <hemisphereLight args={["#c8dcf2", "#857c58", 1.35]} />
-      <directionalLight position={[600, 300, 700]} intensity={0.35} color="#a9c0dc" />
+      <KeyLight />
+      <Fill />
     </>
   );
 }

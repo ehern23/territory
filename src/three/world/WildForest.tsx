@@ -11,9 +11,10 @@ import { generateConifer } from "../flora/generateConifer";
 import { buildTreeGeometries, type TreeGeometries } from "../flora/treeMeshes";
 import { getFoliageAtlas } from "../flora/foliageAtlas";
 import { getNeedleAtlas } from "./atlases";
-import { createBarkMaterial, createFoliageMaterial, createTreeUniforms, floraGlobals, type LodFade } from "../flora/floraMaterials";
+import { createBarkMaterial, createFoliageMaterial, createTreeUniforms, floraGlobals, supportsAlphaToCoverage, type LodFade } from "../flora/floraMaterials";
 import { BARK_TEX, configureBarkMaps } from "../flora/barkMaps";
-import { SUN_DIR, fbm, groundCover, mountainFactor, terrainHeight } from "../layout";
+import { fbm, groundCover, mountainFactor, terrainHeight } from "../layout";
+import { skyUniforms } from "../sky/skyState";
 
 /**
  * The wild forest around the accounts: tens of thousands of trees of six
@@ -111,9 +112,9 @@ function useSpeciesAssets(lod: LodFade) {
     const needle = getNeedleAtlas();
     const barkLod = createBarkMaterial(maps, uniforms, { moss: 0.6, lod });
     const barkCap = createBarkMaterial(maps, uniforms, { moss: 0.6 });
-    const leafLod = createFoliageMaterial(leaf, uniforms, { translucency: 0.6, alphaToCoverage: false, lod });
+    const leafLod = createFoliageMaterial(leaf, uniforms, { translucency: 0.6, lod });
     const leafCap = createFoliageMaterial(leaf, uniforms, { translucency: 0.6, alphaToCoverage: false });
-    const needleLod = createFoliageMaterial(needle, uniforms, { translucency: 0.3, alphaToCoverage: false, lod });
+    const needleLod = createFoliageMaterial(needle, uniforms, { translucency: 0.3, lod });
     const needleCap = createFoliageMaterial(needle, uniforms, { translucency: 0.3, alphaToCoverage: false });
     return SPECIES.map((sp): SpeciesAssets => {
       const shape = sp.shape();
@@ -346,7 +347,7 @@ const IMPOSTOR_VERT = /* glsl */ `
     wp.xz += uWind.xz * sway * position.y * position.y * 0.6;
     vTint = aTint;
     // Sun behind the viewer lights the visible side; against the sun it darkens.
-    vLight = 0.82 + 0.26 * dot(normalize(uSun.xz), d);
+    vLight = 0.82 + 0.26 * dot(normalize(uSun.xz + vec2(0.0001)), d) * (1.0 - abs(uSun.y) * 0.6);
     vec4 mvPosition = viewMatrix * vec4(wp, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     #include <fog_vertex>
@@ -359,6 +360,7 @@ const IMPOSTOR_FRAG = /* glsl */ `
   uniform sampler2D uAtlas;
   uniform vec2 uAtlasSize;
   uniform vec2 uLod;
+  uniform vec3 uShade;
   varying vec2 vUv0;
   varying vec2 vUv1;
   varying float vBlend;
@@ -367,18 +369,28 @@ const IMPOSTOR_FRAG = /* glsl */ `
   varying float vLight;
   void main() {
     float fadeNear = 1.0 - smoothstep(uLod.x, uLod.y, vDist);
-    float ign = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
-    if (ign <= fadeNear) discard;
+    #ifndef ALPHA_TO_COVERAGE
+      float ign = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+      if (ign <= fadeNear) discard;
+    #endif
     vec4 a = texture2D(uAtlas, vUv0);
     vec4 b = texture2D(uAtlas, vUv1);
     vec4 c = mix(a, b, vBlend);
     vec2 tc = vUv0 * uAtlasSize;
     float lod = max(0.0, 0.5 * log2(max(dot(dFdx(tc), dFdx(tc)), dot(dFdy(tc), dFdy(tc)))));
     c.a *= 1.0 + lod * 0.35;
-    if (c.a < 0.5) discard;
+    #ifdef ALPHA_TO_COVERAGE
+      // Antialiased silhouettes: a one-pixel coverage ramp around the cut.
+      float alpha = clamp((c.a - 0.5) / max(fwidth(c.a), 0.0001) + 0.5, 0.0, 1.0) * (1.0 - fadeNear);
+      if (alpha <= 0.0) discard;
+    #else
+      if (c.a < 0.5) discard;
+      float alpha = 1.0;
+    #endif
     // The atlas was cleared to foliage green, so edge texels need no unpremultiply.
-    vec3 col = c.rgb * vTint * vLight;
-    gl_FragColor = vec4(col, 1.0);
+    // The atlas was captured in midday light; the sky's shade relights it.
+    vec3 col = c.rgb * vTint * vLight * uShade;
+    gl_FragColor = vec4(col, alpha);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
     #include <fog_fragment>
@@ -435,9 +447,11 @@ function ImpostorField({ trees, assets, lod }: { trees: TreeInstance[]; assets: 
         uLod: { value: new THREE.Vector2(lod.near, lod.far) },
         uTime: floraGlobals.uTime,
         uWind: floraGlobals.uWind,
-        uSun: { value: SUN_DIR.clone() },
+        uSun: skyUniforms.uLightDir,
+        uShade: skyUniforms.uShade,
       },
       fog: true,
+      alphaToCoverage: supportsAlphaToCoverage(),
     });
     const m = new THREE.Mesh(geo, material);
     m.frustumCulled = false;

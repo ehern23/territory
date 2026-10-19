@@ -6,6 +6,7 @@ import { Canvas, useThree } from "@react-three/fiber";
 import { PerformanceMonitor } from "@react-three/drei";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { Atmosphere, ImageBasedLight } from "./world/Atmosphere";
+import { Precipitation } from "./sky/Precipitation";
 import { Terrain } from "./world/Terrain";
 import { GroundCover } from "./world/GroundCover";
 import { Stream } from "./world/Stream";
@@ -94,6 +95,7 @@ export function Scene() {
         {!OFF.has("forest") && <WildForest />}
         {!OFF.has("accounts") && <Forest />}
         {!OFF.has("wildlife") && <Wildlife />}
+        {!OFF.has("weather") && <Precipitation />}
         <CameraDirector />
       </Suspense>
       {!OFF.has("fx") && <Effects />}
