@@ -148,11 +148,24 @@ export function Terrain() {
             float canopyN = tFbm(xz * 0.06);
             vec3 canopy = mix(vec3(0.13, 0.21, 0.11), vec3(0.24, 0.32, 0.15), canopyN);
             canopy = mix(canopy, vec3(0.20, 0.24, 0.14), smoothstep(0.62, 0.8, tFbm(xz * 0.013 + 3.0)));
-            float strata = tNoise(vec2(xz.x * 0.01 + h * 0.08, xz.y * 0.01));
-            vec3 rock = mix(vec3(0.42, 0.40, 0.37), vec3(0.58, 0.56, 0.52), strata) * (0.8 + 0.35 * tFbm(xz * 0.09));
+            // Rock: banded strata, dark fissures down the fall line, lichen
+            // and scrub clinging wherever the slope eases.
+            float strata = tNoise(vec2(xz.x * 0.012 + h * 0.11, xz.y * 0.012));
+            float bands = 0.5 + 0.5 * sin(h * 0.21 + tFbm(xz * 0.015) * 14.0);
+            vec3 rock = mix(vec3(0.36, 0.35, 0.33), vec3(0.6, 0.58, 0.54), strata * 0.75 + bands * 0.18 + tFbm(xz * 0.024 + 3.0) * 0.12);
+            rock = mix(rock, vec3(0.52, 0.47, 0.4), smoothstep(0.55, 0.8, tFbm(xz * 0.017 + 11.0)) * 0.5);
+            float fissure = smoothstep(0.62, 0.8, tFbm(vec2(xz.x * 0.05, xz.y * 0.05 + h * 0.012)));
+            rock *= 1.0 - fissure * 0.45;
+            rock *= 0.78 + 0.4 * tFbm(xz * 0.11);
+            float lichen = smoothstep(0.58, 0.75, tFbm(xz * 0.045 + 5.0)) * (1.0 - smoothstep(0.35, 0.6, slope));
+            rock = mix(rock, vec3(0.42, 0.44, 0.3), lichen * 0.6);
             float treeline = 380.0 + (tFbm(xz * 0.004) - 0.5) * 140.0;
-            float rocky = clamp(smoothstep(0.28, 0.5, slope) + smoothstep(treeline, treeline + 70.0, h), 0.0, 1.0);
+            float rocky = clamp(smoothstep(0.34, 0.58, slope) + smoothstep(treeline, treeline + 70.0, h), 0.0, 1.0);
+            // Scrub and krummholz soften the edge between forest and rock.
+            float scrub = smoothstep(0.45, 0.7, tFbm(xz * 0.03 + 21.0)) * (1.0 - smoothstep(0.5, 0.7, slope)) * (1.0 - smoothstep(treeline + 60.0, treeline + 160.0, h));
+            vec3 scrubCol = mix(vec3(0.2, 0.26, 0.13), vec3(0.32, 0.33, 0.18), tFbm(xz * 0.08));
             vec3 range = mix(canopy, rock, rocky);
+            range = mix(range, scrubCol, scrub * rocky * 0.75);
             float snowLine = 600.0 + (tFbm(xz * 0.006 + 2.0) - 0.5) * 120.0;
             float snow = smoothstep(snowLine, snowLine + 40.0, h) * (1.0 - smoothstep(0.42, 0.62, slope));
             range = mix(range, vec3(0.92, 0.94, 0.97), snow);
@@ -166,7 +179,7 @@ export function Terrain() {
           `,
         );
     };
-    m.customProgramCacheKey = () => "territory-terrain-v2";
+    m.customProgramCacheKey = () => "territory-terrain-v3";
     return m;
   }, [tex, maps]);
 

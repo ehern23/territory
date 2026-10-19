@@ -73,18 +73,44 @@ function placeForest(dense: boolean): TreeInstance[] {
       const c = groundCover(x, z);
       if (rng.next() > c.trees) continue;
       const mf = mountainFactor(x, z);
-      const conifer = rng.next() < THREE.MathUtils.clamp(0.12 + mf * 0.95 + (fbm(x * 0.004 + 9, z * 0.004, 2) - 0.5) * 0.7, 0, 0.95);
-      const species = conifer ? 4 + (rng.chance(0.55) ? 0 : 1) : rng.int(0, 3);
-      const scale = rng.range(0.78, 1.28) * (1 - mf * 0.25);
-      const warm = !conifer && rng.chance(0.1) ? rng.range(0.1, 0.28) : 0;
-      const v = rng.range(0.82, 1.08);
-      const tint = conifer
-        ? new THREE.Color(v * 0.72, v * 0.86, v * 0.82)
-        : new THREE.Color(v * (1 + warm * 0.8), v * (1 + warm * 0.2), v * (1 - warm));
-      out.push({ x, y: terrainHeight(x, z) - 0.4, z, species, scale, yaw: rng.range(0, Math.PI * 2), tint });
+      const y = terrainHeight(x, z);
+      // Conifers take over as the ground climbs; broadleaf keeps the valley.
+      const coniferP = 0.12 + mf * 0.6 + smoothstep(y, 60, 240) * 0.75 + (fbm(x * 0.004 + 9, z * 0.004, 2) - 0.5) * 0.7;
+      const conifer = rng.next() < THREE.MathUtils.clamp(coniferP, 0, 0.97);
+      out.push(makeTree(rng, x, y, z, conifer, mf));
+    }
+  }
+  // Mountain slopes are seen face-on, so they need a denser stand to read as
+  // forest rather than scattered trees: a second, offset pass of conifers.
+  for (let gz = -1900 + spacing * 0.5; gz < 1500; gz += spacing) {
+    for (let gx = -1700 + spacing * 0.5; gx < 1700; gx += spacing) {
+      const x = gx + rng.gauss() * spacing * 0.4;
+      const z = gz + rng.gauss() * spacing * 0.4;
+      if (Math.hypot(x, z + 80) > 1750) continue;
+      const mf = mountainFactor(x, z);
+      if (mf < 0.2) continue;
+      const c = groundCover(x, z);
+      if (rng.next() > c.trees * smoothstep(mf, 0.2, 0.55)) continue;
+      out.push(makeTree(rng, x, terrainHeight(x, z), z, true, mf));
     }
   }
   return out;
+}
+
+function smoothstep(v: number, a: number, b: number) {
+  const t = THREE.MathUtils.clamp((v - a) / (b - a), 0, 1);
+  return t * t * (3 - 2 * t);
+}
+
+function makeTree(rng: ReturnType<typeof seededRng>, x: number, y: number, z: number, conifer: boolean, mf: number): TreeInstance {
+  const species = conifer ? 4 + (rng.chance(0.55) ? 0 : 1) : rng.int(0, 3);
+  const scale = rng.range(0.78, 1.28) * (1 - mf * 0.2);
+  const warm = !conifer && rng.chance(0.1) ? rng.range(0.1, 0.28) : 0;
+  const v = rng.range(0.82, 1.08);
+  const tint = conifer
+    ? new THREE.Color(v * 0.84, v * 0.98, v * 0.9)
+    : new THREE.Color(v * (1 + warm * 0.8), v * (1 + warm * 0.2), v * (1 - warm));
+  return { x, y: y - 0.4, z, species, scale, yaw: rng.range(0, Math.PI * 2), tint };
 }
 
 /* ------------------------------------------------------------------------ */
