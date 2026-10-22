@@ -21,7 +21,7 @@ import { Forest } from "./Forest";
 import { CameraDirector } from "./CameraDirector";
 import { OptionalScenePart } from "./SceneBoundary";
 import { PerfProbe } from "./perf/PerfProbe";
-import { PERF_ENABLED } from "@/lib/perfStats";
+import { useUiStore } from "@/store/useUiStore";
 
 /** QA aid: `?off=forest,cover,…` disables scene parts to isolate render cost. */
 const OFF = new Set(
@@ -82,6 +82,7 @@ function Precompile() {
 
 export function Scene() {
   const biome = useBiomeStore((s) => s.biome);
+  const perf = useUiStore((s) => s.perf);
   const isTouch = useTerritoryStore((s) => s.isTouch);
   const setIsTouch = useTerritoryStore((s) => s.setIsTouch);
   const setReducedMotion = useTerritoryStore((s) => s.setReducedMotion);
@@ -119,7 +120,7 @@ export function Scene() {
     >
       <Governor />
       <Precompile />
-      {PERF_ENABLED && <PerfProbe />}
+      {perf && <PerfProbe />}
       <Atmosphere />
       <OptionalScenePart>
         <Suspense fallback={null}>

@@ -31,7 +31,23 @@ function save(p: Panels) {
   }
 }
 
+const PERF_KEY = "territory.perf.v1";
+
+/** The performance overlay: on with `?perf`, otherwise as last left. */
+function loadPerf(): boolean {
+  if (typeof window === "undefined") return false;
+  if (new URLSearchParams(window.location.search).has("perf")) return true;
+  try {
+    return window.localStorage.getItem(PERF_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 interface UiStore extends Panels {
+  /** Frame-pacing overlay, tucked away in the sky panel (or the ` key). */
+  perf: boolean;
+  setPerf: (on: boolean) => void;
   setPanel: (panel: keyof Panels, open: boolean) => void;
   togglePanel: (panel: keyof Panels) => void;
   /** Fold everything away, or bring it all back. */
@@ -40,6 +56,15 @@ interface UiStore extends Panels {
 
 export const useUiStore = create<UiStore>((set, get) => ({
   ...load(),
+  perf: loadPerf(),
+  setPerf: (perf) => {
+    set({ perf });
+    try {
+      window.localStorage.setItem(PERF_KEY, perf ? "1" : "0");
+    } catch {
+      // Not persisted.
+    }
+  },
   setPanel: (panel, open) => {
     set({ [panel]: open } as Partial<Panels>);
     save({ overview: get().overview, map: get().map });

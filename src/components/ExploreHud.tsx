@@ -133,7 +133,8 @@ export function ExploreHud() {
                       <Key wide>Space</Key> fly / land
                     </span>
                     <span className="flex items-center gap-1.5">
-                      <Key wide>Shift</Key> sprint
+                      <Key>W</Key>
+                      <Key>W</Key> hold to sprint, or <Key wide>Shift</Key>
                     </span>
                     <span className="flex items-center gap-1.5">
                       <Key>C</Key> descend in flight
@@ -148,7 +149,7 @@ export function ExploreHud() {
             <div ref={pillRef} className="glass glass-pill pointer-events-auto absolute left-4 bottom-5 flex items-center gap-3 h-10 pl-4 pr-1.5 text-[12.5px]">
               <span className="text-paper">{flying ? "Flying" : "On foot"}</span>
               <span className="text-paper-40 hidden md:inline">
-                {flying ? "Space up · C down · double-tap Space to land" : "Shift sprint · double-tap Space to fly"}
+                {flying ? "W W to race · Space up · C down · double-tap Space to land" : "W W to sprint · double-tap Space to fly"}
               </span>
               <button type="button" className="btn btn-sm btn-pill btn-ghost !text-paper" onClick={() => exploreBridge.leave()}>
                 Exit <Key wide>Esc</Key>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { PERF_ENABLED, perfStats, slot, summarize, type PerfSummary } from "@/lib/perfStats";
+import { perfStats, slot, summarize, type PerfSummary } from "@/lib/perfStats";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { useExploreStore } from "@/store/useExploreStore";
 import { useUiStore } from "@/store/useUiStore";
@@ -9,7 +9,7 @@ import { useBiomeStore } from "@/store/useBiomeStore";
 import { useSkyStore } from "@/store/useSkyStore";
 
 /**
- * `?perf`: a live read-out of frame pacing. The graph shows every frame's
+ * Performance stats (sky panel, the ` key, or `?perf`): a live read-out of frame pacing. The graph shows every frame's
  * duration; a bar above the refresh line is a frame the display showed twice.
  * "Copy report" puts a plain-text summary on the clipboard to paste back.
  */
@@ -40,13 +40,25 @@ function report(s: PerfSummary) {
 }
 
 export function PerfHud() {
+  const perf = useUiStore((s) => s.perf);
+  const setPerf = useUiStore((s) => s.setPerf);
   // Decided after mount so the server render and the first client render agree.
-  const [on, setOn] = useState(false);
-  useEffect(() => setOn(PERF_ENABLED), []);
-  return on ? <PerfPanel /> : null;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  // ` toggles the overlay.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "`" || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.target instanceof HTMLElement && (["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName) || e.target.isContentEditable)) return;
+      setPerf(!useUiStore.getState().perf);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [setPerf]);
+  return mounted && perf ? <PerfPanel onClose={() => setPerf(false)} /> : null;
 }
 
-function PerfPanel() {
+function PerfPanel({ onClose }: { onClose: () => void }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [s, setS] = useState<PerfSummary | null>(null);
   const [copied, setCopied] = useState(false);
@@ -117,11 +129,16 @@ function PerfPanel() {
         <button type="button" className="perf-hud__title" onClick={() => setOpen((o) => !o)}>
           {open ? "Performance" : `${fmt(s?.fps, 0)} fps`}
         </button>
-        {open && (
-          <button type="button" className="perf-hud__btn" onClick={copy}>
-            {copied ? "Copied" : "Copy report"}
+        <span className="flex gap-1.5">
+          {open && (
+            <button type="button" className="perf-hud__btn" onClick={copy}>
+              {copied ? "Copied" : "Copy report"}
+            </button>
+          )}
+          <button type="button" className="perf-hud__btn" onClick={onClose} aria-label="Hide performance stats" title="Hide (`)">
+            ×
           </button>
-        )}
+        </span>
       </div>
       {open && (
         <>

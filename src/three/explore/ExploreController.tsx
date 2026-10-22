@@ -16,7 +16,8 @@ import { cameraPose } from "../cameraPose";
  *
  * W A S D (or the arrows) move, the mouse looks (click the scene to capture
  * the pointer; Esc releases it), Space jumps and jumps again in the air, a
- * quick double tap of Space takes off or lands, Shift sprints, and while
+ * quick double tap of Space takes off or lands, Shift (or a double tap of W,
+ * held) sprints and keeps gathering speed the longer it is held, and while
  * flying Space climbs and C descends. The walker follows the ground, goes
  * around trunks, and a soft boundary keeps everyone inside the valley rather
  * than inside the mountains. Aim at an account giant and click to open it.
@@ -29,6 +30,11 @@ const WALK = 12;
 const RUN = 36;
 const FLY = 60;
 const FLY_FAST = 190;
+/** Sprinting keeps building speed: up to this multiple after BOOST_TIME seconds. */
+const BOOST_MAX = 1.9;
+const BOOST_TIME = 2.5;
+/** Two presses of W closer together than this start a sprint. */
+const DOUBLE_TAP_MS = 320;
 const FOV_EXPLORE = 62;
 const FOV_OVERVIEW = 38;
 const LIMIT_RADIUS = 1550;
@@ -53,12 +59,19 @@ export function ExploreController() {
     jumps: 0,
     lastSpace: 0,
     bob: 0,
+    /** When W was last pressed, for the double-tap sprint. */
+    lastForward: 0,
+    /** Sprinting from a double tap of W; ends when W is released. */
+    tapSprint: false,
+    /** Seconds spent sprinting forward, which builds speed. */
+    boost: 0,
   });
   const tmp = useMemo(
     () => ({
       fwd: new THREE.Vector3(),
       right: new THREE.Vector3(),
       want: new THREE.Vector3(),
+      flat: new THREE.Vector3(),
       euler: new THREE.Euler(0, 0, 0, "YXZ"),
       ray: new THREE.Ray(),
       trunks: [] as { x: number; z: number; r: number }[],
@@ -146,6 +159,14 @@ export function ExploreController() {
       const k = e.key.toLowerCase();
       const ex = useExploreStore.getState();
       const t = useTerritoryStore.getState();
+      // W W (tap, then hold): sprint.
+      const forward = k === "w" || k === "arrowup";
+      if (forward && !e.repeat) {
+        const st = p.current;
+        const now = performance.now();
+        st.tapSprint = now - st.lastForward < DOUBLE_TAP_MS;
+        st.lastForward = now;
+      }
       if (!ex.active) {
         // Moving keys in the overview step into the world.
         if (["w", "a", "s", "d"].includes(k) && t.mode === "forest" && t.introDone && !t.demo.active && !t.isTouch) {
@@ -184,8 +205,15 @@ export function ExploreController() {
       if (k === "f" && !e.repeat) ex.setFlying(!ex.flying);
       keys.current.add(k);
     };
-    const up = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
-    const blur = () => keys.current.clear();
+    const up = (e: KeyboardEvent) => {
+      const k = e.key.toLowerCase();
+      keys.current.delete(k);
+      if ((k === "w" || k === "arrowup") && !keys.current.has("w") && !keys.current.has("arrowup")) p.current.tapSprint = false;
+    };
+    const blur = () => {
+      keys.current.clear();
+      p.current.tapSprint = false;
+    };
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
     window.addEventListener("blur", blur);
@@ -257,18 +285,22 @@ export function ExploreController() {
     const ex = useExploreStore.getState();
     const k = keys.current;
     const flying = ex.flying;
-    const sprint = k.has("shift");
+    const sprint = k.has("shift") || st.tapSprint;
 
     // Heading.
     tmp.euler.set(st.pitch, st.yaw, 0, "YXZ");
     tmp.fwd.set(0, 0, -1).applyEuler(tmp.euler);
-    const flatFwd = new THREE.Vector3(tmp.fwd.x, 0, tmp.fwd.z).normalize();
+    const flatFwd = tmp.flat.set(tmp.fwd.x, 0, tmp.fwd.z).normalize();
     tmp.right.set(-flatFwd.z, 0, flatFwd.x);
     const f = (k.has("w") || k.has("arrowup") ? 1 : 0) - (k.has("s") || k.has("arrowdown") ? 1 : 0);
     const r = (k.has("d") || k.has("arrowright") ? 1 : 0) - (k.has("a") || k.has("arrowleft") ? 1 : 0);
+    // Hold a sprint and it keeps gathering pace, so crossing the map is quick.
+    st.boost = sprint && (f !== 0 || r !== 0) ? st.boost + dt : Math.max(0, st.boost - dt * 3);
+    const gather = Math.min(1, st.boost / BOOST_TIME);
+    const boost = 1 + (BOOST_MAX - 1) * gather * gather * (3 - 2 * gather);
 
     if (flying) {
-      const speed = sprint ? FLY_FAST : FLY;
+      const speed = sprint ? FLY_FAST * boost : FLY;
       // In flight, forward follows the gaze: look down and dive.
       tmp.want.copy(tmp.fwd).multiplyScalar(f).addScaledVector(tmp.right, r);
       if (tmp.want.lengthSq() > 1) tmp.want.normalize();
@@ -276,7 +308,7 @@ export function ExploreController() {
       tmp.want.y += ((k.has(" ") ? 1 : 0) - (k.has("c") || k.has("control") ? 1 : 0)) * speed * 0.7;
       st.vel.lerp(tmp.want, 1 - Math.exp(-dt * 8));
     } else {
-      const speed = sprint ? RUN : WALK;
+      const speed = sprint ? RUN * boost : WALK;
       tmp.want.copy(flatFwd).multiplyScalar(f).addScaledVector(tmp.right, r);
       if (tmp.want.lengthSq() > 1) tmp.want.normalize();
       tmp.want.multiplyScalar(speed);
@@ -337,7 +369,8 @@ export function ExploreController() {
     camera.position.set(st.pos.x, st.pos.y + EYE + bob, st.pos.z);
     camera.quaternion.setFromEuler(tmp.euler);
     const cam = camera as THREE.PerspectiveCamera;
-    const fov = FOV_EXPLORE + (sprint && moving > WALK ? 6 : 0);
+    // A wider view at speed sells the rush.
+    const fov = FOV_EXPLORE + (sprint && moving > WALK ? 6 + 8 * (boost - 1) / (BOOST_MAX - 1) : 0);
     if (Math.abs(cam.fov - fov) > 0.05) {
       cam.fov += (fov - cam.fov) * (1 - Math.exp(-dt * 6));
       cam.updateProjectionMatrix();

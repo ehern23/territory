@@ -31,7 +31,7 @@ The accounts are spread across a valley and up into the mountains, the way a rea
 - **Territory map** (bottom right): click an account to fly to it, or click anywhere else to glide there. The cone shows where you are looking.
 - **Immerse:** the territory overview and the map each fold into a small liquid-glass bubble (the − in their corner), and the frame icon in the top bar, or **H**, folds everything away for the forest alone. **M** toggles the map. Tap a bubble to bring its panel back; the choice is remembered.
 - **Overview:** drag to orbit, scroll to zoom, **Q / E** to turn.
-- **Explore on foot:** press **W A S D** (or the *Explore on foot* button) to step into the world, game-style. The mouse looks around (click to capture the pointer, **Esc** to release, **Esc** again to leave). **Space** jumps and jumps again in mid-air; a **double tap of Space** takes off or lands; **Shift** sprints; in flight **Space** climbs and **C** descends, and forward follows your gaze. You walk over the ground and around trunks, and a soft boundary keeps you in the valley. Aim at an account giant and click to open it.
+- **Explore on foot:** press **W A S D** (or the *Explore on foot* button) to step into the world, game-style. The mouse looks around (click to capture the pointer, **Esc** to release, **Esc** again to leave). **Space** jumps and jumps again in mid-air; a **double tap of Space** takes off or lands; **W W** (tap, then hold) or **Shift** sprints, gathering speed the longer you hold it, on foot or in flight; in flight **Space** climbs and **C** descends, and forward follows your gaze. You walk over the ground and around trunks, and a soft boundary keeps you in the valley. Aim at an account giant and click to open it.
 - **Account rail:** jump straight to any account.
 - **Where do you sell?** On a first visit, after the establishing shot, a small card asks for your company and role (AE, SDR or AM) and regrows the forest around that seller's ICP. Stripe, Ramp, Anthropic, OpenAI, Cursor, Cognition, Datadog and Snowflake have hand-written territories; any other company gets an archetype territory instantly (payments, spend, AI platform, data, observability, developer tools, security, HR or general B2B) and, when the server has an `ANTHROPIC_API_KEY`, a Claude-researched one shortly after. The "Selling for …" chip in the top bar reopens it. Target companies are real; people, activity and dollars are always fictional.
 
@@ -104,7 +104,7 @@ QA URL flags (development):
 | --- | --- |
 | `?settle=1` | Snap eased visuals and camera moves to their targets (for screenshots in software-rendered browsers) |
 | `?lite` | Touch-device budget on desktop: less ground cover and forest, no alpha-to-coverage |
-| `?perf` | Frame-pacing overlay: fps, 1% low, dropped frames, CPU and GPU time per frame, draw calls, and a "Copy report" button |
+| `?perf` | Turns on the frame-pacing overlay (also a switch at the bottom of the sky panel, or the **`** key): fps, 1% low, dropped frames, CPU and GPU time per frame, draw calls, and a "Copy report" button |
 | `?off=terrain,stream,cover,rocks,forest,accounts,wildlife,weather,fx` | Drop layers to isolate rendering or performance issues |
 | `?time=6.5` / `?time=lapse` | Start at a given hour, or in time-lapse |
 | `?weather=storm` | Pin the weather (`clear`, `fair`, `cloudy`, `overcast`, `rain`, `storm`, `mist`) |

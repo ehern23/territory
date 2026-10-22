@@ -7,6 +7,7 @@ import { useSkyStore } from "@/store/useSkyStore";
 import { WEATHER_KINDS, WEATHER_LABEL, type WeatherKind } from "@/three/sky/weather";
 import { BIOMES, BIOME_ORDER } from "@/three/biomes/biomes";
 import { useBiomeStore } from "@/store/useBiomeStore";
+import { useUiStore } from "@/store/useUiStore";
 import { useLiquidGlass } from "./glass/Glass";
 import { LensGroup } from "./glass/Lens";
 
@@ -85,6 +86,8 @@ export function SkyControl() {
   const setTimeMode = useSkyStore((s) => s.setTimeMode);
   const setWeatherMode = useSkyStore((s) => s.setWeatherMode);
   const biome = useBiomeStore((s) => s.biome);
+  const perf = useUiStore((s) => s.perf);
+  const setPerf = useUiStore((s) => s.setPerf);
   const setBiome = useBiomeStore((s) => s.setBiome);
   const [open, setOpen] = useState(false);
   const pillRef = useRef<HTMLButtonElement>(null);
@@ -252,6 +255,13 @@ export function SkyControl() {
                       ))}
                     </LensGroup>
                   </div>
+
+                  <label className="flex items-center justify-between gap-3 pt-3 border-t border-white/10 text-[11.5px] text-paper-60 cursor-pointer">
+                    <span>
+                      Performance stats <span className="text-paper-40">· ` key</span>
+                    </span>
+                    <input type="checkbox" className="perf-switch" checked={perf} onChange={(e) => setPerf(e.target.checked)} />
+                  </label>
                 </motion.div>
               )}
             </AnimatePresence>

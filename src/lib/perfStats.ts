@@ -4,8 +4,6 @@
  * allocates per frame.
  */
 
-export const PERF_ENABLED = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("perf");
-
 const N = 720;
 
 export const perfStats = {
@@ -86,4 +84,4 @@ export function summarize(seconds = 5): PerfSummary {
   };
 }
 
-if (PERF_ENABLED) (window as unknown as { __perf?: unknown }).__perf = { perfStats, summarize };
+if (typeof window !== "undefined") (window as unknown as { __perf?: unknown }).__perf = { perfStats, summarize };
