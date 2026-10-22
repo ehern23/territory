@@ -14,6 +14,7 @@ import { DemoNarrator } from "./demo/DemoNarrator";
 import { Minimap } from "./Minimap";
 import { SkyControl } from "./SkyControl";
 import { ExploreHud } from "./ExploreHud";
+import { PerfHud } from "./PerfHud";
 import { useUiStore } from "@/store/useUiStore";
 import { useGlassGlare } from "./glass/Glass";
 import { SellerOnboarding } from "./onboarding/SellerOnboarding";
@@ -72,6 +73,7 @@ export function TerritoryApp() {
       <Minimap />
       <SkyControl />
       <ExploreHud />
+      <PerfHud />
       <PanelKeys />
       <SellerOnboarding />
       <DemoNarrator />

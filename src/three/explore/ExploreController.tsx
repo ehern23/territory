@@ -274,7 +274,7 @@ export function ExploreController() {
       if (tmp.want.lengthSq() > 1) tmp.want.normalize();
       tmp.want.multiplyScalar(speed);
       tmp.want.y += ((k.has(" ") ? 1 : 0) - (k.has("c") || k.has("control") ? 1 : 0)) * speed * 0.7;
-      st.vel.lerp(tmp.want, 1 - Math.exp(-dt * 5));
+      st.vel.lerp(tmp.want, 1 - Math.exp(-dt * 8));
     } else {
       const speed = sprint ? RUN : WALK;
       tmp.want.copy(flatFwd).multiplyScalar(f).addScaledVector(tmp.right, r);

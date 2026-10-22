@@ -78,8 +78,10 @@ export function CameraDirector() {
   useEffect(() => {
     const c = controlsRef.current;
     if (!c) return;
-    c.smoothTime = 0.9;
-    c.draggingSmoothTime = 0.14;
+    // Your hand moves the camera at once, with only a whisper of easing; the
+    // long cinematic glide is kept for flights the app makes itself.
+    c.smoothTime = USER_SMOOTH;
+    c.draggingSmoothTime = 0.045;
     c.dollySpeed = 0.7;
     c.dollyToCursor = true;
     c.azimuthRotateSpeed = 0.55;
@@ -93,6 +95,7 @@ export function CameraDirector() {
     c.boundaryEnclosesCamera = false;
     const mark = () => {
       lastInput.current = performance.now();
+      c.smoothTime = USER_SMOOTH;
     };
     c.addEventListener("controlstart", mark);
     return () => c.removeEventListener("controlstart", mark);
@@ -261,7 +264,13 @@ export function CameraDirector() {
   return <CameraControls ref={controlsRef} makeDefault />;
 }
 
+/** Easing after a drag, scroll or pinch, seconds. */
+const USER_SMOOTH = 0.16;
+/** Easing for flights the app makes (to an account, across the map), seconds. */
+const FLIGHT_SMOOTH = 0.9;
+
 function applyShot(c: CameraControlsImpl, shot: Shot, animate: boolean, setLimits = false) {
+  if (animate) c.smoothTime = FLIGHT_SMOOTH;
   if (setLimits) {
     c.minDistance = shot.minDistance;
     c.maxDistance = shot.maxDistance;

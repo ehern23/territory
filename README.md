@@ -104,6 +104,7 @@ QA URL flags (development):
 | --- | --- |
 | `?settle=1` | Snap eased visuals and camera moves to their targets (for screenshots in software-rendered browsers) |
 | `?lite` | Touch-device budget on desktop: less ground cover and forest, no alpha-to-coverage |
+| `?perf` | Frame-pacing overlay: fps, 1% low, dropped frames, CPU and GPU time per frame, draw calls, and a "Copy report" button |
 | `?off=terrain,stream,cover,rocks,forest,accounts,wildlife,weather,fx` | Drop layers to isolate rendering or performance issues |
 | `?time=6.5` / `?time=lapse` | Start at a given hour, or in time-lapse |
 | `?weather=storm` | Pin the weather (`clear`, `fair`, `cloudy`, `overcast`, `rain`, `storm`, `mist`) |

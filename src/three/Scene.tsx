@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import * as THREE from "three";
 import { Canvas, useThree } from "@react-three/fiber";
 import { PerformanceMonitor } from "@react-three/drei";
@@ -20,6 +20,8 @@ import { Effects } from "./world/Effects";
 import { Forest } from "./Forest";
 import { CameraDirector } from "./CameraDirector";
 import { OptionalScenePart } from "./SceneBoundary";
+import { PerfProbe } from "./perf/PerfProbe";
+import { PERF_ENABLED } from "@/lib/perfStats";
 
 /** QA aid: `?off=forest,cover,…` disables scene parts to isolate render cost. */
 const OFF = new Set(
@@ -28,23 +30,54 @@ const OFF = new Set(
 
 /**
  * Frame-rate governor: if the device can't hold its frame rate, step the
- * render resolution down, and as a last resort thin the ground cover.
+ * render resolution down, and as a last resort thin the ground cover. It only
+ * ever steps down: changing resolution reallocates every render target, so
+ * hunting up and down would itself cause the hitches it is meant to prevent.
  */
 function Governor() {
   const setDpr = useThree((s) => s.setDpr);
   const viewportDpr = useThree((s) => s.viewport.dpr);
   const setLowPower = useTerritoryStore((s) => s.setLowPower);
+  // Judge the device only once loading (shader compiles, impostor captures)
+  // is over, or a slow first few seconds would cost resolution for good.
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setReady(true), 8000);
+    return () => window.clearTimeout(id);
+  }, []);
+  if (!ready) return null;
   return (
     <PerformanceMonitor
-      flipflops={4}
+      ms={500}
+      iterations={6}
       onDecline={() => {
         const next = Math.max(1, Math.round((viewportDpr - 0.25) * 4) / 4);
         if (next < viewportDpr) setDpr(next);
         else setLowPower(true);
       }}
-      onIncline={() => setDpr(Math.min(window.devicePixelRatio, viewportDpr + 0.25))}
     />
   );
+}
+
+/**
+ * Compile every shader the scene uses up front (in parallel where the driver
+ * allows), so nothing stalls the first time it comes into view.
+ */
+function Precompile() {
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+  const camera = useThree((s) => s.camera);
+  const biome = useBiomeStore((s) => s.biome);
+  useEffect(() => {
+    // Parts of the scene mount over the first second or two; sweep a few times.
+    const ids = [400, 1500, 4000].map((ms) =>
+      window.setTimeout(() => {
+        void gl.compileAsync(scene, camera).catch(() => undefined);
+      }, ms),
+    );
+    return () => ids.forEach((id) => window.clearTimeout(id));
+  }, [gl, scene, camera, biome]);
+  return null;
 }
 
 export function Scene() {
@@ -85,6 +118,8 @@ export function Scene() {
       style={{ touchAction: "none" }}
     >
       <Governor />
+      <Precompile />
+      {PERF_ENABLED && <PerfProbe />}
       <Atmosphere />
       <OptionalScenePart>
         <Suspense fallback={null}>

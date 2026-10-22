@@ -256,9 +256,9 @@ function CoverLayer({ spec }: { spec: LayerSpec }) {
     return { mesh: m, center };
   }, [spec, maps, count, size]);
 
+  const f = useMemo(() => new THREE.Vector3(), []);
   useFrame(({ camera }) => {
     // Centre the patch ahead of the camera so what it looks at is covered.
-    const f = new THREE.Vector3();
     camera.getWorldDirection(f);
     f.y = 0;
     if (f.lengthSq() > 1e-4) f.normalize();

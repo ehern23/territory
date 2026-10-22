@@ -179,6 +179,9 @@ function useSpeciesAssets(lod: LodFade, biome: Biome) {
 /* Near field: real geometry                                                 */
 /* ------------------------------------------------------------------------ */
 
+const NEAR_CELL = 64;
+const cellKey = (gx: number, gz: number) => (gx + 512) * 1024 + (gz + 512);
+
 function NearForest({ trees, assets, lod, shadows }: { trees: TreeInstance[]; assets: SpeciesAssets[]; lod: LodFade; shadows: boolean }) {
   const capacity = 900;
   const meshes = useMemo(
@@ -200,6 +203,20 @@ function NearForest({ trees, assets, lod, shadows }: { trees: TreeInstance[]; as
       }),
     [assets, shadows],
   );
+  // Bucket the trees on a grid once, so finding the near ones touches a few
+  // hundred trees instead of the whole forest (a scan of every tree used to
+  // stall a frame each time the camera moved a few metres).
+  const grid = useMemo(() => {
+    const cells = new Map<number, TreeInstance[]>();
+    for (const t of trees) {
+      const key = cellKey(Math.floor(t.x / NEAR_CELL), Math.floor(t.z / NEAR_CELL));
+      const list = cells.get(key);
+      if (list) list.push(t);
+      else cells.set(key, [t]);
+    }
+    return cells;
+  }, [trees]);
+  const counts = useMemo(() => new Array<number>(assets.length).fill(0), [assets]);
   const last = useRef(new THREE.Vector3(1e9, 0, 0));
   const tmp = useMemo(
     () => ({ m: new THREE.Matrix4(), q: new THREE.Quaternion(), s: new THREE.Vector3(), p: new THREE.Vector3(), up: new THREE.Vector3(0, 1, 0) }),
@@ -210,17 +227,21 @@ function NearForest({ trees, assets, lod, shadows }: { trees: TreeInstance[]; as
     if (camera.position.distanceToSquared(last.current) < 64) return;
     last.current.copy(camera.position);
     const r2 = lod.far * lod.far;
-    const counts = new Array(assets.length).fill(0);
+    counts.fill(0);
     const cx = camera.position.x;
     const cy = camera.position.y;
     const cz = camera.position.z;
-    for (const t of trees) {
+    const gx0 = Math.floor((cx - lod.far) / NEAR_CELL);
+    const gx1 = Math.floor((cx + lod.far) / NEAR_CELL);
+    const gz0 = Math.floor((cz - lod.far) / NEAR_CELL);
+    const gz1 = Math.floor((cz + lod.far) / NEAR_CELL);
+    const place = (t: TreeInstance) => {
       const dx = t.x - cx;
       const dy = t.y - cy;
       const dz = t.z - cz;
-      if (dx * dx + dy * dy + dz * dz > r2) continue;
+      if (dx * dx + dy * dy + dz * dz > r2) return;
       const k = counts[t.species];
-      if (k >= capacity) continue;
+      if (k >= capacity) return;
       tmp.p.set(t.x, t.y, t.z);
       tmp.q.setFromAxisAngle(tmp.up, t.yaw);
       tmp.s.setScalar(t.scale);
@@ -230,13 +251,23 @@ function NearForest({ trees, assets, lod, shadows }: { trees: TreeInstance[]; as
       leaves.setMatrixAt(k, tmp.m);
       leaves.setColorAt(k, t.tint);
       counts[t.species] = k + 1;
-    }
+    };
+    for (let gz = gz0; gz <= gz1; gz++)
+      for (let gx = gx0; gx <= gx1; gx++) {
+        const cell = grid.get(cellKey(gx, gz));
+        if (cell) for (const t of cell) place(t);
+      }
     meshes.forEach(({ bark, leaves }, i) => {
-      bark.count = counts[i];
-      leaves.count = counts[i];
-      bark.instanceMatrix.needsUpdate = true;
-      leaves.instanceMatrix.needsUpdate = true;
-      if (leaves.instanceColor) leaves.instanceColor.needsUpdate = true;
+      const n = counts[i];
+      bark.count = n;
+      leaves.count = n;
+      // Upload only the instances in use, not the whole buffer.
+      for (const attr of [bark.instanceMatrix, leaves.instanceMatrix, leaves.instanceColor]) {
+        if (!attr) continue;
+        attr.clearUpdateRanges();
+        attr.addUpdateRange(0, Math.max(1, n) * attr.itemSize);
+        attr.needsUpdate = true;
+      }
     });
   });
 
