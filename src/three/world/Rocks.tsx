@@ -107,6 +107,9 @@ function placeRocks(count: number): Placement[][] {
         const x = p.x + side.x * off + rng.gauss() * 2;
         const z = p.y + side.y * off + rng.gauss() * 2;
         if (nearGlade(x, z, GLADE_RADIUS * 0.6)) continue;
+        // A boulder cannot rest on a cliff face.
+        const grade = Math.hypot(terrainHeight(x + 2, z) - terrainHeight(x - 2, z), terrainHeight(x, z + 2) - terrainHeight(x, z - 2)) / 4;
+        if (grade > 0.7) continue;
         push(x, z, rng.range(0.6, 2.4) * (0.75 + w / 24) * (steep ? 1.5 : 1));
       }
     }

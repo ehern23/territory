@@ -95,14 +95,14 @@ const frag = /* glsl */ `
     vec2 q = vec2(vFlow.y * mix(3.0, 14.0, falls), vFlow.x * mix(0.5, 0.12, falls) - uTime * speed * 0.6);
     float streak = n2(q * vec2(1.0, 1.0)) * 0.6 + n2(q * vec2(2.3, 2.0) + 4.0) * 0.4;
     float churn = n2(vec2(vFlow.x * 0.6 - uTime * 2.2, vFlow.y * 5.0)) * 0.5 + n2(vec2(vFlow.x * 1.7 + uTime * 1.3, vFlow.y * 9.0 + 2.0)) * 0.5;
-    float white = max(rapids * smoothstep(0.42, 0.75, churn) * 0.85, falls * (0.55 + 0.45 * smoothstep(0.3, 0.7, streak)));
+    float white = max(rapids * smoothstep(0.42, 0.75, churn) * 0.85, falls * (0.3 + 0.7 * smoothstep(0.28, 0.72, streak)));
     white = max(white, vFoam * smoothstep(0.25, 0.7, churn + vFoam * 0.3));
     vec3 foamCol = vec3(0.92, 0.95, 0.97) * (uShade * 0.92 + 0.08);
     col = mix(col, foamCol, clamp(white, 0.0, 1.0));
     alpha = max(alpha, white * 0.95);
     // Over a falls the sheet frays at its edges: ribbons of water peel away
     // from the main curtain and the rock shows between them.
-    float fray = 0.62 + 0.3 * n2(vec2(vFlow.x * 0.09 + sign(vFlow.y) * 13.0, sign(vFlow.y))) + 0.12 * streak;
+    float fray = 0.5 + 0.38 * n2(vec2(vFlow.x * 0.06 + sign(vFlow.y) * 13.0, sign(vFlow.y))) + 0.16 * streak;
     alpha *= 1.0 - falls * smoothstep(fray, fray + 0.12, edge);
     // Where a river enters the lake it becomes the lake.
     alpha *= vFade;

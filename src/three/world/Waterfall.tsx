@@ -59,7 +59,7 @@ const vert = /* glsl */ `
     vWorld = wp;
     vSeed = aSeed.w;
     // Small falls throw a thin veil, not a cloud.
-    vAlpha = smoothstep(0.0, 0.15, life) * (1.0 - smoothstep(0.55, 1.0, life)) * smoothstep(0.2, 1.0, uScale);
+    vAlpha = smoothstep(0.0, 0.15, life) * (1.0 - smoothstep(0.55, 1.0, life)) * smoothstep(0.3, 1.2, uScale);
     vec4 mvPosition = viewMatrix * vec4(wp, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     #include <fog_vertex>
