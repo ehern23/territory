@@ -187,7 +187,9 @@ export function composeSky(cel: Celestial, weather: WeatherParams, out: SkyState
 
   // Weather: cloud dims the direct light and greys the sky.
   const w = weather;
-  out.lightIntensity *= 1 - w.dim;
+  // At night cloud mostly hides the moon's disc, not the forest: keep a floor
+  // so a rainy night still reads as moonlit rather than black.
+  out.lightIntensity *= 1 - w.dim * (1 - 0.55 * out.night);
   out.hemiIntensity = (2.0 - 0.6 * day) * (1 + w.dim * 0.15);
   out.envIntensity = 0.12 + 0.88 * day;
   const lum = 0.08 + 0.92 * day;
@@ -195,10 +197,12 @@ export function composeSky(cel: Celestial, weather: WeatherParams, out: SkyState
   const g = w.heavy * 0.85 + w.dim * 0.15;
   out.zenith.lerp(tmp.copy(grey).multiplyScalar(0.8), g);
   out.horizon.lerp(grey, g * 0.9);
-  out.fog.lerp(tmp.copy(grey).multiplyScalar(1.05), Math.min(1, g * 0.8 + w.haze * 0.3));
-  out.hemiSky.lerp(tmp.copy(grey).multiplyScalar(1.6), g * 0.6);
+  out.fog.lerp(tmp.copy(grey).multiplyScalar(1.05), Math.min(1, g * 0.8 + w.haze * 0.3) * (1 - out.night * 0.6));
+  out.hemiSky.lerp(tmp.copy(grey).multiplyScalar(1.6), g * 0.6 * (1 - out.night * 0.75));
   out.sunGlow.multiplyScalar(1 - w.dim * 0.7);
-  out.fogDensity = 0.00026 * (1 + w.haze * 2.0 + w.rain * 0.8) * (1 + out.night * 0.4);
+  // Haze softens distance but never hides the territory: from the overview
+  // (about 1.3 km out) at least two thirds of the forest's contrast survives.
+  out.fogDensity = Math.min(0.00044, 0.00026 * (1 + w.haze * 1.3 + w.rain * 0.4) * (1 + out.night * 0.15));
   out.wind = w.wind;
 
   // Lightning lights everything for a moment.

@@ -43,7 +43,9 @@ const rainVert = /* glsl */ `
     vec3 side = normalize(cross(fall, toCam));
     float len = 2.6 + aSeed.z * 1.6;
     vec3 wp = p + fall * position.y * len + side * position.x * 0.05;
-    vAlpha = uRain * (0.25 + 0.35 * aSeed.z) * step(aSeed.x * 0.999, uRain * 1.05 + 0.05);
+    // Streaks right at the lens read as scratches: fade the nearest ones.
+    float near = smoothstep(4.0, 18.0, distance(cameraPosition, p));
+    vAlpha = uRain * (0.12 + 0.2 * aSeed.z) * near * step(aSeed.x * 0.999, uRain * 1.05 + 0.05);
     vec4 mvPosition = viewMatrix * vec4(wp, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     #include <fog_vertex>
