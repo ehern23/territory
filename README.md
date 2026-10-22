@@ -29,7 +29,8 @@ It is a working, data-driven 3D product rather than a mock-up. Every visual stat
 The accounts are spread across a valley and up into the mountains, the way a real patch is spread across a region. Each is a giant that rises over the surrounding forest.
 
 - **Territory map** (bottom right): click an account to fly to it, or click anywhere else to glide there. The cone shows where you are looking.
-- **Move:** drag to orbit, scroll to zoom, **W A S D** to travel, **Q / E** to turn.
+- **Overview:** drag to orbit, scroll to zoom, **Q / E** to turn.
+- **Explore on foot:** press **W A S D** (or the *Explore on foot* button) to step into the world, game-style. The mouse looks around (click to capture the pointer, **Esc** to release, **Esc** again to leave). **Space** jumps and jumps again in mid-air; a **double tap of Space** takes off or lands; **Shift** sprints; in flight **Space** climbs and **C** descends, and forward follows your gaze. You walk over the ground and around trunks, and a soft boundary keeps you in the valley. Aim at an account giant and click to open it.
 - **Account rail:** jump straight to any account.
 - **Where do you sell?** On a first visit, after the establishing shot, a small card asks for your company and role (AE, SDR or AM) and regrows the forest around that seller's ICP. Stripe, Ramp, Anthropic, OpenAI, Cursor, Cognition, Datadog and Snowflake have hand-written territories; any other company gets an archetype territory instantly (payments, spend, AI platform, data, observability, developer tools, security, HR or general B2B) and, when the server has an `ANTHROPIC_API_KEY`, a Claude-researched one shortly after. The "Selling for …" chip in the top bar reopens it. Target companies are real; people, activity and dollars are always fictional.
 

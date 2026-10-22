@@ -278,8 +278,9 @@ export function getNeedleAtlas() {
         const px = x0 + (x1 - x0) * f;
         const py = y0 + (y1 - y0) * f;
         const nl = 13 * (1 - f * 0.5) * (0.8 + rng.next() * 0.4);
-        const v = 0.55 + rng.next() * 0.45;
-        ctx.strokeStyle = `rgb(${Math.round(70 * v)},${Math.round(118 * v)},${Math.round(84 * v)})`;
+        // Brighter toward the tips, where new growth catches the light.
+        const v = (0.7 + rng.next() * 0.38) * (0.85 + 0.35 * f);
+        ctx.strokeStyle = `rgb(${Math.round(92 * v)},${Math.round(150 * v)},${Math.round(98 * v)})`;
         ctx.lineWidth = 1.6;
         for (const side of [-1, 1]) {
           const na = a + side * (0.9 + rng.gauss() * 0.15);

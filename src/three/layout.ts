@@ -207,7 +207,9 @@ function landHeight(x: number, z: number) {
     (fbm(x * 0.0042 + 11.3, z * 0.0042 - 3.1, 4) - 0.5) * 22 +
     (fbm(x * 0.017 - 7.7, z * 0.017 + 2.2, 3) - 0.5) * 6;
   if (m <= 0.001) return roll;
-  const peaks = ridged(x * 0.0021 + 3.7, z * 0.0021 - 8.4, 6);
+  // Five octaves: finer ridges than the mesh can carry only read as facets;
+  // the rock texture supplies that detail instead.
+  const peaks = ridged(x * 0.0021 + 3.7, z * 0.0021 - 8.4, 5);
   const massif = fbm(x * 0.0009 + 1.3, z * 0.0009 + 5.6, 3);
   const mountains = peaks * 760 * (0.55 + massif) + 40;
   return roll + mountains * m * m * (3 - 2 * m);

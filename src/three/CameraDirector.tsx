@@ -199,8 +199,16 @@ export function CameraDirector() {
       lastInput.current = performance.now();
     }
 
-    // Never below the ground.
-    const ground = terrainHeight(camera.position.x, camera.position.z) + 4;
+    // Never below the ground, nor nose-to-rock against a slope: clear the
+    // highest ground in a small ring around the camera.
+    const cx = camera.position.x;
+    const cz = camera.position.z;
+    let ground = terrainHeight(cx, cz);
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      ground = Math.max(ground, terrainHeight(cx + Math.cos(a) * 28, cz + Math.sin(a) * 28) - 6);
+    }
+    ground += 6;
     if (camera.position.y < ground) {
       c.getTarget(tmp.current.target);
       void c.setLookAt(camera.position.x, ground, camera.position.z, tmp.current.target.x, tmp.current.target.y, tmp.current.target.z, false);

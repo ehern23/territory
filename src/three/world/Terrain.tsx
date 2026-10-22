@@ -6,6 +6,7 @@ import { useTexture } from "@react-three/drei";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { WATERFALL, terrainHeight } from "../layout";
 import { WORLD_MAP_GLSL, getWorldMaps, worldMapUniforms } from "./worldMaps";
+import { getRockTextures } from "./rockTexture";
 
 /**
  * One terrain mesh from the forest floor to the far ranges.
@@ -17,7 +18,7 @@ import { WORLD_MAP_GLSL, getWorldMaps, worldMapUniforms } from "./worldMaps";
  */
 
 const EXTENT = 5200;
-const WARP = 3.9;
+const WARP = 3.5;
 
 function warp(u: number) {
   return (EXTENT * Math.sinh(WARP * u)) / Math.sinh(WARP);
@@ -25,6 +26,28 @@ function warp(u: number) {
 
 const TERRAIN_PARS = /* glsl */ `
 ${WORLD_MAP_GLSL}
+uniform sampler2D uRockColor;
+uniform sampler2D uRockNormal;
+float gRock;
+vec3 triWeights(vec3 n) {
+  vec3 w = pow(abs(n), vec3(4.0));
+  return w / (w.x + w.y + w.z);
+}
+vec3 triColor(vec3 p, vec3 n, float s) {
+  vec3 w = triWeights(n);
+  return texture2D(uRockColor, p.zy * s).rgb * w.x + texture2D(uRockColor, p.xz * s).rgb * w.y + texture2D(uRockColor, p.xy * s).rgb * w.z;
+}
+// Whiteout-blended triplanar normal, in world space.
+vec3 triNormal(vec3 p, vec3 n, float s) {
+  vec3 w = triWeights(n);
+  vec3 tx = texture2D(uRockNormal, p.zy * s).xyz * 2.0 - 1.0;
+  vec3 ty = texture2D(uRockNormal, p.xz * s).xyz * 2.0 - 1.0;
+  vec3 tz = texture2D(uRockNormal, p.xy * s).xyz * 2.0 - 1.0;
+  tx = vec3(tx.xy + n.zy, abs(tx.z) * n.x);
+  ty = vec3(ty.xy + n.xz, abs(ty.z) * n.y);
+  tz = vec3(tz.xy + n.xy, abs(tz.z) * n.z);
+  return normalize(tx.zyx * w.x + ty.xzy * w.y + tz.xyz * w.z);
+}
 uniform vec3 uFallsTop;
 uniform vec3 uFallsBase;
 varying vec3 vWorld;
@@ -50,7 +73,8 @@ export function Terrain() {
   });
 
   const geometry = useMemo(() => {
-    const seg = isTouch ? 360 : 560;
+    // Dense enough that the mountains read as rock faces, not facets.
+    const seg = isTouch ? 420 : 760;
     const verts = (seg + 1) * (seg + 1);
     const pos = new Float32Array(verts * 3);
     const uv = new Float32Array(verts * 2);
@@ -108,8 +132,11 @@ export function Terrain() {
       metalness: 0,
       envMapIntensity: 0.35,
     });
+    const rock = getRockTextures();
     const uniforms = {
       ...worldMapUniforms(maps),
+      uRockColor: { value: rock.color },
+      uRockNormal: { value: rock.normal },
       uFallsTop: { value: WATERFALL.top.clone() },
       uFallsBase: { value: WATERFALL.base.clone() },
     };
@@ -126,6 +153,7 @@ export function Terrain() {
         .replace(
           "#include <map_fragment>",
           /* glsl */ `
+          gRock = 0.0;
           {
             vec2 xz = vWorld.xz;
             float h = vWorld.y;
@@ -170,12 +198,18 @@ export function Terrain() {
             // Scrub and krummholz soften the edge between forest and rock.
             float scrub = smoothstep(0.45, 0.7, tFbm(xz * 0.03 + 21.0)) * (1.0 - smoothstep(0.5, 0.7, slope)) * (1.0 - smoothstep(treeline + 60.0, treeline + 160.0, h));
             vec3 scrubCol = mix(vec3(0.2, 0.26, 0.13), vec3(0.32, 0.33, 0.18), tFbm(xz * 0.08));
+            // Real rock surface: triplanar detail at two scales.
+            vec3 rn = normalize(vWorldNormal);
+            vec3 tri = triColor(vWorld, rn, 1.0 / 22.0) * 0.6 + triColor(vWorld, rn, 1.0 / 97.0) * 0.4;
+            float triL = dot(tri, vec3(0.33));
+            rock = rock * (0.42 + 1.25 * triL) * mix(vec3(1.0), tri / max(triL, 0.05), 0.35);
             vec3 range = mix(canopy, rock, rocky);
             range = mix(range, scrubCol, scrub * rocky * 0.75);
             float snowLine = 600.0 + (tFbm(xz * 0.006 + 2.0) - 0.5) * 120.0;
             float snow = smoothstep(snowLine, snowLine + 40.0, h) * (1.0 - smoothstep(0.42, 0.62, slope));
             range = mix(range, vec3(0.92, 0.94, 0.97), snow);
             col = mix(col, range, m);
+            gRock = m * rocky;
 
             // The falls: dark, wet rock around the drop and the plunge pool.
             {
@@ -194,9 +228,20 @@ export function Terrain() {
             diffuseColor.rgb = col * d;
           }
           `,
+        )
+        .replace(
+          "#include <normal_fragment_maps>",
+          /* glsl */ `
+          #include <normal_fragment_maps>
+          if (gRock > 0.01) {
+            vec3 nW = triNormal(vWorld, normalize(vWorldNormal), 1.0 / 22.0);
+            vec3 nV = normalize((viewMatrix * vec4(nW, 0.0)).xyz);
+            normal = normalize(mix(normal, nV, clamp(gRock, 0.0, 1.0) * 0.9));
+          }
+          `,
         );
     };
-    m.customProgramCacheKey = () => "territory-terrain-v4";
+    m.customProgramCacheKey = () => "territory-terrain-v5";
     return m;
   }, [tex, maps]);
 
