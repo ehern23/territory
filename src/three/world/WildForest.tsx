@@ -15,6 +15,7 @@ import { groundCover, mountainFactor, terrainHeight } from "../layout";
 import { BIOMES, speciesIndex, type Biome } from "../biomes/biomes";
 import { useBiomeStore } from "@/store/useBiomeStore";
 import { skyUniforms } from "../sky/skyState";
+import { setWildTrunks } from "./treeIndex";
 
 /**
  * The wild forest around the accounts: tens of thousands of trees of the
@@ -119,6 +120,8 @@ interface SpeciesAssets {
   /** Square capture extent and the bottom of the frame, in tree units. */
   frame: number;
   bottom: number;
+  /** Trunk radius at the base, for walking collisions. */
+  trunk: number;
 }
 
 function useSpeciesAssets(lod: LodFade, biome: Biome) {
@@ -166,6 +169,7 @@ function useSpeciesAssets(lod: LodFade, biome: Biome) {
         captureFoliage: needles ? needleCap.material : leafCap.material,
         frame,
         bottom: box.min.y,
+        trunk: shape.trunkRadius,
       };
     });
   }, [maps, lod, biome]);
@@ -504,6 +508,7 @@ export function WildForest() {
   const lod = isTouch ? LOD_TOUCH : LOD;
   const assets = useSpeciesAssets(lod, biome);
   const trees = useMemo(() => placeForest(!isTouch, biome), [isTouch, biome]);
+  useEffect(() => setWildTrunks(trees.map((t) => ({ x: t.x, z: t.z, r: assets[t.species].trunk * t.scale }))), [trees, assets]);
   return (
     <group>
       <NearForest trees={trees} assets={assets} lod={lod} shadows={!isTouch} />

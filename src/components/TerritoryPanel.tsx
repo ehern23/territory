@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useLiquidGlass } from "./glass/Glass";
 import { LensGroup } from "./glass/Lens";
 import { useTerritoryStore, type TerritoryFilter } from "@/store/useTerritoryStore";
+import { useExploreStore } from "@/store/useExploreStore";
 import { FILTER_LABEL, matchesFilter, summarize, useAccountViews } from "@/store/selectors";
 import { formatMoney } from "@/domain/commercial";
 import { HEALTH_HEX, healthBand } from "@/domain/health";
@@ -26,7 +27,9 @@ export function TerritoryPanel() {
   // On phones the onboarding card needs the screen to itself.
   const onboardingOpen = useTerritoryStore((s) => s.onboardingOpen);
   const reduce = useReducedMotion();
-  const visible = mode === "forest" && introDone;
+  // Explore mode clears the screen for the world.
+  const exploring = useExploreStore((s) => s.active);
+  const visible = mode === "forest" && introDone && !exploring;
   const asideRef = useRef<HTMLElement>(null);
   const sheetRef = useRef<HTMLElement>(null);
   useLiquidGlass(asideRef, { radius: 22, strength: 64, blur: 9, saturate: 1.5, enabled: visible && !isCompact });

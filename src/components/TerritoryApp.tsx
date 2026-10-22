@@ -13,6 +13,7 @@ import { IntroTitle } from "./IntroTitle";
 import { DemoNarrator } from "./demo/DemoNarrator";
 import { Minimap } from "./Minimap";
 import { SkyControl } from "./SkyControl";
+import { ExploreHud } from "./ExploreHud";
 import { useGlassGlare } from "./glass/Glass";
 import { SellerOnboarding } from "./onboarding/SellerOnboarding";
 import { flushPendingResearch, restoreSeller } from "./onboarding/seller";
@@ -69,6 +70,7 @@ export function TerritoryApp() {
       <AccountPanel />
       <Minimap />
       <SkyControl />
+      <ExploreHud />
       <SellerOnboarding />
       <DemoNarrator />
       <Notices />

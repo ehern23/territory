@@ -6,6 +6,7 @@ import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { useBiomeStore } from "@/store/useBiomeStore";
+import { useExploreStore } from "@/store/useExploreStore";
 import { matchesFilter, useAccountViews, type AccountView } from "@/store/selectors";
 import { HEALTH_HEX, HEALTH_LABEL } from "@/domain/health";
 import { formatMoney } from "@/domain/commercial";
@@ -160,6 +161,18 @@ function TreeLabel({
   const setHovered = useTerritoryStore((s) => s.setHovered);
   const introDone = useTerritoryStore((s) => s.introDone);
   const band = view.health.band;
+  const labelRef = useRef<HTMLButtonElement>(null);
+  const base = useMemo(() => accountPosition(view.account.id), [view.account.id]);
+  // On foot, far labels would crowd the horizon: show the giants nearby and
+  // the one under the crosshair.
+  useFrame(({ camera }) => {
+    const el = labelRef.current;
+    if (!el) return;
+    const ex = useExploreStore.getState();
+    const show = !ex.active || ex.aimAccountId === view.account.id || camera.position.distanceTo(base) < 420;
+    const o = show ? "" : "0";
+    if (el.style.opacity !== o) el.style.opacity = o;
+  });
   return (
     <Html
       position={[0, model.shape.crownTop + 3, 0]}
@@ -168,9 +181,13 @@ function TreeLabel({
       style={{ pointerEvents: introDone ? "auto" : "none" }}
     >
       <button
+        ref={labelRef}
         type="button"
         className={`tree-label ${hovered ? "is-hovered" : ""} ${quiet ? "is-quiet" : ""} ${introDone ? "is-in" : ""}`}
-        onClick={() => enterAccount(view.account.id)}
+        onClick={() => {
+          // While exploring, the crosshair picks accounts (see ExploreController).
+          if (!useExploreStore.getState().active) enterAccount(view.account.id);
+        }}
         onPointerEnter={() => setHovered(view.account.id)}
         onPointerLeave={() => setHovered(null)}
       >

@@ -7,6 +7,7 @@ import { PerformanceMonitor } from "@react-three/drei";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { Atmosphere, ImageBasedLight } from "./world/Atmosphere";
 import { Precipitation } from "./sky/Precipitation";
+import { ExploreController } from "./explore/ExploreController";
 import { useBiomeStore } from "@/store/useBiomeStore";
 import { Waterfall } from "./world/Waterfall";
 import { Terrain } from "./world/Terrain";
@@ -101,6 +102,7 @@ export function Scene() {
         {!OFF.has("wildlife") && <Wildlife />}
         {!OFF.has("weather") && <Precipitation />}
         <CameraDirector />
+        <ExploreController />
       </Suspense>
       {!OFF.has("fx") && <Effects />}
     </Canvas>

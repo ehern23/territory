@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Environment } from "@react-three/drei";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
+import { useExploreStore } from "@/store/useExploreStore";
 import { floraGlobals, updateSunView } from "../flora/floraMaterials";
 import { SUN_DIR, WORLD_CENTER } from "../layout";
 import { SkyDome } from "../sky/SkyDome";
@@ -57,7 +58,11 @@ function KeyLight() {
     const l = light.current;
     if (!l) return;
     const c = controls as unknown as { getTarget?: (v: THREE.Vector3) => THREE.Vector3 } | null;
-    if (c?.getTarget) c.getTarget(focus);
+    if (useExploreStore.getState().active) {
+      // On foot the shadows belong to what is just ahead.
+      camera.getWorldDirection(toward);
+      focus.copy(camera.position).addScaledVector(toward.setY(0).normalize(), 70);
+    } else if (c?.getTarget) c.getTarget(focus);
     else focus.copy(WORLD_CENTER);
     // Keep the shadowed region between the camera and what it looks at.
     focus.lerp(toward.set(camera.position.x, focus.y, camera.position.z), 0.25);

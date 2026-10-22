@@ -6,6 +6,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { CameraControls } from "@react-three/drei";
 import CameraControlsImpl from "camera-controls";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
+import { useExploreStore } from "@/store/useExploreStore";
 import { WORLD_CENTER, accountApproachAzimuth, accountPosition, terrainHeight } from "./layout";
 import { getAccountTree } from "./flora/accountTrees";
 import { floraDebug } from "./flora/floraMaterials";
@@ -18,7 +19,7 @@ import { cameraPose } from "./cameraPose";
  * the canopy until the whole territory and the ranges behind it are in frame.
  * Afterwards every state change (account, business unit, fruit, a minimap
  * jump, back to the territory) is a single glide. The camera never dips below
- * the ground, WASD pans across the map, and when idle in the overview it
+ * the ground, Q and E turn the view, and when idle in the overview it
  * drifts almost imperceptibly so the forest never looks frozen.
  */
 
@@ -102,7 +103,8 @@ export function CameraDirector() {
     const down = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLElement && ["INPUT", "TEXTAREA"].includes(e.target.tagName)) return;
       const k = e.key.toLowerCase();
-      if (["w", "a", "s", "d", "q", "e"].includes(k)) keys.current.add(k);
+      // W A S D step into explore mode (see ExploreController); Q / E turn the overview.
+      if (["q", "e"].includes(k)) keys.current.add(k);
     };
     const up = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
     const blur = () => keys.current.clear();
@@ -147,6 +149,8 @@ export function CameraDirector() {
   useFrame(({ camera }, rawDt) => {
     const c = controlsRef.current;
     if (!c) return;
+    // In explore mode the explorer drives the camera.
+    if (useExploreStore.getState().active) return;
     const dt = Math.min(rawDt, 0.05);
     c.getTarget(tmp.current.target);
     cameraPose.x = camera.position.x;
@@ -175,7 +179,7 @@ export function CameraDirector() {
       return;
     }
 
-    // WASD pans the map in the overview.
+    // Q / E turn the overview.
     if (keys.current.size > 0 && mode === "forest" && !demoActive) {
       const t = tmp.current;
       c.getTarget(t.target);
