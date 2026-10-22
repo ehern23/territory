@@ -4,11 +4,11 @@ import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { floraGlobals } from "../flora/floraMaterials";
-import { WATERFALL } from "../layout";
+import { WATERFALLS, type WaterfallSite } from "../layout";
 import { skyUniforms } from "../sky/skyState";
 
 /**
- * Mist off the falls. Soft puffs boil up out of the plunge pool and peel off
+ * Mist off each of the falls. Soft puffs boil up out of the plunge pool and peel off
  * the face of the falls, drift downstream with the wind, and catch the light:
  * warm when the sun is low behind them, and, when the sun is behind the
  * viewer, a faint rainbow at 42° from the antisolar point, as real spray does.
@@ -24,6 +24,7 @@ const vert = /* glsl */ `
   uniform vec2 uFlow;
   uniform vec3 uWind;
   uniform float uWidth;
+  uniform float uScale;
   varying vec2 vUv;
   varying float vAlpha;
   varying vec3 vWorld;
@@ -44,9 +45,9 @@ const vert = /* glsl */ `
       float r = sqrt(aSeed.x / 0.62) * uWidth * 1.6;
       origin = uBase + vec3(cos(a) * r, 0.5, sin(a) * r);
     }
-    vec3 drift = vec3(uFlow.x, 0.0, uFlow.y) * life * 38.0 + vec3(uWind.x, 0.0, uWind.z) * life * 10.0;
-    vec3 center = origin + drift + vec3(0.0, life * mix(55.0, 25.0, face), 0.0);
-    float size = mix(10.0, 34.0, life) * (0.7 + aSeed.z * 0.6);
+    vec3 drift = vec3(uFlow.x, 0.0, uFlow.y) * life * 38.0 * uScale + vec3(uWind.x, 0.0, uWind.z) * life * 10.0;
+    vec3 center = origin + drift + vec3(0.0, life * mix(55.0, 25.0, face) * uScale, 0.0);
+    float size = mix(10.0, 34.0, life) * (0.7 + aSeed.z * 0.6) * pow(uScale, 0.8);
 
     vec3 toCam = normalize(cameraPosition - center);
     vec3 right = normalize(cross(vec3(0.0, 1.0, 0.0), toCam));
@@ -112,10 +113,26 @@ const frag = /* glsl */ `
   }
 `;
 
+/** How much spray a falls throws, relative to the main river's. */
+function power(site: WaterfallSite) {
+  return Math.sqrt((site.width * (site.top.y - site.base.y)) / (10.3 * 147));
+}
+
 export function Waterfall() {
+  return (
+    <>
+      {WATERFALLS.map((site, i) => (
+        <Mist key={i} site={site} />
+      ))}
+    </>
+  );
+}
+
+function Mist({ site }: { site: WaterfallSite }) {
   const isTouch = useTerritoryStore((s) => s.isTouch);
   const { geometry, material } = useMemo(() => {
-    const count = isTouch ? 90 : 220;
+    const p = power(site);
+    const count = Math.round((isTouch ? 90 : 220) * Math.min(2.4, Math.max(0.25, p)));
     const quad = new THREE.PlaneGeometry(1, 1);
     const g = new THREE.InstancedBufferGeometry();
     g.index = quad.index;
@@ -132,10 +149,11 @@ export function Waterfall() {
         ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog),
         uTime: floraGlobals.uTime,
         uWind: floraGlobals.uWind,
-        uTop: { value: WATERFALL.top.clone() },
-        uBase: { value: WATERFALL.base.clone() },
-        uFlow: { value: WATERFALL.flow.clone() },
-        uWidth: { value: WATERFALL.width },
+        uTop: { value: site.top.clone() },
+        uBase: { value: site.base.clone() },
+        uFlow: { value: site.flow.clone() },
+        uWidth: { value: site.width },
+        uScale: { value: Math.min(2.2, Math.max(0.35, p)) },
         uShade: skyUniforms.uShade,
         uSunDir: skyUniforms.uSunDir,
         uSunGlow: skyUniforms.uSunGlow,
@@ -147,7 +165,7 @@ export function Waterfall() {
       fog: true,
     });
     return { geometry: g, material: m };
-  }, [isTouch]);
+  }, [isTouch, site]);
   useEffect(
     () => () => {
       geometry.dispose();

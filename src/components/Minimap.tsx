@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { useAccountViews } from "@/store/selectors";
 import { HEALTH_HEX } from "@/domain/health";
-import { STREAM_PATH, accountPosition, groundCover, mountainFactor, terrainHeight } from "@/three/layout";
+import { LAKE, RIVERS, lakeRadiusAt, accountPosition, groundCover, mountainFactor, terrainHeight } from "@/three/layout";
 import { cameraPose } from "@/three/cameraPose";
 import { GlassMorph, FoldButton } from "./glass/GlassMorph";
 import { useUiStore } from "@/store/useUiStore";
@@ -103,16 +103,26 @@ export function Minimap() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  const stream = useMemo(
-    () =>
-      STREAM_PATH.filter((_, i) => i % 3 === 0)
+  const water = useMemo(() => {
+    const line = (pts: { x: number; y: number }[]) =>
+      pts
         .map((p, i) => {
           const [x, y] = toMap(p.x, p.y, size);
           return `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`;
         })
-        .join(" "),
-    [],
-  );
+        .join(" ");
+    const rivers = RIVERS.map((r) => ({
+      id: r.id,
+      width: r.id === "creek" ? 1 : r.id === "east" ? 1.9 : 1.6,
+      d: line(r.path.filter((_, i) => i % 3 === 0 || i === r.path.length - 1)),
+    }));
+    const shore = Array.from({ length: 48 }, (_, i) => {
+      const a = (i / 48) * Math.PI * 2;
+      const r = lakeRadiusAt(a);
+      return { x: LAKE.x + Math.cos(a) * r, y: LAKE.z + Math.sin(a) * r };
+    });
+    return { rivers, lake: `${line(shore)} Z` };
+  }, []);
 
   const onClick = (e: React.MouseEvent<SVGSVGElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -178,7 +188,10 @@ export function Minimap() {
                 </linearGradient>
               </defs>
               {image ? <image href={image} width={size} height={size} preserveAspectRatio="none" /> : <rect width={size} height={size} fill="#22301f" />}
-              <path d={stream} fill="none" stroke="#9cc4d8" strokeOpacity="0.85" strokeWidth="1.6" strokeLinecap="round" />
+              {water.rivers.map((r) => (
+                <path key={r.id} d={r.d} fill="none" stroke="#9cc4d8" strokeOpacity="0.85" strokeWidth={r.width} strokeLinecap="round" strokeLinejoin="round" />
+              ))}
+              <path d={water.lake} fill="#9cc4d8" fillOpacity="0.85" />
               <rect width={size} height={size} fill="url(#mm-vignette)" />
               <g ref={cone}>
                 <path d="M0 0 L-16 44 L16 44 Z" fill="url(#mm-cone)" />

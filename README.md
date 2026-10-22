@@ -35,7 +35,7 @@ The accounts are spread across a valley and up into the mountains, the way a rea
 - **Account rail:** jump straight to any account.
 - **Where do you sell?** On a first visit, after the establishing shot, a small card asks for your company and role (AE, SDR or AM) and regrows the forest around that seller's ICP. Stripe, Ramp, Anthropic, OpenAI, Cursor, Cognition, Datadog and Snowflake have hand-written territories; any other company gets an archetype territory instantly (payments, spend, AI platform, data, observability, developer tools, security, HR or general B2B) and, when the server has an `ANTHROPIC_API_KEY`, a Claude-researched one shortly after. The "Selling for …" chip in the top bar reopens it. Target companies are real; people, activity and dollars are always fictional.
 
-The world is meant to feel alive. A stream runs through the valley. The forest floor has grass, ferns, wildflowers, pebbles, boulders and fallen logs. Rabbits and squirrels work the clearings, flocks of birds pass overhead, small birds perch in the largest crowns, and now and then a wolf crosses.
+The world is meant to feel alive. Rivers run through the valley. The forest floor has grass, ferns, wildflowers, pebbles, boulders and fallen logs. Rabbits and squirrels work the clearings, flocks of birds pass overhead, small birds perch in the largest crowns, and now and then a wolf crosses.
 
 ### Sky, weather and forests
 
@@ -46,7 +46,7 @@ Weather comes from a deterministic forecast in three-hour blocks: clear, fair, c
 The sky pill at the top opens a panel to:
 - scrub to any hour, or run the day as a two-minute time-lapse;
 - pin the weather;
-- switch forests: **Mountain forest** (mixed woodland, a waterfall off a hanging valley, a river that comes and goes under the canopy) or **Redwood grove** (foggy coast redwoods, Douglas fir, deep ferns). Mangrove and kelp forest are listed as coming soon.
+- switch forests: **Mountain forest** (mixed woodland, two rivers that fall off the ranges and meet in a lake, a river that comes and goes under the canopy) or **Redwood grove** (foggy coast redwoods, Douglas fir, deep ferns). Mangrove and kelp forest are listed as coming soon.
 
 ### How health is computed
 
@@ -129,7 +129,7 @@ src/
     world/      GPU world maps, terrain, stream, ground cover, rocks and logs, wild forest
                 (instanced trees + impostors), sky, light, post-processing
     wildlife/   Procedural creatures: rabbits, squirrels, a wolf, perched birds, flocks
-    layout.ts   The map: account sites, terrain and mountain noise, stream path, ground cover
+    layout.ts   The map: account sites, terrain and mountain noise, rivers, lake and falls, ground cover
     Forest.tsx  Account state → visual targets (one-way), tree and limb labels
     CameraDirector.tsx  Intro, state-driven shots, free travel, terrain collision, idle drift
   components/   Territory panel, account intelligence panel, top bar, account rail, territory map,
@@ -142,9 +142,9 @@ Business logic never touches Three.js. The scene reads account views from select
 
 - **Procedural broadleaf trees.** A recursive generator grows a continuous trunk and leader, then scaffold limbs (one per business unit), then secondary and tertiary branches, ending in leaf-cluster cards. Each child branch leaves its parent along the parent's tangent, so the wood reads as one grown piece. Generation is deterministic per account seed. Fruit hangs on stems from real outer-crown branch tips.
 - **Wild forest.** Each biome brings its own species. The mountain forest has nine: maple, columnar poplar, broad oak at clearing edges, birch groves with pale bark, weeping willows along the river (a `droop` parameter hangs the finest shoots as whips), and spruce, fir and pine up the slopes. Instanced detailed trees near the camera crossfade, through a dither, into 8-view impostors captured at load. That keeps tens of thousands of trees on screen.
-- **Water.** The stream's longest drop renders as a waterfall: falling streaks, rapids where the bed steepens, foam in the plunge pool, wet rock around it, and mist that glows toward a low sun and shows a rainbow at 42° when the sun is behind you. In four open reaches the river widens and the canopy pulls back; elsewhere crowns close over it.
+- **Water.** Three rivers, all in `layout.ts`. The main river leaves a hanging valley in the north over a 150 m falls. The east river comes off a high shelf on the north-east range over the great falls (about 280 m, twice the width), cascades again lower down, and the two meet in a lake mid-valley. A small creek steps down the western range in a staircase of falls and plunge pools. Below the lake the river widens, leaves through a gap in the southern range and runs on toward the coast. Water levels only ever fall downstream; any run steeper than it is long becomes a waterfall, with falling streaks, foam in the pool below, wet rock and mist scaled to its height and width. The mist glows toward a low sun and shows a rainbow at 42° when the sun is behind you. In the open reaches the river widens and the canopy pulls back; elsewhere crowns close over it.
 - **Sky.** A low-precision solar and lunar model places the sun and moon from the local time and date. A keyframed palette by sun elevation drives sky, fog, hemisphere and key light, and weather greys and dims it. One shadow-casting light hands over from sun to moon. Unlit shaders (impostors, water, mist, rain) read a shared `uShade` so they darken with the scene.
-- **World.** The terrain is a warped grid out to 5 km, coloured in-shader by meadow, forest floor, bank, rock and snow. Ridged-noise mountains are forested up to the treeline. The stream is a spline-carved channel with a flowing Fresnel water surface. Ground cover (about 150k grass blades, plus ferns, flowers and pebbles) is placed entirely on the GPU from height and cover maps, in a field that wraps toroidally around the camera.
+- **World.** The terrain is a warped grid out to 5 km, coloured in-shader by meadow, forest floor, bank, rock and snow. Ridged-noise mountains are forested up to the treeline. Each river is a spline-carved channel with a flowing Fresnel water surface; the lake is a basin with a wandering shore. Ground cover (about 150k grass blades, plus ferns, flowers and pebbles) is placed entirely on the GPU from height and cover maps, in a field that wraps toroidally around the camera.
 - **Liquid glass UI.** In Chromium, panels and the hover lens refract the scene through SVG displacement filters (a rounded-rect bevel plus lens magnification), with a cursor-following glare. A spring lens glides between options. Other browsers get frosted glass.
 - **Foliage shader** (MeshStandardMaterial + `onBeforeCompile`): crown-volume normals for soft, volumetric shading; baked crown occlusion; sun translucency; wind sway and leaf flutter; and health-driven thinning and colour per card. Per-limb uniforms handle dormant, spring and focus states. A matching depth material keeps shadows consistent with wind and thinning.
 - **Alpha-to-coverage** on the account trees, with the alpha ramp sharpened to one pixel around the cut (three's stock ramp halves coverage next to every gap, which turned distant crowns into a shimmering stipple). The wild forest uses a plain alpha cut so its dithered LOD hand-off lines up.

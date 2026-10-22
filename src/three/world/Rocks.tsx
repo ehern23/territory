@@ -8,11 +8,11 @@ import { createRng, seededRng } from "@/lib/random";
 import { BARK_TEX, configureBarkMaps } from "../flora/barkMaps";
 import {
   GLADE_RADIUS,
-  STREAM_PATH,
+  RIVERS,
   accountClearings,
   fbm,
   groundCover,
-  streamWidth,
+  lakeDistance,
   terrainHeight,
 } from "../layout";
 
@@ -89,20 +89,25 @@ function placeRocks(count: number): Placement[][] {
     const m = new THREE.Matrix4().compose(new THREE.Vector3(x, terrainHeight(x, z) - s * 0.35, z), q, sc);
     out[rng.int(0, 2)].push({ matrix: m });
   };
-  // Stream banks: clusters of rocks, some in the water.
-  for (let i = 0; i < STREAM_PATH.length; i += 2) {
-    const p = STREAM_PATH[i];
-    const prev = STREAM_PATH[Math.max(0, i - 1)];
-    const next = STREAM_PATH[Math.min(STREAM_PATH.length - 1, i + 1)];
-    const side = new THREE.Vector2(-(next.y - prev.y), next.x - prev.x).normalize();
-    const w = streamWidth(i / (STREAM_PATH.length - 1));
-    const n = rng.int(0, 3);
-    for (let k = 0; k < n; k++) {
-      const off = (rng.chance(0.5) ? 1 : -1) * w * rng.range(0.5, 1.6);
-      const x = p.x + side.x * off + rng.gauss() * 2;
-      const z = p.y + side.y * off + rng.gauss() * 2;
-      if (nearGlade(x, z, GLADE_RADIUS * 0.6)) continue;
-      push(x, z, rng.range(0.6, 2.4));
+  // River banks: clusters of rocks, some in the water; boulders choke the falls.
+  for (const river of RIVERS) {
+    const path = river.path;
+    for (let i = 0; i < path.length; i += 2) {
+      const p = path[i];
+      if (lakeDistance(p.x, p.y) < 1.1 || Math.hypot(p.x, p.y + 80) > 1700) continue;
+      const prev = path[Math.max(0, i - 1)];
+      const next = path[Math.min(path.length - 1, i + 1)];
+      const side = new THREE.Vector2(-(next.y - prev.y), next.x - prev.x).normalize();
+      const w = river.widths[i];
+      const steep = i < path.length - 1 && river.levels[i] - river.levels[i + 1] > 4;
+      const n = steep ? rng.int(2, 5) : rng.int(0, 3);
+      for (let k = 0; k < n; k++) {
+        const off = (rng.chance(0.5) ? 1 : -1) * w * rng.range(0.5, 1.6);
+        const x = p.x + side.x * off + rng.gauss() * 2;
+        const z = p.y + side.y * off + rng.gauss() * 2;
+        if (nearGlade(x, z, GLADE_RADIUS * 0.6)) continue;
+        push(x, z, rng.range(0.6, 2.4) * (0.75 + w / 24) * (steep ? 1.5 : 1));
+      }
     }
   }
   // Scattered through the forest and up into the foothills.

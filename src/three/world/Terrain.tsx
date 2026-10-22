@@ -4,7 +4,7 @@ import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { useTexture } from "@react-three/drei";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
-import { WATERFALL, terrainHeight } from "../layout";
+import { WATERFALLS, terrainHeight } from "../layout";
 import { WORLD_MAP_GLSL, getWorldMaps, worldMapUniforms } from "./worldMaps";
 import { getRockTextures } from "./rockTexture";
 
@@ -19,6 +19,7 @@ import { getRockTextures } from "./rockTexture";
 
 const EXTENT = 5200;
 const WARP = 3.5;
+const FALLS = Math.max(1, Math.min(8, WATERFALLS.length));
 
 function warp(u: number) {
   return (EXTENT * Math.sinh(WARP * u)) / Math.sinh(WARP);
@@ -48,8 +49,10 @@ vec3 triNormal(vec3 p, vec3 n, float s) {
   tz = vec3(tz.xy + n.xy, abs(tz.z) * n.z);
   return normalize(tx.zyx * w.x + ty.xzy * w.y + tz.xyz * w.z);
 }
-uniform vec3 uFallsTop;
-uniform vec3 uFallsBase;
+#define FALLS ${FALLS}
+uniform vec3 uFallsTop[FALLS];
+uniform vec3 uFallsBase[FALLS];
+uniform float uFallsWidth[FALLS];
 varying vec3 vWorld;
 varying vec3 vWorldNormal;
 float tHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -137,8 +140,9 @@ export function Terrain() {
       ...worldMapUniforms(maps),
       uRockColor: { value: rock.color },
       uRockNormal: { value: rock.normal },
-      uFallsTop: { value: WATERFALL.top.clone() },
-      uFallsBase: { value: WATERFALL.base.clone() },
+      uFallsTop: { value: Array.from({ length: FALLS }, (_, i) => WATERFALLS[i]?.top.clone() ?? new THREE.Vector3(0, -1e4, 0)) },
+      uFallsBase: { value: Array.from({ length: FALLS }, (_, i) => WATERFALLS[i]?.base.clone() ?? new THREE.Vector3(1, -1e4, 0)) },
+      uFallsWidth: { value: Array.from({ length: FALLS }, (_, i) => WATERFALLS[i]?.width ?? 0) },
     };
     m.onBeforeCompile = (shader) => {
       Object.assign(shader.uniforms, uniforms);
@@ -211,12 +215,16 @@ export function Terrain() {
             col = mix(col, range, m);
             gRock = m * rocky;
 
-            // The falls: dark, wet rock around the drop and the plunge pool.
+            // The falls: dark, wet rock around each drop and its plunge pool.
             {
-              vec2 ab = uFallsBase.xz - uFallsTop.xz;
-              float k = clamp(dot(xz - uFallsTop.xz, ab) / dot(ab, ab), 0.0, 1.2);
-              float dFalls = length(xz - (uFallsTop.xz + ab * k));
-              float wet = (1.0 - smoothstep(18.0, 46.0, dFalls)) * smoothstep(-0.1, 0.1, k);
+              float wet = 0.0;
+              for (int i = 0; i < FALLS; i++) {
+                vec2 ab = uFallsBase[i].xz - uFallsTop[i].xz;
+                float k = clamp(dot(xz - uFallsTop[i].xz, ab) / max(dot(ab, ab), 1.0), 0.0, 1.2);
+                float dFalls = length(xz - (uFallsTop[i].xz + ab * k));
+                float reach = 8.0 + uFallsWidth[i];
+                wet = max(wet, (1.0 - smoothstep(reach, reach * 2.6, dFalls)) * smoothstep(-0.1, 0.1, k));
+              }
               vec3 wetRock = mix(vec3(0.17, 0.18, 0.17), vec3(0.3, 0.31, 0.27), tFbm(xz * 0.12));
               wetRock = mix(wetRock, vec3(0.2, 0.27, 0.14), smoothstep(0.55, 0.75, tFbm(xz * 0.08 + 4.0)) * 0.6);
               col = mix(col, wetRock, wet * (0.55 + 0.45 * smoothstep(0.15, 0.4, slope)) * (1.0 - cov.a));
@@ -241,7 +249,7 @@ export function Terrain() {
           `,
         );
     };
-    m.customProgramCacheKey = () => "territory-terrain-v5";
+    m.customProgramCacheKey = () => "territory-terrain-v6";
     return m;
   }, [tex, maps]);
 

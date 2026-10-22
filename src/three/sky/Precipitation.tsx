@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { floraGlobals } from "../flora/floraMaterials";
-import { terrainHeight, accountPosition, accountIds, STREAM_PATH } from "../layout";
+import { terrainHeight, accountPosition, accountIds, RIVERS, LAKE } from "../layout";
 import { sky, skyUniforms } from "./skyState";
 
 /**
@@ -221,7 +221,13 @@ function Fireflies() {
       const p = accountPosition(id);
       add(p.x, p.z, 55, isTouch ? 30 : 60);
     }
-    for (let i = 0; i < STREAM_PATH.length; i += 3) add(STREAM_PATH[i].x, STREAM_PATH[i].y, 24, isTouch ? 3 : 6);
+    // Along the water where it runs through the forest, and round the lake.
+    for (const r of RIVERS)
+      for (let i = 0; i < r.path.length; i += 3) {
+        const p = r.path[i];
+        if (Math.hypot(p.x, p.y + 80) < 1200) add(p.x, p.y, 24, isTouch ? 2 : 4);
+      }
+    add(LAKE.x, LAKE.z, LAKE.radius * 1.4, isTouch ? 20 : 40);
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
     g.setAttribute("aSeed", new THREE.Float32BufferAttribute(seed, 3));

@@ -1,6 +1,6 @@
 import { generateTree, type TreeParams, type TreeShape } from "../flora/generateTree";
 import { generateConifer } from "../flora/generateConifer";
-import { fbm, streamDistance, streamWidth } from "../layout";
+import { fbm, lakeDistance, riverAt, riverWidthAt } from "../layout";
 import type { seededRng } from "@/lib/random";
 
 /**
@@ -65,9 +65,9 @@ function smoothstep(v: number, a: number, b: number) {
 }
 
 function nearStream(x: number, z: number, margin: number) {
-  if (Math.abs(x) > 420 || z < -1300 || z > 1100) return false;
-  const { d, t } = streamDistance(x, z);
-  return d < streamWidth(t) + margin;
+  if (lakeDistance(x, z) < 1 + margin / 90) return true;
+  const r = riverAt(x, z);
+  return r.d < riverWidthAt(r.river, r.f) + margin;
 }
 
 /* ------------------------------------------------------------------------ */
