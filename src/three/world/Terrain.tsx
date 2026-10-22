@@ -178,7 +178,9 @@ export function Terrain() {
             vec3 meadow = mix(vec3(0.33, 0.46, 0.16), vec3(0.47, 0.52, 0.22), tFbm(xz * 0.05));
             vec3 col = mix(floorCol, meadow, smoothstep(0.55, 0.95, cov.r) * inMap);
             // Wet gravel in the stream bed.
-            col = mix(col, vec3(0.30, 0.27, 0.21), cov.a * inMap);
+            // Water's edge: silt and wet grass in patches, never one even band.
+            vec3 edgeCol = mix(vec3(0.30, 0.27, 0.21), vec3(0.22, 0.29, 0.15), smoothstep(0.35, 0.7, tFbm(xz * 0.06 + 3.0)));
+            col = mix(col, edgeCol, cov.a * inMap * (0.5 + 0.5 * tFbm(xz * 0.11 - 2.0)));
 
             // Beyond the forest: forested slopes, rock and snow.
             float m = smoothstep(800.0, 1250.0, dist) + smoothstep(-450.0, -900.0, xz.y) * 0.8;

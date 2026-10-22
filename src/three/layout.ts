@@ -533,7 +533,9 @@ function rawHeight(x: number, z: number): number {
       const depth = r.river.depth;
       const inner = level + 0.6 - (depth + 0.6) * (1 - smooth(w * 0.3, w * 1.15, r.d));
       const s = smooth(w * 1.1, w + BANK, r.d);
-      h = inner + (h - inner) * s;
+      const carved = inner + (h - inner) * s;
+      // In the lake the river only deepens the bed; it never raises banks.
+      h = ld < 1.3 ? Math.min(h, carved) : carved;
     }
   }
   return h;

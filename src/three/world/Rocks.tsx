@@ -102,7 +102,8 @@ function placeRocks(count: number): Placement[][] {
       const steep = i < path.length - 1 && river.levels[i] - river.levels[i + 1] > 4;
       const n = steep ? rng.int(2, 5) : rng.int(0, 3);
       for (let k = 0; k < n; k++) {
-        const off = (rng.chance(0.5) ? 1 : -1) * w * rng.range(0.5, 1.6);
+        // Beside a falls the boulders sit on the ledges either side, never on the sheet.
+        const off = (rng.chance(0.5) ? 1 : -1) * w * (steep ? rng.range(1.5, 2.3) : rng.range(0.5, 1.6));
         const x = p.x + side.x * off + rng.gauss() * 2;
         const z = p.y + side.y * off + rng.gauss() * 2;
         if (nearGlade(x, z, GLADE_RADIUS * 0.6)) continue;

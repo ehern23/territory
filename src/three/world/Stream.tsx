@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { floraGlobals } from "../flora/floraMaterials";
-import { LAKE, RIVERS, lakeRadiusAt, type River } from "../layout";
+import { LAKE, RIVERS, lakeDistance, lakeRadiusAt, type River } from "../layout";
 import { skyUniforms } from "../sky/skyState";
 
 /**
@@ -19,12 +19,15 @@ const vert = /* glsl */ `
   attribute float aAlong;
   attribute float aSlope;
   attribute float aFoam;
+  attribute float aFade;
   varying vec2 vFlow;
   varying vec3 vWorld;
   varying float vSlope;
   varying float vFoam;
+  varying float vFade;
   void main() {
     vFlow = vec2(aAlong, uv.y);
+    vFade = aFade;
     vSlope = aSlope;
     vFoam = aFoam;
     vec4 wp = modelMatrix * vec4(position, 1.0);
@@ -50,6 +53,7 @@ const frag = /* glsl */ `
   varying vec3 vWorld;
   varying float vSlope;
   varying float vFoam;
+  varying float vFade;
   float h21(vec2 p) { return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453); }
   float n2(vec2 p) {
     vec2 i = floor(p); vec2 f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
@@ -96,6 +100,13 @@ const frag = /* glsl */ `
     vec3 foamCol = vec3(0.92, 0.95, 0.97) * (uShade * 0.92 + 0.08);
     col = mix(col, foamCol, clamp(white, 0.0, 1.0));
     alpha = max(alpha, white * 0.95);
+    // Over a falls the sheet frays at its edges: ribbons of water peel away
+    // from the main curtain and the rock shows between them.
+    float fray = 0.62 + 0.3 * n2(vec2(vFlow.x * 0.09 + sign(vFlow.y) * 13.0, sign(vFlow.y))) + 0.12 * streak;
+    alpha *= 1.0 - falls * smoothstep(fray, fray + 0.12, edge);
+    // Where a river enters the lake it becomes the lake.
+    alpha *= vFade;
+    if (alpha < 0.01) discard;
     gl_FragColor = vec4(col, alpha);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
@@ -110,6 +121,7 @@ function riverGeometry(r: River) {
   const along: number[] = [];
   const slope: number[] = [];
   const foam: number[] = [];
+  const fade: number[] = [];
   const idx: number[] = [];
   const L = r.levels;
   const slopeAt = (i: number) =>
@@ -132,17 +144,22 @@ function riverGeometry(r: River) {
     let pool = 0;
     for (const src of poolSources) if (i >= src) pool = Math.max(pool, Math.exp(-(i - src) / 2.5));
     const w = (r.widths[i] + 1.2) * (1 + steep * 0.35);
-    const y = L[i] + steep * 1.6;
+    const ld = lakeDistance(p.x, p.y);
+    const f = Math.min(1, Math.max(0, (ld - 0.82) / 0.24));
+    // Sink the ribbon under the lake surface as it fades into it.
+    const y = L[i] + steep * 1.6 - (1 - f) * 0.3;
     for (const s of [-1, 1]) {
       pos.push(p.x + side.x * w * s, y, p.y + side.y * w * s);
       uv.push(i / (n - 1), s);
       along.push(dist);
       slope.push(sl);
       foam.push(pool);
+      fade.push(f);
     }
   }
   for (let i = 0; i < n - 1; i++) {
     const a = i * 2;
+    if (fade[a] === 0 && fade[a + 2] === 0) continue;
     idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
   }
   const g = new THREE.BufferGeometry();
@@ -151,6 +168,7 @@ function riverGeometry(r: River) {
   g.setAttribute("aAlong", new THREE.Float32BufferAttribute(along, 1));
   g.setAttribute("aSlope", new THREE.Float32BufferAttribute(slope, 1));
   g.setAttribute("aFoam", new THREE.Float32BufferAttribute(foam, 1));
+  g.setAttribute("aFade", new THREE.Float32BufferAttribute(fade, 1));
   g.setIndex(idx);
   g.computeBoundingSphere();
   return g;

@@ -47,7 +47,7 @@ const vert = /* glsl */ `
     }
     vec3 drift = vec3(uFlow.x, 0.0, uFlow.y) * life * 38.0 * uScale + vec3(uWind.x, 0.0, uWind.z) * life * 10.0;
     vec3 center = origin + drift + vec3(0.0, life * mix(55.0, 25.0, face) * uScale, 0.0);
-    float size = mix(10.0, 34.0, life) * (0.7 + aSeed.z * 0.6) * pow(uScale, 0.8);
+    float size = mix(10.0, 34.0, life) * (0.7 + aSeed.z * 0.6) * uScale;
 
     vec3 toCam = normalize(cameraPosition - center);
     vec3 right = normalize(cross(vec3(0.0, 1.0, 0.0), toCam));
@@ -58,7 +58,8 @@ const vert = /* glsl */ `
     vUv = uv;
     vWorld = wp;
     vSeed = aSeed.w;
-    vAlpha = smoothstep(0.0, 0.15, life) * (1.0 - smoothstep(0.55, 1.0, life));
+    // Small falls throw a thin veil, not a cloud.
+    vAlpha = smoothstep(0.0, 0.15, life) * (1.0 - smoothstep(0.55, 1.0, life)) * smoothstep(0.2, 1.0, uScale);
     vec4 mvPosition = viewMatrix * vec4(wp, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     #include <fog_vertex>
