@@ -4,7 +4,7 @@ import { useTerritoryStore } from "@/store/useTerritoryStore";
 import type { AccountView } from "@/store/selectors";
 import { STATUS_DESCRIPTION, STATUS_LABEL, STATUS_ORDER, nextStatus, statusRank } from "@/domain/relationship";
 import type { RelationshipStatus } from "@/domain/types";
-import { LEAF_HEX } from "@/three/palette";
+import { STATUS_HEX } from "@/three/palette";
 import { EvidenceTag, Kv, Section, StatusDot } from "../ui";
 import { PanelHeader } from "./PanelHeader";
 
@@ -81,7 +81,7 @@ export function ProspectPanel({ view, prospectId }: { view: AccountView; prospec
               key={s}
               className="h-1.5 flex-1 rounded-full transition-colors"
               style={{
-                background: status !== "disqualified" && i <= rank ? LEAF_HEX[s] : "rgba(236,230,220,0.08)",
+                background: status !== "disqualified" && i <= rank ? STATUS_HEX[s] : "rgba(236,230,220,0.08)",
               }}
               aria-current={s === status ? "step" : undefined}
               title={STATUS_LABEL[s]}

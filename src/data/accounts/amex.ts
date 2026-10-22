@@ -173,7 +173,20 @@ export const amex = defineAccount({
       teams: [{ id: "b2b", name: "Commercial Platforms", fn: "product-engineering", size: 3, condition: "dormant", latent: 3 }],
     },
   ],
-  opportunities: [],
+  opportunities: [
+    {
+      id: "app-delivery",
+      businessUnitId: "digital",
+      name: "Card Member App Delivery Platform",
+      stage: "Discovery",
+      baselineMaturity: "bud",
+      stakeholders: ["digital.dir-app"],
+      champion: "digital.dir-app",
+      baseMeetingCount: 1,
+      signals: ["Release-cadence pain raised in first call"],
+      nextStep: "Bring Developer Enablement into a joint paved-road session before the thread cools.",
+    },
+  ],
   signals: [
     {
       id: "ace-kit",

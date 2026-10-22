@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import type { EvidenceType, RelationshipStatus, Season } from "@/domain/types";
 import { STATUS_LABEL } from "@/domain/relationship";
-import { LEAF_HEX, SEASON_HEX } from "@/three/palette";
+import { STATUS_HEX, SEASON_HEX } from "@/three/palette";
 
 export function Eyebrow({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <div className={`eyebrow ${className}`}>{children}</div>;
@@ -30,7 +30,7 @@ export function StatusDot({ status, size = 8 }: { status: RelationshipStatus; si
   return (
     <span
       className="dot"
-      style={{ width: size, height: size, background: LEAF_HEX[status] }}
+      style={{ width: size, height: size, background: STATUS_HEX[status] }}
       aria-hidden
     />
   );

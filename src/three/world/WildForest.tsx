@@ -1,0 +1,549 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import * as THREE from "three";
+import { useFrame, useThree } from "@react-three/fiber";
+import { useTexture } from "@react-three/drei";
+import { useTerritoryStore } from "@/store/useTerritoryStore";
+import { seededRng } from "@/lib/random";
+import { buildTreeGeometries, type TreeGeometries } from "../flora/treeMeshes";
+import { getFoliageAtlas } from "../flora/foliageAtlas";
+import { getNeedleAtlas } from "./atlases";
+import { createBarkMaterial, createFoliageMaterial, createTreeUniforms, floraGlobals, type LodFade } from "../flora/floraMaterials";
+import { BARK_TEX, configureBarkMaps } from "../flora/barkMaps";
+import { groundCover, mountainFactor, terrainHeight } from "../layout";
+import { BIOMES, speciesIndex, type Biome } from "../biomes/biomes";
+import { useBiomeStore } from "@/store/useBiomeStore";
+import { skyUniforms } from "../sky/skyState";
+import { setWildTrunks } from "./treeIndex";
+
+/**
+ * The wild forest around the accounts: tens of thousands of trees of the
+ * active biome's species (see biomes/biomes.ts), grown by the same
+ * generators as the account trees.
+ *
+ * Near the camera each tree is real geometry with wind, shadows and
+ * translucency. Farther out it is an impostor: the same tree captured at load
+ * from eight angles into an atlas and drawn as a camera-facing card that
+ * blends between the two nearest captures. The hand-off is a dithered
+ * cross-fade, so trees never pop.
+ */
+
+const VIEWS = 8;
+const LOD: LodFade = { near: 150, far: 195 };
+const LOD_TOUCH: LodFade = { near: 95, far: 130 };
+
+interface TreeInstance {
+  x: number;
+  y: number;
+  z: number;
+  species: number;
+  scale: number;
+  yaw: number;
+  tint: THREE.Color;
+}
+
+type Rng = ReturnType<typeof seededRng>;
+
+function placeForest(dense: boolean, biome: Biome): TreeInstance[] {
+  const rng = seededRng("wild-forest", dense ? 1 : 0);
+  const sp = speciesIndex(biome);
+  const spacing = dense ? 12.5 : 17;
+  const out: TreeInstance[] = [];
+  for (let gz = -1900; gz < 1500; gz += spacing) {
+    for (let gx = -1700; gx < 1700; gx += spacing) {
+      const x = gx + rng.gauss() * spacing * 0.45;
+      const z = gz + rng.gauss() * spacing * 0.45;
+      const r = Math.hypot(x, z + 80);
+      if (r > 1750) continue;
+      const c = groundCover(x, z);
+      if (rng.next() > c.trees) continue;
+      const mf = mountainFactor(x, z);
+      const y = terrainHeight(x, z);
+      out.push(makeTree(rng, biome, x, y, z, biome.pick({ rng, x, y, z, mf, open: c.open }, sp), mf));
+    }
+  }
+  // Mountain slopes are seen face-on, so they need a denser stand to read as
+  // forest rather than scattered trees: a second, offset pass of conifers.
+  for (let gz = -1900 + spacing * 0.5; gz < 1500; gz += spacing) {
+    for (let gx = -1700 + spacing * 0.5; gx < 1700; gx += spacing) {
+      const x = gx + rng.gauss() * spacing * 0.4;
+      const z = gz + rng.gauss() * spacing * 0.4;
+      if (Math.hypot(x, z + 80) > 1750) continue;
+      const mf = mountainFactor(x, z);
+      if (mf < 0.2) continue;
+      const c = groundCover(x, z);
+      if (rng.next() > c.trees * smoothstep(mf, 0.2, 0.55)) continue;
+      const y = terrainHeight(x, z);
+      // Force the conifer branch of the biome's picker: these are slope stands.
+      let species = biome.pick({ rng, x, y: Math.max(y, 400), z, mf: 1, open: 0 }, sp);
+      if (biome.species[species].kind !== "conifer") species = biome.species.findIndex((s) => s.kind === "conifer");
+      out.push(makeTree(rng, biome, x, y, z, species, mf));
+    }
+  }
+  return out;
+}
+
+function smoothstep(v: number, a: number, b: number) {
+  const t = THREE.MathUtils.clamp((v - a) / (b - a), 0, 1);
+  return t * t * (3 - 2 * t);
+}
+
+function makeTree(rng: Rng, biome: Biome, x: number, y: number, z: number, species: number, mf: number): TreeInstance {
+  const sp = biome.species[species];
+  const maple = biome.species.findIndex((s) => s.name === "maple");
+  const scale = rng.range(0.78, 1.28) * (1 - mf * 0.2);
+  const v = rng.range(0.84, 1.08);
+  const tint = new THREE.Color(sp.tint[0] * v, sp.tint[1] * v, sp.tint[2] * v);
+  if (sp.kind === "broadleaf") {
+    // A few copper beeches and early-turning crowns break up the green.
+    if (species === maple && rng.chance(0.05)) tint.setRGB(1.15 * v, 0.62 * v, 0.55 * v);
+    else if (rng.chance(0.08)) {
+      const warm = rng.range(0.1, 0.28);
+      tint.setRGB(tint.r * (1 + warm * 0.8), tint.g * (1 + warm * 0.2), tint.b * (1 - warm));
+    }
+  }
+  return { x, y: y - 0.4, z, species, scale, yaw: rng.range(0, Math.PI * 2), tint };
+}
+
+/* ------------------------------------------------------------------------ */
+/* Materials per species                                                     */
+/* ------------------------------------------------------------------------ */
+
+interface SpeciesAssets {
+  geometries: TreeGeometries;
+  bark: THREE.Material;
+  foliage: { material: THREE.Material; depth: THREE.Material };
+  /** Captures without LOD dithering. */
+  captureBark: THREE.Material;
+  captureFoliage: THREE.Material;
+  /** Square capture extent and the bottom of the frame, in tree units. */
+  frame: number;
+  bottom: number;
+  /** Trunk radius at the base, for walking collisions. */
+  trunk: number;
+}
+
+function useSpeciesAssets(lod: LodFade, biome: Biome) {
+  const maps = useTexture(BARK_TEX);
+  return useMemo(() => {
+    configureBarkMaps(maps);
+    const uniforms = createTreeUniforms(0.86);
+    const leaf = getFoliageAtlas();
+    const needle = getNeedleAtlas();
+    // One bark pair per bark colour: the shared grey-brown, birch, pine.
+    const barks = new Map<string, { lod: THREE.Material; cap: THREE.Material }>();
+    const barkFor = (color = "#5b5249") => {
+      let b = barks.get(color);
+      if (!b) {
+        const moss = color === "#5b5249" ? 0.6 : 0.15;
+        b = { lod: createBarkMaterial(maps, uniforms, { color, moss, lod }), cap: createBarkMaterial(maps, uniforms, { color, moss }) };
+        barks.set(color, b);
+      }
+      return b;
+    };
+    // A plain alpha cut for the wild forest: the LOD hand-off to impostors is a
+    // complementary screen-space dither, which only lines up without coverage.
+    const leafLod = createFoliageMaterial(leaf, uniforms, { translucency: 0.6, alphaToCoverage: false, lod });
+    const leafCap = createFoliageMaterial(leaf, uniforms, { translucency: 0.6, alphaToCoverage: false });
+    const needleLod = createFoliageMaterial(needle, uniforms, { translucency: 0.3, alphaToCoverage: false, lod });
+    const needleCap = createFoliageMaterial(needle, uniforms, { translucency: 0.3, alphaToCoverage: false });
+    return biome.species.map((sp): SpeciesAssets => {
+      const shape = sp.shape();
+      const geometries = buildTreeGeometries(shape, { lowDetail: true, cardScale: sp.needles ? 1.15 : 1.35 });
+      const box = new THREE.Box3().setFromBufferAttribute(geometries.foliage.attributes.position as THREE.BufferAttribute);
+      box.union(new THREE.Box3().setFromBufferAttribute(geometries.bark.attributes.position as THREE.BufferAttribute));
+      let reach = 0;
+      for (const g of [geometries.foliage, geometries.bark]) {
+        const p = g.attributes.position as THREE.BufferAttribute;
+        for (let i = 0; i < p.count; i++) reach = Math.max(reach, Math.hypot(p.getX(i), p.getZ(i)));
+      }
+      const frame = Math.max(reach * 2, box.max.y - box.min.y) * 1.02;
+      const needles = !!sp.needles;
+      const bark = barkFor(sp.bark);
+      return {
+        geometries,
+        bark: bark.lod,
+        foliage: needles ? needleLod : leafLod,
+        captureBark: bark.cap,
+        captureFoliage: needles ? needleCap.material : leafCap.material,
+        frame,
+        bottom: box.min.y,
+        trunk: shape.trunkRadius,
+      };
+    });
+  }, [maps, lod, biome]);
+}
+
+/* ------------------------------------------------------------------------ */
+/* Near field: real geometry                                                 */
+/* ------------------------------------------------------------------------ */
+
+const NEAR_CELL = 64;
+const cellKey = (gx: number, gz: number) => (gx + 512) * 1024 + (gz + 512);
+
+function NearForest({ trees, assets, lod, shadows }: { trees: TreeInstance[]; assets: SpeciesAssets[]; lod: LodFade; shadows: boolean }) {
+  const capacity = 900;
+  const meshes = useMemo(
+    () =>
+      assets.map((a) => {
+        const bark = new THREE.InstancedMesh(a.geometries.bark, a.bark, capacity);
+        const leaves = new THREE.InstancedMesh(a.geometries.foliage, a.foliage.material, capacity);
+        leaves.customDepthMaterial = a.foliage.depth;
+        for (const m of [bark, leaves]) {
+          m.count = 0;
+          m.castShadow = shadows;
+          m.receiveShadow = true;
+          m.frustumCulled = false;
+          m.raycast = () => undefined;
+          m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        }
+        leaves.setColorAt(0, new THREE.Color(1, 1, 1));
+        return { bark, leaves };
+      }),
+    [assets, shadows],
+  );
+  // Bucket the trees on a grid once, so finding the near ones touches a few
+  // hundred trees instead of the whole forest (a scan of every tree used to
+  // stall a frame each time the camera moved a few metres).
+  const grid = useMemo(() => {
+    const cells = new Map<number, TreeInstance[]>();
+    for (const t of trees) {
+      const key = cellKey(Math.floor(t.x / NEAR_CELL), Math.floor(t.z / NEAR_CELL));
+      const list = cells.get(key);
+      if (list) list.push(t);
+      else cells.set(key, [t]);
+    }
+    return cells;
+  }, [trees]);
+  const counts = useMemo(() => new Array<number>(assets.length).fill(0), [assets]);
+  const last = useRef(new THREE.Vector3(1e9, 0, 0));
+  const tmp = useMemo(
+    () => ({ m: new THREE.Matrix4(), q: new THREE.Quaternion(), s: new THREE.Vector3(), p: new THREE.Vector3(), up: new THREE.Vector3(0, 1, 0) }),
+    [],
+  );
+
+  useFrame(({ camera }) => {
+    if (camera.position.distanceToSquared(last.current) < 64) return;
+    last.current.copy(camera.position);
+    const r2 = lod.far * lod.far;
+    counts.fill(0);
+    const cx = camera.position.x;
+    const cy = camera.position.y;
+    const cz = camera.position.z;
+    const gx0 = Math.floor((cx - lod.far) / NEAR_CELL);
+    const gx1 = Math.floor((cx + lod.far) / NEAR_CELL);
+    const gz0 = Math.floor((cz - lod.far) / NEAR_CELL);
+    const gz1 = Math.floor((cz + lod.far) / NEAR_CELL);
+    const place = (t: TreeInstance) => {
+      const dx = t.x - cx;
+      const dy = t.y - cy;
+      const dz = t.z - cz;
+      if (dx * dx + dy * dy + dz * dz > r2) return;
+      const k = counts[t.species];
+      if (k >= capacity) return;
+      tmp.p.set(t.x, t.y, t.z);
+      tmp.q.setFromAxisAngle(tmp.up, t.yaw);
+      tmp.s.setScalar(t.scale);
+      tmp.m.compose(tmp.p, tmp.q, tmp.s);
+      const { bark, leaves } = meshes[t.species];
+      bark.setMatrixAt(k, tmp.m);
+      leaves.setMatrixAt(k, tmp.m);
+      leaves.setColorAt(k, t.tint);
+      counts[t.species] = k + 1;
+    };
+    for (let gz = gz0; gz <= gz1; gz++)
+      for (let gx = gx0; gx <= gx1; gx++) {
+        const cell = grid.get(cellKey(gx, gz));
+        if (cell) for (const t of cell) place(t);
+      }
+    meshes.forEach(({ bark, leaves }, i) => {
+      const n = counts[i];
+      bark.count = n;
+      leaves.count = n;
+      // Upload only the instances in use, not the whole buffer.
+      for (const attr of [bark.instanceMatrix, leaves.instanceMatrix, leaves.instanceColor]) {
+        if (!attr) continue;
+        attr.clearUpdateRanges();
+        attr.addUpdateRange(0, Math.max(1, n) * attr.itemSize);
+        attr.needsUpdate = true;
+      }
+    });
+  });
+
+  useEffect(
+    () => () => {
+      meshes.forEach(({ bark, leaves }) => {
+        bark.dispose();
+        leaves.dispose();
+      });
+    },
+    [meshes],
+  );
+
+  return (
+    <>
+      {meshes.map(({ bark, leaves }, i) => (
+        <group key={i}>
+          <primitive object={bark} />
+          <primitive object={leaves} />
+        </group>
+      ))}
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------------ */
+/* Far field: impostors                                                      */
+/* ------------------------------------------------------------------------ */
+
+function captureAtlas(gl: THREE.WebGLRenderer, assets: SpeciesAssets[], cell: number, msaa: boolean) {
+  const W = VIEWS * cell;
+  const H = assets.length * cell;
+  const rt = new THREE.WebGLRenderTarget(W, H, {
+    samples: msaa ? 4 : 0,
+    colorSpace: THREE.SRGBColorSpace,
+    generateMipmaps: true,
+    minFilter: THREE.LinearMipmapLinearFilter,
+    magFilter: THREE.LinearFilter,
+  });
+  rt.texture.anisotropy = 4;
+
+  const scene = new THREE.Scene();
+  scene.add(new THREE.HemisphereLight("#cfe0f2", "#6a6444", 1.6));
+  scene.add(new THREE.AmbientLight("#ffffff", 0.25));
+  const key = new THREE.DirectionalLight("#ffe6c4", 2.6);
+  key.position.set(0.4, 0.9, 1);
+  scene.add(key);
+  const holder = new THREE.Group();
+  scene.add(holder);
+
+  const prev = {
+    target: gl.getRenderTarget(),
+    viewport: gl.getViewport(new THREE.Vector4()),
+    scissor: gl.getScissor(new THREE.Vector4()),
+    scissorTest: gl.getScissorTest(),
+    clear: gl.getClearColor(new THREE.Color()),
+    alpha: gl.getClearAlpha(),
+    autoClear: gl.autoClear,
+    shadows: gl.shadowMap.enabled,
+  };
+  gl.shadowMap.enabled = false;
+  gl.autoClear = false;
+  gl.setRenderTarget(rt);
+  // Clear to foliage green with zero alpha so mip edges never darken.
+  gl.setClearColor(new THREE.Color(0.16, 0.24, 0.1), 0);
+  gl.setScissorTest(false);
+  gl.clear(true, true, true);
+  gl.setScissorTest(true);
+
+  assets.forEach((a, s) => {
+    holder.clear();
+    const bark = new THREE.Mesh(a.geometries.bark, a.captureBark);
+    const leaves = new THREE.Mesh(a.geometries.foliage, a.captureFoliage);
+    holder.add(bark, leaves);
+    const half = a.frame / 2;
+    const cam = new THREE.OrthographicCamera(-half, half, a.bottom + a.frame, a.bottom, 0.1, 400);
+    cam.position.set(0, 0, 200);
+    cam.lookAt(0, 0, 0);
+    // lookAt from y = 0 keeps the vertical frame aligned with the tree.
+    cam.position.y = 0;
+    cam.updateMatrixWorld();
+    for (let v = 0; v < VIEWS; v++) {
+      holder.rotation.y = -(v / VIEWS) * Math.PI * 2;
+      holder.updateMatrixWorld(true);
+      gl.setViewport(v * cell, s * cell, cell, cell);
+      gl.setScissor(v * cell, s * cell, cell, cell);
+      gl.clear(true, true, false);
+      gl.render(scene, cam);
+    }
+  });
+
+  gl.setRenderTarget(prev.target);
+  gl.setViewport(prev.viewport);
+  gl.setScissor(prev.scissor);
+  gl.setScissorTest(prev.scissorTest);
+  gl.setClearColor(prev.clear, prev.alpha);
+  gl.autoClear = prev.autoClear;
+  gl.shadowMap.enabled = prev.shadows;
+  return rt;
+}
+
+const IMPOSTOR_VERT = /* glsl */ `
+  #include <common>
+  #include <fog_pars_vertex>
+  attribute vec3 aPos;
+  attribute float aSize;
+  attribute float aSpecies;
+  attribute float aYaw;
+  attribute vec3 aTint;
+  uniform float uViews;
+  uniform float uSpeciesCount;
+  uniform float uTime;
+  uniform vec3 uWind;
+  uniform vec3 uSun;
+  varying vec2 vUv0;
+  varying vec2 vUv1;
+  varying float vBlend;
+  varying vec3 vTint;
+  varying float vDist;
+  varying float vLight;
+  uniform vec2 uLod;
+  void main() {
+    vec3 toCam = cameraPosition - aPos;
+    vDist = length(toCam);
+    // Inside the detailed range the real tree draws: emit no fragments at all.
+    if (vDist < uLod.x) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
+    vec2 d = normalize(toCam.xz);
+    float ang = atan(d.x, d.y) - aYaw;
+    float f = fract(ang / 6.2831853) * uViews;
+    float i0 = floor(f);
+    vBlend = f - i0;
+    float i1 = mod(i0 + 1.0, uViews);
+    vec2 cellUv = vec2(uv.x, uv.y);
+    vUv0 = vec2((i0 + cellUv.x) / uViews, (aSpecies + cellUv.y) / uSpeciesCount);
+    vUv1 = vec2((i1 + cellUv.x) / uViews, (aSpecies + cellUv.y) / uSpeciesCount);
+
+    vec3 fwd = normalize(toCam);
+    vec3 right = normalize(cross(vec3(0.0, 1.0, 0.0), fwd));
+    vec3 up = normalize(mix(vec3(0.0, 1.0, 0.0), cross(fwd, right), 0.35));
+    vec3 wp = aPos + right * position.x * aSize + up * position.y * aSize;
+    float sway = sin(uTime * 0.9 + aPos.x * 0.05 + aPos.z * 0.03);
+    wp.xz += uWind.xz * sway * position.y * position.y * 0.6;
+    vTint = aTint;
+    // Sun behind the viewer lights the visible side; against the sun it darkens.
+    vLight = 0.82 + 0.26 * dot(normalize(uSun.xz + vec2(0.0001)), d) * (1.0 - abs(uSun.y) * 0.6);
+    vec4 mvPosition = viewMatrix * vec4(wp, 1.0);
+    gl_Position = projectionMatrix * mvPosition;
+    #include <fog_vertex>
+  }
+`;
+
+const IMPOSTOR_FRAG = /* glsl */ `
+  #include <common>
+  #include <fog_pars_fragment>
+  uniform sampler2D uAtlas;
+  uniform vec2 uAtlasSize;
+  uniform vec2 uLod;
+  uniform vec3 uShade;
+  varying vec2 vUv0;
+  varying vec2 vUv1;
+  varying float vBlend;
+  varying vec3 vTint;
+  varying float vDist;
+  varying float vLight;
+  void main() {
+    float fadeNear = 1.0 - smoothstep(uLod.x, uLod.y, vDist);
+    #ifndef ALPHA_TO_COVERAGE
+      float ign = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+      if (ign <= fadeNear) discard;
+    #endif
+    vec4 a = texture2D(uAtlas, vUv0);
+    vec4 b = texture2D(uAtlas, vUv1);
+    vec4 c = mix(a, b, vBlend);
+    vec2 tc = vUv0 * uAtlasSize;
+    float lod = max(0.0, 0.5 * log2(max(dot(dFdx(tc), dFdx(tc)), dot(dFdy(tc), dFdy(tc)))));
+    c.a *= 1.0 + lod * 0.35;
+    #ifdef ALPHA_TO_COVERAGE
+      // Antialiased silhouettes: a one-pixel coverage ramp around the cut.
+      float alpha = clamp((c.a - 0.5) / max(fwidth(c.a), 0.0001) + 0.5, 0.0, 1.0) * (1.0 - fadeNear);
+      if (alpha <= 0.0) discard;
+    #else
+      if (c.a < 0.5) discard;
+      float alpha = 1.0;
+    #endif
+    // The atlas was cleared to foliage green, so edge texels need no unpremultiply.
+    // The atlas was captured in midday light; the sky's shade relights it.
+    vec3 col = c.rgb * vTint * vLight * uShade;
+    gl_FragColor = vec4(col, alpha);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+    #include <fog_fragment>
+  }
+`;
+
+function ImpostorField({ trees, assets, lod }: { trees: TreeInstance[]; assets: SpeciesAssets[]; lod: LodFade }) {
+  const gl = useThree((s) => s.gl);
+  const isTouch = useTerritoryStore((s) => s.isTouch);
+  const [mesh, setMesh] = useState<THREE.Mesh | null>(null);
+
+  useEffect(() => {
+    // Keep the atlas within 4096 px on either side.
+    const cell = Math.min(isTouch ? 256 : 512, Math.floor(4096 / Math.max(VIEWS, assets.length) / 32) * 32);
+    const rt = captureAtlas(gl, assets, cell, !isTouch);
+    const quad = new THREE.PlaneGeometry(1, 1);
+    quad.translate(0, 0.5, 0);
+    const geo = new THREE.InstancedBufferGeometry();
+    geo.index = quad.index;
+    geo.setAttribute("position", quad.attributes.position);
+    geo.setAttribute("uv", quad.attributes.uv);
+    const n = trees.length;
+    const pos = new Float32Array(n * 3);
+    const size = new Float32Array(n);
+    const species = new Float32Array(n);
+    const yaw = new Float32Array(n);
+    const tint = new Float32Array(n * 3);
+    trees.forEach((t, i) => {
+      const a = assets[t.species];
+      pos[i * 3] = t.x;
+      pos[i * 3 + 1] = t.y + a.bottom * t.scale;
+      pos[i * 3 + 2] = t.z;
+      size[i] = a.frame * t.scale;
+      species[i] = t.species;
+      yaw[i] = t.yaw;
+      tint[i * 3] = t.tint.r;
+      tint[i * 3 + 1] = t.tint.g;
+      tint[i * 3 + 2] = t.tint.b;
+    });
+    geo.setAttribute("aPos", new THREE.InstancedBufferAttribute(pos, 3));
+    geo.setAttribute("aSize", new THREE.InstancedBufferAttribute(size, 1));
+    geo.setAttribute("aSpecies", new THREE.InstancedBufferAttribute(species, 1));
+    geo.setAttribute("aYaw", new THREE.InstancedBufferAttribute(yaw, 1));
+    geo.setAttribute("aTint", new THREE.InstancedBufferAttribute(tint, 3));
+    geo.instanceCount = n;
+    const material = new THREE.ShaderMaterial({
+      vertexShader: IMPOSTOR_VERT,
+      fragmentShader: IMPOSTOR_FRAG,
+      uniforms: {
+        ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog),
+        uAtlas: { value: rt.texture },
+        uAtlasSize: { value: new THREE.Vector2(rt.width, rt.height) },
+        uViews: { value: VIEWS },
+        uSpeciesCount: { value: assets.length },
+        uLod: { value: new THREE.Vector2(lod.near, lod.far) },
+        uTime: floraGlobals.uTime,
+        uWind: floraGlobals.uWind,
+        uSun: skyUniforms.uLightDir,
+        uShade: skyUniforms.uShade,
+      },
+      fog: true,
+    });
+    const m = new THREE.Mesh(geo, material);
+    m.frustumCulled = false;
+    m.raycast = () => undefined;
+    setMesh(m);
+    return () => {
+      rt.dispose();
+      geo.dispose();
+      material.dispose();
+      quad.dispose();
+    };
+  }, [gl, assets, trees, isTouch, lod]);
+
+  return mesh ? <primitive object={mesh} /> : null;
+}
+
+export function WildForest() {
+  const isTouch = useTerritoryStore((s) => s.isTouch);
+  const biome = BIOMES[useBiomeStore((s) => s.biome)];
+  const lod = isTouch ? LOD_TOUCH : LOD;
+  const assets = useSpeciesAssets(lod, biome);
+  const trees = useMemo(() => placeForest(!isTouch, biome), [isTouch, biome]);
+  useEffect(() => setWildTrunks(trees.map((t) => ({ x: t.x, z: t.z, r: assets[t.species].trunk * t.scale }))), [trees, assets]);
+  return (
+    <group>
+      <NearForest trees={trees} assets={assets} lod={lod} shadows={!isTouch} />
+      <ImpostorField trees={trees} assets={assets} lod={lod} />
+    </group>
+  );
+}

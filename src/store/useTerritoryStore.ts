@@ -11,13 +11,22 @@ import type {
 } from "@/domain/types";
 import { STATUS_LABEL } from "@/domain/relationship";
 import { evaluateOpportunity, type OpportunityState } from "@/domain/opportunity";
-import { territory } from "@/data";
+import { STAGE_BY_MATURITY, formatMoney, type AccountCommercial } from "@/domain/commercial";
+import type { AccountSeed, SellerProfile } from "@/domain/profile";
+import { ARCHETYPE_LABEL, DEFAULT_TERRITORY, resolveTerritory, type ActiveTerritory } from "@/data/profiles";
+import { saveSeller } from "./persistence";
 
 export type Mode = "forest" | "account";
-export type View = "tree" | "roots" | "penetration" | "analyze" | "score" | "activity";
+export type PanelTab = "overview" | "organization" | "intelligence" | "activity";
+export type TerritoryFilter = "all" | "attention" | "pipeline" | "tier1";
 
-export interface FallingLeaf {
-  prospectId: string;
+/** A sample seller action the demo (or the user) can run against an account. */
+export type SampleActivity = "follow-up" | "discovery-call" | "exec-meeting" | "multithread";
+
+export interface Pulse {
+  id: number;
+  accountId: string;
+  kind: "growth" | "fruit" | "wither" | "signal";
   startedAt: number;
 }
 
@@ -30,16 +39,40 @@ export interface Notice {
   id: string;
   title: string;
   body: string;
-  kind: "signal" | "info";
+  kind: "signal" | "info" | "growth" | "warning";
 }
 
 interface UndoEntry {
   label: string;
   prospects: Record<string, Prospect>;
   activitiesLength: number;
+  daysSince: Record<string, number>;
 }
 
+interface Snapshot {
+  prospectsById: Record<string, Prospect>;
+  businessUnitsById: Record<string, BusinessUnit>;
+  signals: Signal[];
+  activities: Activity[];
+  daysSince: Record<string, number>;
+}
+
+export type ResearchStatus = "idle" | "researching" | "done" | "unavailable" | "failed";
+
 interface TerritoryState {
+  /** Who is selling: drives which accounts grow and how they are described. */
+  profile: SellerProfile;
+  /** Seeds behind a generated territory; persisted for researched profiles. */
+  profileSeeds: AccountSeed[] | null;
+  /** Commercial overlay for the active territory. */
+  commercial: Record<string, AccountCommercial>;
+  /** The active territory's starting state; reset returns here. */
+  baseline: Snapshot;
+  /** Onboarding card ("Where do you sell?") visible. */
+  onboardingOpen: boolean;
+  /** Optional Claude research of an unknown seller's ICP. */
+  research: { status: ResearchStatus; company: string | null };
+
   accounts: Account[];
   accountsById: Record<string, Account>;
   prospectsById: Record<string, Prospect>;
@@ -47,60 +80,79 @@ interface TerritoryState {
   opportunitiesById: Record<string, Opportunity>;
   signals: Signal[];
   activities: Activity[];
+  /** Days since the last seller activity, per account. */
+  daysSince: Record<string, number>;
 
   mode: Mode;
-  view: View;
-  selectedAccountId: string | null;
   activeAccountId: string | null;
+  hoveredAccountId: string | null;
+  panelTab: PanelTab;
   focusBusinessUnitId: string | null;
   focusTeamId: string | null;
   selectedProspectId: string | null;
   selectedOpportunityId: string | null;
-  selectedRootId: string | null;
-  selectedMarketId: string | null;
-  navigatorOpen: boolean;
-  cameraResetNonce: number;
+  filter: TerritoryFilter;
+  /** Compact layouts: territory sheet expanded. */
+  overviewOpen: boolean;
+  /** Establishing shot has finished (or was skipped). */
+  introDone: boolean;
+  demo: { active: boolean; step: number };
+  cameraNonce: number;
+  /** Minimap jump request: glide to this point of the map. */
+  flyTarget: { x: number; z: number; nonce: number } | null;
   reducedMotion: boolean;
   isTouch: boolean;
-  /** Viewport narrower than the md breakpoint — panels become bottom sheets. */
   isCompact: boolean;
+  /** Lowered automatically when the device can't hold its frame rate. */
+  lowPower: boolean;
 
-  fallingLeaves: FallingLeaf[];
+  pulses: Pulse[];
   reactivations: Reactivation[];
   notices: Notice[];
   undoStack: UndoEntry[];
 
+  // seller profile
+  loadProfile: (profile: SellerProfile, seeds?: AccountSeed[] | null, opts?: { persist?: boolean; announce?: boolean }) => void;
+  setOnboardingOpen: (open: boolean) => void;
+  setResearch: (research: { status: ResearchStatus; company: string | null }) => void;
+
   // navigation
-  selectAccount: (id: string | null) => void;
   enterAccount: (id: string) => void;
   returnToForest: () => void;
+  setHovered: (id: string | null) => void;
+  setPanelTab: (tab: PanelTab) => void;
   focusBusinessUnit: (id: string | null) => void;
   focusTeam: (id: string | null) => void;
   selectProspect: (id: string | null) => void;
   selectOpportunity: (id: string | null) => void;
-  selectRoot: (id: string | null) => void;
-  selectMarket: (id: string | null) => void;
-  setView: (view: View) => void;
-  toggleView: (view: View) => void;
-  setNavigatorOpen: (open: boolean) => void;
-  /** Return the contextual panel to the account-level organization overview. */
-  openOrganization: () => void;
-  resetView: () => void;
   clearSelection: () => void;
+  setFilter: (f: TerritoryFilter) => void;
+  setOverviewOpen: (open: boolean) => void;
+  setIntroDone: () => void;
+  resetCamera: () => void;
+  flyTo: (x: number, z: number) => void;
   setReducedMotion: (v: boolean) => void;
   setIsTouch: (v: boolean) => void;
   setIsCompact: (v: boolean) => void;
+  setLowPower: (v: boolean) => void;
 
   // relationship lifecycle
-  setProspectStatus: (id: string, status: RelationshipStatus) => void;
-  bookMeeting: (id: string) => void;
+  setProspectStatus: (id: string, status: RelationshipStatus, opts?: { silent?: boolean }) => void;
   undo: () => void;
-  completeFall: (prospectId: string) => void;
 
-  // living territory
+  // territory simulation
+  runActivity: (accountId: string, kind: SampleActivity) => void;
+  simulateNeglect: (accountId: string, days: number) => void;
   simulateTrigger: (businessUnitId: string) => void;
   completeReactivation: (businessUnitId: string) => void;
   dismissNotice: (id: string) => void;
+  notify: (n: Omit<Notice, "id">) => void;
+  resetDemo: () => void;
+
+  // guided demo
+  startDemo: () => void;
+  setDemoStep: (step: number) => void;
+  exitDemo: () => void;
 }
 
 function index<T extends { id: string }>(items: T[]): Record<string, T> {
@@ -109,131 +161,182 @@ function index<T extends { id: string }>(items: T[]): Record<string, T> {
   return out;
 }
 
-const accountsById = index(territory.accounts);
-const prospectsById = index(
-  territory.accounts.flatMap((a) =>
-    a.businessUnits.flatMap((bu) => bu.teams.flatMap((t) => t.prospects)),
-  ),
-);
-const businessUnitsById = index(territory.accounts.flatMap((a) => a.businessUnits));
-const opportunitiesById = index(territory.accounts.flatMap((a) => a.opportunities));
-
 let activityCounter = 0;
-function makeActivity(
-  accountId: string,
-  kind: ActivityKind,
-  message: string,
-  extra: Partial<Activity> = {},
-): Activity {
+function makeActivity(accountId: string, kind: ActivityKind, message: string, extra: Partial<Activity> = {}): Activity {
   activityCounter += 1;
+  return { id: `act-${activityCounter}`, accountId, kind, message, timestamp: Date.now(), ...extra };
+}
+
+const DAY = 86_400_000;
+const SYNTHETIC_ID = /\.[pl]\d+$/;
+
+/**
+ * Starting history, derived from the territory itself: the last recorded touch
+ * per account, then (older) each booked meeting with a named stakeholder and
+ * each opportunity that already has a stage.
+ */
+function seedActivities(accounts: Account[], commercial: Record<string, AccountCommercial>): Activity[] {
+  const now = Date.now();
+  const items: Activity[] = [];
+  const push = (accountId: string, kind: ActivityKind, message: string, daysAgo: number, extra: Partial<Activity> = {}) => {
+    activityCounter += 1;
+    items.push({ id: `act-seed-${activityCounter}`, accountId, kind, message, timestamp: now - daysAgo * DAY, ...extra });
+  };
+  for (const a of accounts) {
+    const c = commercial[a.id];
+    if (!c) continue;
+    push(a.id, "contacted", c.lastActivity, c.lastActivityDaysAgo);
+    const meetings = a.businessUnits
+      .flatMap((bu) => bu.teams.flatMap((t) => t.prospects))
+      .filter((p) => !p.latent && p.relationshipStatus === "meeting" && !SYNTHETIC_ID.test(p.id));
+    meetings.forEach((p, i) =>
+      push(a.id, "meeting", `Meeting booked with ${p.title}`, c.lastActivityDaysAgo + 6 + i * 3, { prospectId: p.id, businessUnitId: p.businessUnitId }),
+    );
+    a.opportunities
+      .filter((o) => !o.latent && o.baselineMaturity)
+      .forEach((o, i) =>
+        push(
+          a.id,
+          "opportunity",
+          `${o.name} ${o.baselineMaturity === "bud" ? "formed" : "qualified"}`,
+          c.lastActivityDaysAgo + 3 + i * 4,
+          { opportunityId: o.id, businessUnitId: o.businessUnitId },
+        ),
+      );
+  }
+  return items.sort((x, y) => x.timestamp - y.timestamp);
+}
+
+/** Everything derived from a territory: lookups and the starting snapshot. */
+function derive(active: ActiveTerritory) {
+  const { territory, commercial } = active;
+  const baseline: Snapshot = {
+    prospectsById: index(territory.accounts.flatMap((a) => a.businessUnits.flatMap((bu) => bu.teams.flatMap((t) => t.prospects)))),
+    businessUnitsById: index(territory.accounts.flatMap((a) => a.businessUnits)),
+    signals: territory.accounts.flatMap((a) => a.signals),
+    activities: seedActivities(territory.accounts, commercial),
+    daysSince: Object.fromEntries(territory.accounts.map((a) => [a.id, commercial[a.id]?.lastActivityDaysAgo ?? 14])),
+  };
   return {
-    id: `act-${activityCounter}`,
-    accountId,
-    kind,
-    message,
-    timestamp: Date.now(),
-    ...extra,
+    profile: active.profile,
+    profileSeeds: active.seeds ?? null,
+    commercial,
+    baseline,
+    accounts: territory.accounts,
+    accountsById: index(territory.accounts),
+    opportunitiesById: index(territory.accounts.flatMap((a) => a.opportunities)),
+    ...baseline,
   };
 }
 
-function seedActivities(): Activity[] {
-  const items: Activity[] = [];
-  const now = Date.now();
-  const day = 86_400_000;
-  const seed: [string, ActivityKind, string, number][] = [
-    ["jpmc", "engaged", "VP, Platform Engineering engaged on Engineer's Platform", 6],
-    ["jpmc", "meeting", "Meeting booked with Director, Internal Developer Platform", 8],
-    ["jpmc", "opportunity", "Engineer's Platform AI-Assisted Delivery formed", 4],
-    ["walmart", "opportunity", "Developer Experience Platform Evaluation formed", 5],
-    ["disney", "meeting", "Meeting booked with Director, Web Experiences", 3],
-    ["amex", "engaged", "Director, Digital Experience engaged", 7],
-    ["starbucks", "meeting", "Meeting booked with Director, Digital Experience", 4],
-  ];
-  for (const [accountId, kind, message, daysAgo] of seed) {
-    activityCounter += 1;
-    items.push({
-      id: `act-seed-${activityCounter}`,
-      accountId,
-      kind,
-      message,
-      timestamp: now - daysAgo * day,
-    });
-  }
-  return items;
-}
+const INITIAL = derive(DEFAULT_TERRITORY);
 
 let noticeCounter = 0;
+let pulseCounter = 0;
 
-export const useTerritoryStore = create<TerritoryState>((set, get) => ({
-  accounts: territory.accounts,
-  accountsById,
-  prospectsById,
-  businessUnitsById,
-  opportunitiesById,
-  signals: territory.accounts.flatMap((a) => a.signals),
-  activities: seedActivities(),
-
-  mode: "forest",
-  view: "tree",
-  selectedAccountId: null,
-  activeAccountId: null,
+const SELECTION_CLEARED = {
   focusBusinessUnitId: null,
   focusTeamId: null,
   selectedProspectId: null,
   selectedOpportunityId: null,
-  selectedRootId: null,
-  selectedMarketId: null,
-  navigatorOpen: false,
-  cameraResetNonce: 0,
+} as const;
+
+/** UI state that returns to its starting point whenever the territory changes. */
+const FRESH_VIEW = {
+  mode: "forest" as Mode,
+  activeAccountId: null,
+  hoveredAccountId: null,
+  panelTab: "overview" as PanelTab,
+  ...SELECTION_CLEARED,
+  filter: "all" as TerritoryFilter,
+  overviewOpen: false,
+  reactivations: [] as Reactivation[],
+  notices: [] as Notice[],
+  undoStack: [] as UndoEntry[],
+  pulses: [] as Pulse[],
+};
+
+export const useTerritoryStore = create<TerritoryState>((set, get) => ({
+  ...INITIAL,
+  onboardingOpen: false,
+  research: { status: "idle", company: null },
+
+  mode: "forest",
+  activeAccountId: null,
+  hoveredAccountId: null,
+  panelTab: "overview",
+  ...SELECTION_CLEARED,
+  filter: "all",
+  overviewOpen: false,
+  introDone: false,
+  demo: { active: false, step: 0 },
+  cameraNonce: 0,
+  flyTarget: null,
   reducedMotion: false,
   isTouch: false,
   isCompact: false,
+  lowPower: false,
 
-  fallingLeaves: [],
+  pulses: [],
   reactivations: [],
   notices: [],
   undoStack: [],
 
-  selectAccount: (id) => set({ selectedAccountId: id, selectedMarketId: null }),
+  loadProfile: (profile, seeds, opts = {}) => {
+    const next = derive(resolveTerritory(profile, seeds ?? undefined));
+    set((s) => ({
+      ...next,
+      ...FRESH_VIEW,
+      demo: { active: false, step: 0 },
+      cameraNonce: s.cameraNonce + 1,
+      notices:
+        opts.announce === false
+          ? []
+          : [
+              {
+                id: `notice-${++noticeCounter}`,
+                kind: "growth",
+                title: `Selling for ${profile.company}`,
+                body:
+                  profile.source === "researched"
+                    ? `Researched ICP · ${next.accounts.length} target accounts regrown · illustrative data`
+                    : profile.source === "archetype"
+                      ? `${next.accounts.length} accounts from a ${ARCHETYPE_LABEL[profile.archetype].toLowerCase()} ICP · illustrative data`
+                      : `${next.accounts.length} ICP accounts regrown · illustrative ${profile.territoryLabel} territory`,
+              },
+            ],
+    }));
+    if (opts.persist !== false) saveSeller(next.profile, profile.source === "researched" ? next.profileSeeds : null);
+  },
+
+  setOnboardingOpen: (open) => set({ onboardingOpen: open }),
+  setResearch: (research) => set({ research }),
 
   enterAccount: (id) =>
     set({
       mode: "account",
-      view: "tree",
       activeAccountId: id,
-      selectedAccountId: id,
-      focusBusinessUnitId: null,
-      focusTeamId: null,
-      selectedProspectId: null,
-      selectedOpportunityId: null,
-      selectedRootId: null,
-      selectedMarketId: null,
-      navigatorOpen: false,
+      hoveredAccountId: null,
+      panelTab: "overview",
+      overviewOpen: false,
+      introDone: true,
+      ...SELECTION_CLEARED,
     }),
 
   returnToForest: () =>
+    set({ mode: "forest", activeAccountId: null, panelTab: "overview", ...SELECTION_CLEARED }),
+
+  setHovered: (id) => set({ hoveredAccountId: id }),
+
+  setPanelTab: (tab) =>
     set((s) => ({
-      mode: "forest",
-      view: "tree",
-      activeAccountId: null,
-      selectedAccountId: s.activeAccountId,
-      focusBusinessUnitId: null,
-      focusTeamId: null,
-      selectedProspectId: null,
-      selectedOpportunityId: null,
-      selectedRootId: null,
-      navigatorOpen: false,
+      panelTab: tab,
+      selectedProspectId: tab === "organization" ? s.selectedProspectId : null,
+      selectedOpportunityId: tab === "overview" ? s.selectedOpportunityId : null,
     })),
 
   focusBusinessUnit: (id) =>
-    set((s) => ({
-      focusBusinessUnitId: id,
-      focusTeamId: null,
-      selectedProspectId: null,
-      selectedOpportunityId: null,
-      selectedRootId: null,
-      view: s.view === "roots" ? "tree" : s.view,
-    })),
+    set({ focusBusinessUnitId: id, focusTeamId: null, selectedProspectId: null, selectedOpportunityId: null, panelTab: "organization" }),
 
   focusTeam: (id) =>
     set((s) => {
@@ -247,8 +350,7 @@ export const useTerritoryStore = create<TerritoryState>((set, get) => ({
         focusBusinessUnitId: team ? team.businessUnitId : s.focusBusinessUnitId,
         selectedProspectId: null,
         selectedOpportunityId: null,
-        selectedRootId: null,
-        view: s.view === "roots" ? "tree" : s.view,
+        panelTab: "organization",
       };
     }),
 
@@ -259,10 +361,9 @@ export const useTerritoryStore = create<TerritoryState>((set, get) => ({
       return {
         selectedProspectId: id,
         selectedOpportunityId: null,
-        selectedRootId: null,
         focusBusinessUnitId: p ? p.businessUnitId : s.focusBusinessUnitId,
         focusTeamId: p ? p.teamId : s.focusTeamId,
-        view: s.view === "roots" ? "tree" : s.view,
+        panelTab: "organization",
       };
     }),
 
@@ -273,70 +374,39 @@ export const useTerritoryStore = create<TerritoryState>((set, get) => ({
       return {
         selectedOpportunityId: id,
         selectedProspectId: null,
-        selectedRootId: null,
         focusBusinessUnitId: o ? o.businessUnitId : s.focusBusinessUnitId,
         focusTeamId: null,
-        view: s.view === "roots" ? "tree" : s.view,
+        panelTab: "overview",
       };
     }),
 
-  selectRoot: (id) => set({ selectedRootId: id, selectedProspectId: null, selectedOpportunityId: null }),
-
-  selectMarket: (id) => set({ selectedMarketId: id, selectedAccountId: id ? null : get().selectedAccountId }),
-
-  setView: (view) =>
-    set((s) => ({
-      view,
-      selectedRootId: view === "roots" ? s.selectedRootId : null,
-      selectedProspectId: view === "tree" ? s.selectedProspectId : null,
-      selectedOpportunityId: view === "tree" ? s.selectedOpportunityId : null,
-    })),
-
-  toggleView: (view) => {
-    const current = get().view;
-    get().setView(current === view ? "tree" : view);
-  },
-
-  setNavigatorOpen: (open) => set({ navigatorOpen: open }),
-
-  openOrganization: () =>
-    set({
-      navigatorOpen: true,
-      view: "tree",
-      focusBusinessUnitId: null,
-      focusTeamId: null,
-      selectedProspectId: null,
-      selectedOpportunityId: null,
-      selectedRootId: null,
-    }),
-
-  resetView: () =>
-    set((s) => ({
-      cameraResetNonce: s.cameraResetNonce + 1,
-      focusBusinessUnitId: null,
-      focusTeamId: null,
-      selectedProspectId: null,
-      selectedOpportunityId: null,
-      selectedRootId: null,
-      view: "tree",
-    })),
-
   clearSelection: () =>
     set((s) => {
-      if (s.mode === "forest") return { selectedAccountId: null, selectedMarketId: null };
-      if (s.selectedProspectId || s.selectedOpportunityId || s.selectedRootId) {
-        return { selectedProspectId: null, selectedOpportunityId: null, selectedRootId: null };
-      }
+      if (s.mode === "forest") return {};
+      if (s.selectedProspectId || s.selectedOpportunityId) return { selectedProspectId: null, selectedOpportunityId: null };
       if (s.focusTeamId) return { focusTeamId: null };
       if (s.focusBusinessUnitId) return { focusBusinessUnitId: null };
       return {};
     }),
 
+  setFilter: (filter) => set((s) => ({ filter: s.filter === filter ? "all" : filter })),
+  setOverviewOpen: (open) => set({ overviewOpen: open }),
+  setIntroDone: () => set({ introDone: true }),
+  resetCamera: () => set((s) => ({ cameraNonce: s.cameraNonce + 1 })),
+  flyTo: (x, z) =>
+    set((s) => ({
+      mode: "forest",
+      activeAccountId: null,
+      ...SELECTION_CLEARED,
+      introDone: true,
+      flyTarget: { x, z, nonce: (s.flyTarget?.nonce ?? 0) + 1 },
+    })),
   setReducedMotion: (v) => set({ reducedMotion: v }),
   setIsTouch: (v) => set({ isTouch: v }),
   setIsCompact: (v) => set({ isCompact: v }),
+  setLowPower: (v) => set({ lowPower: v }),
 
-  setProspectStatus: (id, status) => {
+  setProspectStatus: (id, status, opts = {}) => {
     const s = get();
     const prospect = s.prospectsById[id];
     if (!prospect || prospect.relationshipStatus === status) return;
@@ -346,6 +416,7 @@ export const useTerritoryStore = create<TerritoryState>((set, get) => ({
       label: `Undo ${STATUS_LABEL[status].toLowerCase()}`,
       prospects: s.prospectsById,
       activitiesLength: s.activities.length,
+      daysSince: s.daysSince,
     };
 
     const today = new Date().toISOString().slice(0, 10);
@@ -355,38 +426,28 @@ export const useTerritoryStore = create<TerritoryState>((set, get) => ({
       lastTouch: status === "unworked" ? prospect.lastTouch : today,
       nextAction: nextActionFor(status, prospect),
       meetingDate: status === "meeting" ? demoMeetingDate() : undefined,
-      notes:
-        status === "disqualified"
-          ? [...prospect.notes, "Disqualified in demo session."]
-          : prospect.notes,
+      notes: status === "disqualified" ? [...prospect.notes, "Disqualified in demo session."] : prospect.notes,
     };
     const prospectsNext = { ...s.prospectsById, [id]: updated };
 
     const kind: ActivityKind =
-      status === "researched"
-        ? "researched"
-        : status === "contacted"
-          ? "contacted"
-          : status === "engaged"
-            ? "engaged"
-            : status === "meeting"
-              ? "meeting"
-              : status === "disqualified"
-                ? "disqualified"
-                : "researched";
-
+      status === "contacted" || status === "engaged" || status === "meeting" || status === "disqualified"
+        ? status
+        : "researched";
     const activities = [
       ...s.activities,
-      makeActivity(prospect.accountId, kind, `${activityVerb(status)} ${prospect.title}`, {
+      makeActivity(prospect.accountId, kind, `${activityVerb(status)} ${prospect.name}, ${prospect.title}`, {
         prospectId: id,
         businessUnitId: prospect.businessUnitId,
       }),
     ];
 
-    // Opportunity consequences.
+    const notices: Notice[] = [];
+    const pulses: Pulse[] = [];
     const after = evaluateVisibleOpportunities({ ...s, prospectsById: prospectsNext }, prospect.accountId);
     for (const state of after) {
       const prev = before.find((b) => b.opportunity.id === state.opportunity.id);
+      const value = s.commercial[prospect.accountId]?.dealValues[state.opportunity.id] ?? 0;
       if (!prev?.maturity && state.maturity) {
         activities.push(
           makeActivity(prospect.accountId, "opportunity", `Opportunity formed: ${state.opportunity.name}`, {
@@ -394,30 +455,42 @@ export const useTerritoryStore = create<TerritoryState>((set, get) => ({
             businessUnitId: state.opportunity.businessUnitId,
           }),
         );
+        notices.push({
+          id: `notice-${++noticeCounter}`,
+          kind: "growth",
+          title: "New fruit · opportunity formed",
+          body: `${state.opportunity.name} · ${formatMoney(value)} entered ${STAGE_BY_MATURITY[state.maturity]}`,
+        });
+        pulses.push({ id: ++pulseCounter, accountId: prospect.accountId, kind: "fruit", startedAt: performance.now() });
       } else if (prev?.maturity && state.maturity && prev.maturity !== state.maturity) {
         activities.push(
-          makeActivity(
-            prospect.accountId,
-            "opportunity",
-            `${state.opportunity.name} is now ${state.maturity}`,
-            { opportunityId: state.opportunity.id, businessUnitId: state.opportunity.businessUnitId },
-          ),
+          makeActivity(prospect.accountId, "opportunity", `${state.opportunity.name} advanced to ${STAGE_BY_MATURITY[state.maturity]}`, {
+            opportunityId: state.opportunity.id,
+            businessUnitId: state.opportunity.businessUnitId,
+          }),
         );
+        notices.push({
+          id: `notice-${++noticeCounter}`,
+          kind: "growth",
+          title: "Fruit ripening · deal advanced",
+          body: `${state.opportunity.name} is now ${STAGE_BY_MATURITY[state.maturity]}`,
+        });
+        pulses.push({ id: ++pulseCounter, accountId: prospect.accountId, kind: "fruit", startedAt: performance.now() });
       }
     }
+
+    const engagedMore = status === "engaged" || status === "meeting" || status === "contacted";
+    if (engagedMore) pulses.push({ id: ++pulseCounter, accountId: prospect.accountId, kind: "growth", startedAt: performance.now() });
 
     set({
       prospectsById: prospectsNext,
       activities,
+      daysSince: engagedMore ? { ...s.daysSince, [prospect.accountId]: 0 } : s.daysSince,
       undoStack: [...s.undoStack.slice(-19), undoEntry],
-      fallingLeaves:
-        status === "meeting" && !s.reducedMotion
-          ? [...s.fallingLeaves, { prospectId: id, startedAt: performance.now() }]
-          : s.fallingLeaves.filter((f) => f.prospectId !== id),
+      notices: opts.silent ? s.notices : [...s.notices, ...notices],
+      pulses: [...s.pulses.slice(-12), ...pulses],
     });
   },
-
-  bookMeeting: (id) => get().setProspectStatus(id, "meeting"),
 
   undo: () => {
     const s = get();
@@ -426,13 +499,101 @@ export const useTerritoryStore = create<TerritoryState>((set, get) => ({
     set({
       prospectsById: entry.prospects,
       activities: s.activities.slice(0, entry.activitiesLength),
+      daysSince: entry.daysSince,
       undoStack: s.undoStack.slice(0, -1),
-      fallingLeaves: [],
     });
   },
 
-  completeFall: (prospectId) =>
-    set((s) => ({ fallingLeaves: s.fallingLeaves.filter((f) => f.prospectId !== prospectId) })),
+  runActivity: (accountId, kind) => {
+    const s = get();
+    const account = s.accountsById[accountId];
+    if (!account) return;
+    const prospects = currentProspects(s, accountId).filter((p) => !p.latent);
+    const opps = evaluateVisibleOpportunities(s, accountId);
+    const oppStakeholders = new Set(account.opportunities.flatMap((o) => o.stakeholderIds));
+    const activeBu = (p: Prospect) => s.businessUnitsById[p.businessUnitId]?.status !== "dormant";
+    const rank = (p: Prospect) =>
+      p.influence * 10 +
+      (oppStakeholders.has(p.id) ? 6 : 0) +
+      (s.businessUnitsById[p.businessUnitId]?.priority === "high" ? 3 : 0) +
+      // Hand-authored stakeholders make better demo moments than generated ones.
+      (/\.[pl]\d+$/.test(p.id) ? 0 : 4);
+
+    if (kind === "follow-up") {
+      const target = prospects
+        .filter((p) => p.relationshipStatus === "engaged" || p.relationshipStatus === "meeting" || p.relationshipStatus === "contacted")
+        .sort((a, b) => rank(b) - rank(a))[0];
+      set({
+        daysSince: { ...s.daysSince, [accountId]: 0 },
+        activities: [
+          ...s.activities,
+          makeActivity(accountId, "contacted", target ? `Follow-up sent to ${target.name}, ${target.title}` : "Account research refreshed"),
+        ],
+        pulses: [...s.pulses.slice(-12), { id: ++pulseCounter, accountId, kind: "growth", startedAt: performance.now() }],
+      });
+      return;
+    }
+
+    if (kind === "exec-meeting") {
+      const target = prospects
+        .filter((p) => activeBu(p) && p.influence >= 4 && p.relationshipStatus !== "meeting" && p.relationshipStatus !== "disqualified")
+        .sort((a, b) => rank(b) - rank(a))[0];
+      if (target) get().setProspectStatus(target.id, "meeting");
+      else get().runActivity(accountId, "follow-up");
+      return;
+    }
+
+    if (kind === "discovery-call") {
+      const target = prospects
+        .filter((p) => activeBu(p) && (p.relationshipStatus === "unworked" || p.relationshipStatus === "researched" || p.relationshipStatus === "contacted"))
+        .sort((a, b) => rank(b) - rank(a))[0];
+      if (target) get().setProspectStatus(target.id, "engaged");
+      else get().runActivity(accountId, "follow-up");
+      return;
+    }
+
+    // Multithread: widen the most advanced opportunity (or the strongest organisation).
+    const open = opps.filter((o) => o.maturity).sort((a, b) => b.strength - a.strength)[0];
+    const pool = open
+      ? open.opportunity.stakeholderIds.map((id) => s.prospectsById[id]).filter(Boolean)
+      : prospects.filter(activeBu);
+    const targets = pool
+      .filter((p) => p.relationshipStatus === "unworked" || p.relationshipStatus === "researched" || p.relationshipStatus === "contacted")
+      .sort((a, b) => rank(b) - rank(a))
+      .slice(0, 2);
+    const extra =
+      targets.length < 2
+        ? prospects
+            .filter((p) => activeBu(p) && !targets.includes(p) && (p.relationshipStatus === "unworked" || p.relationshipStatus === "researched"))
+            .sort((a, b) => rank(b) - rank(a))
+            .slice(0, 2 - targets.length)
+        : [];
+    const all = [...targets, ...extra];
+    if (all.length === 0) {
+      get().runActivity(accountId, "follow-up");
+      return;
+    }
+    for (const p of all) get().setProspectStatus(p.id, "engaged");
+  },
+
+  simulateNeglect: (accountId, days) => {
+    const s = get();
+    const account = s.accountsById[accountId];
+    if (!account) return;
+    set({
+      daysSince: { ...s.daysSince, [accountId]: (s.daysSince[accountId] ?? 0) + days },
+      pulses: [...s.pulses.slice(-12), { id: ++pulseCounter, accountId, kind: "wither", startedAt: performance.now() }],
+      notices: [
+        ...s.notices,
+        {
+          id: `notice-${++noticeCounter}`,
+          kind: "warning",
+          title: `${days} days pass without activity`,
+          body: `${account.name}: relationships cool and the canopy thins.`,
+        },
+      ],
+    });
+  },
 
   simulateTrigger: (businessUnitId) => {
     const s = get();
@@ -446,7 +607,6 @@ export const useTerritoryStore = create<TerritoryState>((set, get) => ({
       date: new Date().toISOString().slice(0, 10),
       ...bu.reactivation.signal,
     };
-
     const updatedBu: BusinessUnit = {
       ...bu,
       status: "reactivating",
@@ -455,47 +615,51 @@ export const useTerritoryStore = create<TerritoryState>((set, get) => ({
       thesis: bu.reactivation.recommendation,
       teams: bu.teams.map((t) => ({ ...t, season: "spring", priority: "high" })),
     };
-
-    // Surface latent prospects as new leaves.
     const prospectsNext = { ...s.prospectsById };
     for (const team of bu.teams) {
       for (const p of team.prospects) {
         const current = prospectsNext[p.id];
-        if (current?.latent) {
-          prospectsNext[p.id] = { ...current, latent: false };
-        }
+        if (current?.latent) prospectsNext[p.id] = { ...current, latent: false };
       }
     }
-
-    noticeCounter += 1;
     set({
       businessUnitsById: { ...s.businessUnitsById, [bu.id]: updatedBu },
       prospectsById: prospectsNext,
       signals: [...s.signals, signal],
       reactivations: [...s.reactivations, { businessUnitId: bu.id, startedAt: performance.now() }],
+      pulses: [...s.pulses.slice(-12), { id: ++pulseCounter, accountId: bu.accountId, kind: "signal", startedAt: performance.now() }],
       notices: [
         ...s.notices,
-        { id: `notice-${noticeCounter}`, kind: "signal", title: "Signal detected", body: signal.title },
+        { id: `notice-${++noticeCounter}`, kind: "signal", title: "Signal detected · branch in bud", body: signal.title },
       ],
       activities: [
         ...s.activities,
-        makeActivity(bu.accountId, "reactivation", `${bu.name} reactivated: ${signal.title}`, {
-          businessUnitId: bu.id,
-        }),
-        makeActivity(bu.accountId, "score", `${bu.name} priority raised to high`, {
-          businessUnitId: bu.id,
-        }),
+        makeActivity(bu.accountId, "reactivation", `${bu.name} reactivated: ${signal.title}`, { businessUnitId: bu.id }),
       ],
       undoStack: [],
     });
   },
 
   completeReactivation: (businessUnitId) =>
-    set((s) => ({
-      reactivations: s.reactivations.filter((r) => r.businessUnitId !== businessUnitId),
-    })),
+    set((s) => ({ reactivations: s.reactivations.filter((r) => r.businessUnitId !== businessUnitId) })),
 
   dismissNotice: (id) => set((s) => ({ notices: s.notices.filter((n) => n.id !== id) })),
+  notify: (n) => set((s) => ({ notices: [...s.notices, { ...n, id: `notice-${++noticeCounter}` }] })),
+
+  resetDemo: () =>
+    set((s) => ({
+      ...s.baseline,
+      ...FRESH_VIEW,
+      demo: { active: false, step: 0 },
+      cameraNonce: s.cameraNonce + 1,
+    })),
+
+  startDemo: () => {
+    get().resetDemo();
+    set({ demo: { active: true, step: 0 }, introDone: true });
+  },
+  setDemoStep: (step) => set({ demo: { active: true, step } }),
+  exitDemo: () => set({ demo: { active: false, step: 0 } }),
 }));
 
 function demoMeetingDate(): string {
@@ -509,9 +673,9 @@ function activityVerb(status: RelationshipStatus): string {
     case "researched":
       return "Researched";
     case "contacted":
-      return "Contacted";
+      return "Reached out to";
     case "engaged":
-      return "Engaged";
+      return "Discovery call with";
     case "meeting":
       return "Meeting booked with";
     case "disqualified":
@@ -545,9 +709,7 @@ export function evaluateVisibleOpportunities(
 ): OpportunityState[] {
   const account = s.accountsById[accountId];
   if (!account) return [];
-  return account.opportunities.map((o) =>
-    evaluateOpportunity(s.opportunitiesById[o.id] ?? o, s.prospectsById),
-  );
+  return account.opportunities.map((o) => evaluateOpportunity(s.opportunitiesById[o.id] ?? o, s.prospectsById));
 }
 
 /** Current business units (with live status) for an account. */
@@ -560,19 +722,14 @@ export function currentBusinessUnits(
   return account.businessUnits.map((bu) => s.businessUnitsById[bu.id] ?? bu);
 }
 
+/** Current prospects for an account (live status). */
+export function currentProspects(s: Pick<TerritoryState, "accountsById" | "prospectsById">, accountId: string): Prospect[] {
+  const account = s.accountsById[accountId];
+  if (!account) return [];
+  return account.businessUnits.flatMap((bu) => bu.teams.flatMap((t) => t.prospects.map((p) => s.prospectsById[p.id] ?? p)));
+}
+
 // Development-only handle for runtime inspection.
 if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
   (window as unknown as { __territory?: unknown }).__territory = useTerritoryStore;
-}
-
-/** Current prospects for an account (live status). */
-export function currentProspects(
-  s: Pick<TerritoryState, "accountsById" | "prospectsById">,
-  accountId: string,
-): Prospect[] {
-  const account = s.accountsById[accountId];
-  if (!account) return [];
-  return account.businessUnits.flatMap((bu) =>
-    bu.teams.flatMap((t) => t.prospects.map((p) => s.prospectsById[p.id] ?? p)),
-  );
 }

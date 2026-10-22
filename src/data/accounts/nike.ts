@@ -132,7 +132,20 @@ export const nike = defineAccount({
       teams: [{ id: "nrc", name: "Activity Platform", fn: "product-engineering", size: 3, condition: "dormant", latent: 3 }],
     },
   ],
-  opportunities: [],
+  opportunities: [
+    {
+      id: "launch-delivery",
+      businessUnitId: "direct",
+      name: "Launch-Grade Web Delivery",
+      stage: "Prospecting",
+      baselineMaturity: "seed",
+      stakeholders: ["direct.dir-web"],
+      champion: "direct.dir-web",
+      baseMeetingCount: 0,
+      signals: ["SNKRS launch-day reliability is a public pain point"],
+      nextStep: "Turn the first reply into a launch-readiness working session.",
+    },
+  ],
   signals: [
     {
       id: "gemini-shop",
