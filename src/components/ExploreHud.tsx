@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { useExploreStore } from "@/store/useExploreStore";
+import { useUiStore } from "@/store/useUiStore";
 import { exploreBridge } from "@/three/explore/ExploreController";
 import { useLiquidGlass } from "./glass/Glass";
 
@@ -30,6 +31,7 @@ export function ExploreHud() {
   const demoActive = useTerritoryStore((s) => s.demo.active);
   const isTouch = useTerritoryStore((s) => s.isTouch);
   const aimName = useTerritoryStore((s) => (aim ? s.accountsById[aim]?.name : null));
+  const mapOpen = useUiStore((s) => s.map);
   const enterRef = useRef<HTMLButtonElement>(null);
   const pillRef = useRef<HTMLDivElement>(null);
   const hintRef = useRef<HTMLDivElement>(null);
@@ -57,7 +59,7 @@ export function ExploreHud() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
             transition={{ duration: 0.35 }}
-            className="glass glass-pill absolute right-4 bottom-[272px] z-30 flex items-center gap-2 h-9 pl-3.5 pr-2 text-[12.5px] text-paper"
+            className={`glass glass-pill absolute right-4 z-30 flex items-center gap-2 h-9 pl-3.5 pr-2 text-[12.5px] text-paper transition-[bottom] duration-500 ${mapOpen ? "bottom-[272px]" : "bottom-[72px]"}`}
             onClick={() => enter("ground")}
             title="Walk the forest. W A S D to move, the mouse to look."
           >

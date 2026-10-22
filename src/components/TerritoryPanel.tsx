@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useLiquidGlass } from "./glass/Glass";
+import { GlassMorph, FoldButton } from "./glass/GlassMorph";
+import { useUiStore } from "@/store/useUiStore";
 import { LensGroup } from "./glass/Lens";
 import { useTerritoryStore, type TerritoryFilter } from "@/store/useTerritoryStore";
 import { useExploreStore } from "@/store/useExploreStore";
@@ -30,43 +30,70 @@ export function TerritoryPanel() {
   // Explore mode clears the screen for the world.
   const exploring = useExploreStore((s) => s.active);
   const visible = mode === "forest" && introDone && !exploring;
-  const asideRef = useRef<HTMLElement>(null);
-  const sheetRef = useRef<HTMLElement>(null);
-  useLiquidGlass(asideRef, { radius: 22, strength: 64, blur: 9, saturate: 1.5, enabled: visible && !isCompact });
-  useLiquidGlass(sheetRef, { radius: 22, strength: 48, blur: 9, saturate: 1.5, enabled: visible && isCompact && !demoActive });
+  const panelOpen = useUiStore((s) => s.overview);
+  const setPanel = useUiStore((s) => s.setPanel);
+  const views = useAccountViews();
+  const sum = summarize(views);
+  const band = healthBand(sum.health);
+  // Folded, the panel is a glass bubble with the one number that matters.
+  const bubble = (
+    <>
+      <span className="dot" style={{ background: HEALTH_HEX[band] }} aria-hidden />
+      <span className="num font-semibold" style={{ color: HEALTH_HEX[band] }}>
+        {sum.health}
+      </span>
+      <span className="text-paper-80">Territory</span>
+      {sum.attention > 0 && <span className="text-paper-40 num">· {sum.attention} need attention</span>}
+    </>
+  );
 
   if (isCompact) {
     return (
       <AnimatePresence>
         {visible && !demoActive && !onboardingOpen && (
-          <motion.section
-            ref={sheetRef}
+          <motion.div
             key="territory-sheet"
             initial={reduce ? false : { y: 40, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 40, opacity: 0 }}
             transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
-            className="glass glass-strong absolute inset-x-2 bottom-[max(8px,env(safe-area-inset-bottom))] z-30 flex flex-col overflow-hidden max-h-[62vh]"
+            className="absolute inset-x-2 bottom-[max(8px,env(safe-area-inset-bottom))] z-30 flex justify-center pointer-events-none"
           >
-            <button
-              type="button"
-              className="flex flex-col items-center pt-2 pb-1 w-full"
-              onClick={() => setOverviewOpen(!overviewOpen)}
-              aria-expanded={overviewOpen}
-              aria-label={overviewOpen ? "Collapse territory overview" : "Expand territory overview"}
+            <GlassMorph
+              as="section"
+              open={panelOpen}
+              onOpen={() => setPanel("overview", true)}
+              label="Territory overview"
+              className="pointer-events-auto flex flex-col"
+              panelClassName="glass-strong w-full max-h-[62vh]"
+              strength={48}
+              bubble={bubble}
             >
-              <span className="block h-1 w-9 rounded-full bg-paper-20" aria-hidden />
-            </button>
-            <div className="scroll px-4 pb-4">
-              <Summary compact />
-              {overviewOpen && (
-                <div className="mt-4 flex flex-col gap-4">
-                  <Filters />
-                  <Priorities />
-                </div>
-              )}
-            </div>
-          </motion.section>
+              <div className="relative flex items-center justify-center pt-2 pb-1 w-full">
+                <button
+                  type="button"
+                  className="flex flex-col items-center w-full"
+                  onClick={() => setOverviewOpen(!overviewOpen)}
+                  aria-expanded={overviewOpen}
+                  aria-label={overviewOpen ? "Collapse territory overview" : "Expand territory overview"}
+                >
+                  <span className="block h-1 w-9 rounded-full bg-paper-20" aria-hidden />
+                </button>
+                <span className="absolute right-3 top-2">
+                  <FoldButton onClick={() => setPanel("overview", false)} label="Hide the territory overview" />
+                </span>
+              </div>
+              <div className="scroll px-4 pb-4">
+                <Summary compact />
+                {overviewOpen && (
+                  <div className="mt-4 flex flex-col gap-4">
+                    <Filters />
+                    <Priorities />
+                  </div>
+                )}
+              </div>
+            </GlassMorph>
+          </motion.div>
         )}
       </AnimatePresence>
     );
@@ -75,22 +102,32 @@ export function TerritoryPanel() {
   return (
     <AnimatePresence>
       {visible && (
-        <motion.aside
-          ref={asideRef}
+        <motion.div
           key="territory-panel"
-          initial={reduce ? false : { x: -20, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          exit={{ x: -20, opacity: 0 }}
-          transition={{ duration: 0.45, ease: [0.2, 0.8, 0.2, 1] }}
-          className="glass absolute left-4 top-[76px] w-[340px] max-h-[calc(100%-170px)] z-30 flex flex-col overflow-hidden"
-          aria-label="Territory overview"
+          initial={reduce ? false : { opacity: 0, filter: "blur(8px)" }}
+          animate={{ opacity: 1, filter: "blur(0px)" }}
+          exit={{ opacity: 0, filter: "blur(8px)" }}
+          transition={{ duration: 0.4, ease: [0.2, 0.8, 0.2, 1] }}
+          className="absolute left-4 top-[76px] z-30 max-h-[calc(100%-170px)] flex"
         >
-          <div className="scroll p-5 flex flex-col gap-5">
-            <Summary />
-            <Filters />
-            {!demoActive && <Priorities />}
-          </div>
-        </motion.aside>
+          <GlassMorph
+            open={panelOpen}
+            onOpen={() => setPanel("overview", true)}
+            label="Territory overview"
+            className="flex flex-col max-h-full"
+            panelClassName="w-[340px]"
+            bubble={bubble}
+          >
+            <div className="scroll p-5 flex flex-col gap-5 relative">
+              <span className="absolute right-4 top-4 z-10">
+                <FoldButton onClick={() => setPanel("overview", false)} label="Hide the territory overview (H hides everything)" />
+              </span>
+              <Summary />
+              <Filters />
+              {!demoActive && <Priorities />}
+            </div>
+          </GlassMorph>
+        </motion.div>
       )}
     </AnimatePresence>
   );

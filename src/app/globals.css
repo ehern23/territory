@@ -789,3 +789,69 @@ body {
 .explore-key--wide {
   padding: 0 7px;
 }
+
+/* Glass that folds between a panel and a bubble. */
+.glass-morph {
+  overflow: hidden;
+  isolation: isolate;
+}
+.glass-morph__content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: inherit;
+  transform-origin: top left;
+}
+.glass-morph__bubble {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px 0 12px;
+  white-space: nowrap;
+  color: var(--color-paper);
+  font-size: 12.5px;
+}
+.glass-sheen {
+  position: absolute;
+  inset: -40%;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.16) 47%, rgba(255, 255, 255, 0.32) 50%, rgba(255, 255, 255, 0.12) 53%, transparent 62%);
+  mix-blend-mode: screen;
+  animation: glass-sheen 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+@keyframes glass-sheen {
+  from {
+    transform: translateX(-70%) rotate(0.001deg);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(70%) rotate(0.001deg);
+    opacity: 0;
+  }
+}
+.fold-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  color: var(--color-paper-60);
+  background: rgba(242, 238, 229, 0.06);
+  border: 1px solid rgba(242, 238, 229, 0.1);
+  transition: color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+.fold-btn:hover {
+  color: var(--color-paper);
+  background: rgba(242, 238, 229, 0.14);
+}
+.fold-btn:active {
+  transform: scale(0.9);
+}
+@media (prefers-reduced-motion: reduce) {
+  .glass-sheen {
+    display: none;
+  }
+}

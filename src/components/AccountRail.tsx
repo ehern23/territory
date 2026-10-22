@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { useExploreStore } from "@/store/useExploreStore";
+import { isImmersive, useUiStore } from "@/store/useUiStore";
 import { LensGroup } from "./glass/Lens";
 import { useLiquidGlass } from "./glass/Glass";
 import { matchesFilter, useAccountViews } from "@/store/selectors";
@@ -21,11 +22,13 @@ export function AccountRail() {
   const setHovered = useTerritoryStore((s) => s.setHovered);
   const railRef = useRef<HTMLDivElement>(null);
   const exploring = useExploreStore((s) => s.active);
-  const show = mode === "forest" && introDone && !demoActive && !isCompact && !exploring;
+  const immersive = useUiStore(isImmersive);
+  const mapOpen = useUiStore((s) => s.map);
+  const show = mode === "forest" && introDone && !demoActive && !isCompact && !exploring && !immersive;
   useLiquidGlass(railRef, { radius: 999, strength: 22, blur: 6, saturate: 1.6, bevel: 12, enabled: show });
   if (!show) return null;
   return (
-    <nav aria-label="Accounts" className="absolute bottom-5 left-[372px] right-[236px] z-30 flex justify-center pointer-events-none">
+    <nav aria-label="Accounts" className={`absolute bottom-5 left-[372px] z-30 flex justify-center pointer-events-none transition-[right] duration-500 ${mapOpen ? "right-[236px]" : "right-[120px]"}`}>
       <LensGroup ref={railRef} as="ul" radius={999} className="glass glass-pill scroll-x flex items-center gap-0.5 max-w-full pointer-events-auto p-1">
         {views.map((v) => (
           <li key={v.account.id}>

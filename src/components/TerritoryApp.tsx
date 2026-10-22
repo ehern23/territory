@@ -14,6 +14,7 @@ import { DemoNarrator } from "./demo/DemoNarrator";
 import { Minimap } from "./Minimap";
 import { SkyControl } from "./SkyControl";
 import { ExploreHud } from "./ExploreHud";
+import { useUiStore } from "@/store/useUiStore";
 import { useGlassGlare } from "./glass/Glass";
 import { SellerOnboarding } from "./onboarding/SellerOnboarding";
 import { flushPendingResearch, restoreSeller } from "./onboarding/seller";
@@ -71,6 +72,7 @@ export function TerritoryApp() {
       <Minimap />
       <SkyControl />
       <ExploreHud />
+      <PanelKeys />
       <SellerOnboarding />
       <DemoNarrator />
       <Notices />
@@ -102,4 +104,21 @@ function useSellerLifecycle() {
     }, 900);
     return () => clearTimeout(t);
   }, [introDone]);
+}
+
+/** H folds every panel away (or brings them back); M does the same for the map. */
+function PanelKeys() {
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      const t = e.target;
+      if (t instanceof HTMLElement && (["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName) || t.isContentEditable)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+      const k = e.key.toLowerCase();
+      if (k === "h") useUiStore.getState().toggleImmersive();
+      if (k === "m") useUiStore.getState().togglePanel("map");
+    };
+    window.addEventListener("keydown", down);
+    return () => window.removeEventListener("keydown", down);
+  }, []);
+  return null;
 }

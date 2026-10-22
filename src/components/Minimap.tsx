@@ -7,7 +7,8 @@ import { useAccountViews } from "@/store/selectors";
 import { HEALTH_HEX } from "@/domain/health";
 import { STREAM_PATH, accountPosition, groundCover, mountainFactor, terrainHeight } from "@/three/layout";
 import { cameraPose } from "@/three/cameraPose";
-import { useLiquidGlass } from "./glass/Glass";
+import { GlassMorph, FoldButton } from "./glass/GlassMorph";
+import { useUiStore } from "@/store/useUiStore";
 
 /**
  * Map of the territory. Painted once from the same world functions as the
@@ -75,12 +76,11 @@ export function Minimap() {
   const setHovered = useTerritoryStore((s) => s.setHovered);
   const views = useAccountViews();
   const [image, setImage] = useState("");
-  const [open, setOpen] = useState(true);
+  const open = useUiStore((s) => s.map);
+  const setPanel = useUiStore((s) => s.setPanel);
   const cone = useRef<SVGGElement>(null);
-  const boxRef = useRef<HTMLDivElement>(null);
   const size = 188;
   const visible = introDone && !isCompact && !(demoActive && mode === "account");
-  useLiquidGlass(boxRef, { radius: 22, strength: 40, blur: 6, saturate: 1.5, enabled: visible && open });
 
   useEffect(() => {
     // Defer the paint so it never competes with the first frames of the scene.
@@ -127,21 +127,37 @@ export function Minimap() {
     <AnimatePresence>
       {visible && (
         <motion.div
-          ref={boxRef}
-          initial={{ opacity: 0, y: 12, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 12 }}
+          key="minimap"
+          initial={{ opacity: 0, filter: "blur(8px)", scale: 0.98 }}
+          animate={{ opacity: 1, filter: "blur(0px)", scale: 1 }}
+          exit={{ opacity: 0, filter: "blur(8px)" }}
           transition={{ duration: 0.4, ease: [0.2, 0.8, 0.2, 1] }}
-          className={`glass absolute bottom-5 z-30 p-2.5 ${mode === "account" ? "left-4" : "right-4"}`}
-          aria-label="Territory map"
+          className={`absolute bottom-5 z-30 flex ${mode === "account" ? "left-4" : "right-4 justify-end"}`}
         >
+          <GlassMorph
+            as="div"
+            open={open}
+            onOpen={() => setPanel("map", true)}
+            label="Territory map"
+            className=""
+            panelClassName="p-2.5"
+            strength={40}
+            blur={6}
+            bubble={
+              <>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5L9 4z" />
+                  <path d="M9 4v13.5M15 6.5V20" />
+                </svg>
+                <span className="text-paper-80">Map</span>
+              </>
+            }
+          >
           <div className="flex items-center justify-between px-1 pb-2">
             <span className="eyebrow">Territory map</span>
-            <button type="button" className="text-[11px] text-paper-60 hover:text-paper" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
-              {open ? "Hide" : "Show"}
-            </button>
+            <FoldButton onClick={() => setPanel("map", false)} label="Hide the map (M)" />
           </div>
-          {open && (
+          {(
             <svg
               width={size}
               height={size}
@@ -192,6 +208,7 @@ export function Minimap() {
               })}
             </svg>
           )}
+          </GlassMorph>
         </motion.div>
       )}
     </AnimatePresence>

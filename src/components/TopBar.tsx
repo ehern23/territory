@@ -5,6 +5,7 @@ import { LensGroup } from "./glass/Lens";
 import { useLiquidGlass } from "./glass/Glass";
 import { AnimatePresence, motion } from "motion/react";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
+import { isImmersive, useUiStore } from "@/store/useUiStore";
 import { useAccountView } from "@/store/selectors";
 import { applyDemoStep } from "./demo/script";
 import { Legend } from "./Legend";
@@ -70,6 +71,7 @@ export function TopBar() {
               ← {isCompact ? "Forest" : "Territory"}
             </button>
           )}
+          {mode === "forest" && <ImmerseToggle />}
           <button
             type="button"
             data-lens
@@ -154,5 +156,52 @@ function Mark() {
       <path d="M14 15.6c-3.9 0-6-2.4-6-5.3 0-2.9 2.6-4.8 6-4.8s6 1.9 6 4.8c0 2.9-2.1 5.3-6 5.3Z" fill="#9fcf6e" />
       <circle cx="17.2" cy="12.4" r="1.5" fill="#e2a843" />
     </svg>
+  );
+}
+
+/** Fold every panel away for the forest alone, or bring them back. H does the same. */
+function ImmerseToggle() {
+  const immersive = useUiStore(isImmersive);
+  const toggle = useUiStore((s) => s.toggleImmersive);
+  return (
+    <button
+      type="button"
+      data-lens
+      className="btn btn-sm btn-pill btn-ghost !text-paper !px-2.5"
+      onClick={toggle}
+      aria-pressed={immersive}
+      aria-label={immersive ? "Show panels (H)" : "Hide panels for the forest alone (H)"}
+      title={immersive ? "Show panels (H)" : "Immerse: hide panels (H)"}
+    >
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.svg
+          key={immersive ? "on" : "off"}
+          initial={{ opacity: 0, scale: 0.6, filter: "blur(3px)" }}
+          animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+          exit={{ opacity: 0, scale: 0.6, filter: "blur(3px)" }}
+          transition={{ duration: 0.2 }}
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          {immersive ? (
+            <>
+              <rect x="3.5" y="5" width="7" height="14" rx="2" />
+              <rect x="13.5" y="12" width="7" height="7" rx="2" />
+            </>
+          ) : (
+            <>
+              <path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15" />
+            </>
+          )}
+        </motion.svg>
+      </AnimatePresence>
+    </button>
   );
 }

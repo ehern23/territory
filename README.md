@@ -29,6 +29,7 @@ It is a working, data-driven 3D product rather than a mock-up. Every visual stat
 The accounts are spread across a valley and up into the mountains, the way a real patch is spread across a region. Each is a giant that rises over the surrounding forest.
 
 - **Territory map** (bottom right): click an account to fly to it, or click anywhere else to glide there. The cone shows where you are looking.
+- **Immerse:** the territory overview and the map each fold into a small liquid-glass bubble (the − in their corner), and the frame icon in the top bar, or **H**, folds everything away for the forest alone. **M** toggles the map. Tap a bubble to bring its panel back; the choice is remembered.
 - **Overview:** drag to orbit, scroll to zoom, **Q / E** to turn.
 - **Explore on foot:** press **W A S D** (or the *Explore on foot* button) to step into the world, game-style. The mouse looks around (click to capture the pointer, **Esc** to release, **Esc** again to leave). **Space** jumps and jumps again in mid-air; a **double tap of Space** takes off or lands; **Shift** sprints; in flight **Space** climbs and **C** descends, and forward follows your gaze. You walk over the ground and around trunks, and a soft boundary keeps you in the valley. Aim at an account giant and click to open it.
 - **Account rail:** jump straight to any account.
