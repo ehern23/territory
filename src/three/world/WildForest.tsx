@@ -341,9 +341,6 @@ function captureAtlas(gl: THREE.WebGLRenderer, assets: SpeciesAssets[], cell: nu
 
   const prev = {
     target: gl.getRenderTarget(),
-    viewport: gl.getViewport(new THREE.Vector4()),
-    scissor: gl.getScissor(new THREE.Vector4()),
-    scissorTest: gl.getScissorTest(),
     clear: gl.getClearColor(new THREE.Color()),
     alpha: gl.getClearAlpha(),
     autoClear: gl.autoClear,
@@ -351,13 +348,17 @@ function captureAtlas(gl: THREE.WebGLRenderer, assets: SpeciesAssets[], cell: nu
   };
   gl.shadowMap.enabled = false;
   gl.autoClear = false;
-  gl.setRenderTarget(rt);
   // Clear to foliage green with zero alpha so mip edges never darken.
   gl.setClearColor(new THREE.Color(0.16, 0.24, 0.1), 0);
-  gl.setScissorTest(false);
+  rt.scissorTest = false;
+  gl.setRenderTarget(rt);
   gl.clear(true, true, true);
-  gl.setScissorTest(true);
 
+  // Cells are addressed through the target's own viewport and scissor, which
+  // are in texels. The renderer's setViewport() scales by the device pixel
+  // ratio, so on a 2x screen it drew each tree four cells large and every
+  // impostor showed a slab of someone else's crown.
+  rt.scissorTest = true;
   assets.forEach((a, s) => {
     holder.clear();
     const bark = new THREE.Mesh(a.geometries.bark, a.captureBark);
@@ -373,17 +374,18 @@ function captureAtlas(gl: THREE.WebGLRenderer, assets: SpeciesAssets[], cell: nu
     for (let v = 0; v < VIEWS; v++) {
       holder.rotation.y = -(v / VIEWS) * Math.PI * 2;
       holder.updateMatrixWorld(true);
-      gl.setViewport(v * cell, s * cell, cell, cell);
-      gl.setScissor(v * cell, s * cell, cell, cell);
+      rt.viewport.set(v * cell, s * cell, cell, cell);
+      rt.scissor.set(v * cell, s * cell, cell, cell);
+      gl.setRenderTarget(rt);
       gl.clear(true, true, false);
       gl.render(scene, cam);
     }
   });
+  rt.viewport.set(0, 0, W, H);
+  rt.scissor.set(0, 0, W, H);
+  rt.scissorTest = false;
 
   gl.setRenderTarget(prev.target);
-  gl.setViewport(prev.viewport);
-  gl.setScissor(prev.scissor);
-  gl.setScissorTest(prev.scissorTest);
   gl.setClearColor(prev.clear, prev.alpha);
   gl.autoClear = prev.autoClear;
   gl.shadowMap.enabled = prev.shadows;
