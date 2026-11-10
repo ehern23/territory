@@ -208,7 +208,11 @@ export function Terrain() {
               vec3 canopy = mix(vec3(0.13, 0.21, 0.11), vec3(0.24, 0.32, 0.15), canopyN);
               canopy = mix(canopy, vec3(0.20, 0.24, 0.14), smoothstep(0.62, 0.8, fbm(0.013, vec2(3.0))));
               float treeline = 380.0 + (fbm(0.004, vec2(0.0)) - 0.5) * 140.0;
-              float rocky = clamp(smoothstep(0.34, 0.58, slope) + smoothstep(treeline, treeline + 70.0, h), 0.0, 1.0);
+              // Slope comes from vertex normals, so its contours follow the mesh:
+              // on the coarse far grid, rock met forest along straight facet
+              // edges. Noise at two scales breaks the line up.
+              float ragged = slope + (fbm(0.016, vec2(13.0)) - 0.48) * 0.34 + (fbm(0.07, vec2(5.0)) - 0.48) * 0.14;
+              float rocky = clamp(smoothstep(0.3, 0.62, ragged) + smoothstep(treeline, treeline + 70.0, h), 0.0, 1.0);
               vec3 range = canopy;
               if (rocky > 0.002) {
                 // Rock: banded strata, dark fissures down the fall line, lichen
@@ -276,7 +280,7 @@ export function Terrain() {
           `,
         );
     };
-    m.customProgramCacheKey = () => "territory-terrain-v8";
+    m.customProgramCacheKey = () => "territory-terrain-v9";
     return m;
   }, [tex, maps]);
 

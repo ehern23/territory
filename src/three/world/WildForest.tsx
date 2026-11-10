@@ -488,6 +488,10 @@ const IMPOSTOR_FRAG = /* glsl */ `
     vec4 a = texture2D(uAtlas, vUv0);
     vec4 b = texture2D(uAtlas, vUv1);
     vec4 c = mix(a, b, vBlend);
+    // Filtering reaches into the neighbouring cell at a card's rim (the trunk
+    // of the species above drew a dark dash over every distant treetop).
+    vec2 rim = min(vCell, 1.0 - vCell);
+    c.a *= smoothstep(0.0, 0.035, min(rim.x, rim.y));
     vec2 tc = vUv0 * uAtlasSize;
     float lod = max(0.0, 0.5 * log2(max(dot(dFdx(tc), dFdx(tc)), dot(dFdy(tc), dFdy(tc)))));
     c.a *= 1.0 + lod * 0.35;
