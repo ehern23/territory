@@ -128,7 +128,7 @@ interface SpeciesAssets {
 
 function useSpeciesAssets(lod: LodFade, biome: Biome) {
   const maps = useTexture(BARK_TEX);
-  return useMemo(() => {
+  const assets = useMemo(() => {
     configureBarkMaps(maps);
     const uniforms = createTreeUniforms(0.86);
     const barkDepth = createBarkDepthMaterial(uniforms);
@@ -177,6 +177,22 @@ function useSpeciesAssets(lod: LodFade, biome: Biome) {
       };
     });
   }, [maps, lod, biome]);
+  // Free the old species' GPU geometry and programs when the forest changes
+  // (switching biome on a phone otherwise only ever adds memory). Textures
+  // are shared caches and stay.
+  useEffect(
+    () => () => {
+      const materials = new Set<THREE.Material>();
+      for (const a of assets) {
+        a.geometries.bark.dispose();
+        a.geometries.foliage.dispose();
+        for (const m of [a.bark, a.barkDepth, a.foliage.material, a.foliage.depth, a.captureBark, a.captureFoliage]) materials.add(m);
+      }
+      materials.forEach((m) => m.dispose());
+    },
+    [assets],
+  );
+  return assets;
 }
 
 /* ------------------------------------------------------------------------ */

@@ -117,8 +117,8 @@ export function Terrain() {
     g.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
     g.setIndex(new THREE.BufferAttribute(idx, 1));
     g.computeVertexNormals();
-    g.computeBoundingSphere();
-    return g;
+    // The same vertices, drawn as tiles so the GPU skips what is off screen.
+    return splitGrid(g, seg, TILES);
   }, [isTouch]);
 
   const material = useMemo(() => {
@@ -255,7 +255,59 @@ export function Terrain() {
     return m;
   }, [tex, maps]);
 
-  useEffect(() => () => geometry.dispose(), [geometry]);
   useEffect(() => () => material.dispose(), [material]);
-  return <mesh geometry={geometry} material={material} receiveShadow raycast={() => undefined} />;
+  useEffect(() => () => geometry.forEach((g) => g.dispose()), [geometry]);
+
+  return (
+    <>
+      {geometry.map((g, i) => (
+        <mesh key={i} geometry={g} material={material} receiveShadow raycast={() => undefined} />
+      ))}
+    </>
+  );
+}
+
+/** Terrain tiles per side. */
+const TILES = 4;
+
+/**
+ * Split an indexed (seg × seg) grid into tiles × tiles geometries that share
+ * the grid's vertex buffers (uploaded once) and differ only in their index
+ * range and bounds, so each tile can be frustum-culled on its own.
+ */
+function splitGrid(grid: THREE.BufferGeometry, seg: number, tiles: number): THREE.BufferGeometry[] {
+  const pos = grid.attributes.position as THREE.BufferAttribute;
+  const edges = Array.from({ length: tiles + 1 }, (_, t) => Math.round((t * seg) / tiles));
+  const out: THREE.BufferGeometry[] = [];
+  const v = new THREE.Vector3();
+  for (let ty = 0; ty < tiles; ty++) {
+    for (let tx = 0; tx < tiles; tx++) {
+      const [i0, i1, j0, j1] = [edges[tx], edges[tx + 1], edges[ty], edges[ty + 1]];
+      const idx = new Uint32Array((i1 - i0) * (j1 - j0) * 6);
+      const box = new THREE.Box3();
+      let o = 0;
+      for (let j = j0; j < j1; j++) {
+        for (let i = i0; i < i1; i++) {
+          const a = j * (seg + 1) + i;
+          const b = a + 1;
+          const c = a + seg + 1;
+          const d = c + 1;
+          idx[o++] = a;
+          idx[o++] = c;
+          idx[o++] = b;
+          idx[o++] = b;
+          idx[o++] = c;
+          idx[o++] = d;
+        }
+      }
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) box.expandByPoint(v.fromBufferAttribute(pos, j * (seg + 1) + i));
+      const g = new THREE.BufferGeometry();
+      for (const name of Object.keys(grid.attributes)) g.setAttribute(name, grid.attributes[name]);
+      g.setIndex(new THREE.BufferAttribute(idx, 1));
+      g.boundingBox = box;
+      g.boundingSphere = box.getBoundingSphere(new THREE.Sphere());
+      out.push(g);
+    }
+  }
+  return out;
 }
