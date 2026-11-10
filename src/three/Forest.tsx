@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
@@ -146,6 +146,59 @@ function GroundHalo({ model, visible }: { model: AccountTreeModel; visible: bool
   );
 }
 
+interface TreeLabelEntry {
+  el: HTMLElement;
+  anchor: THREE.Vector3;
+  w: number;
+  h: number;
+  shift: number;
+}
+
+const treeLabels = new Set<TreeLabelEntry>();
+
+/**
+ * Keeps account labels from covering one another. From a low camera two
+ * giants at different depths line up, and their labels would stack. A few
+ * times a second the labels are laid out front to back in screen space, and
+ * any that would overlap a nearer one steps up just clear of it (CSS eases
+ * the step).
+ */
+function LabelDeclutter() {
+  const frame = useRef(0);
+  const v = useMemo(() => new THREE.Vector3(), []);
+  useFrame(({ camera, size }) => {
+    if (frame.current++ % 6 !== 0 || treeLabels.size < 2) return;
+    const remeasure = frame.current % 120 === 1;
+    const items = [...treeLabels].map((l) => {
+      if (remeasure || l.w === 0) {
+        l.w = l.el.offsetWidth;
+        l.h = l.el.offsetHeight;
+      }
+      v.copy(l.anchor).project(camera);
+      return { l, x: (v.x * 0.5 + 0.5) * size.width, y: (-v.y * 0.5 + 0.5) * size.height, d: camera.position.distanceToSquared(l.anchor), on: v.z < 1 && l.w > 0 };
+    });
+    items.sort((a, b) => a.d - b.d);
+    const placed: { x: number; y: number; w: number; h: number }[] = [];
+    for (const it of items) {
+      let y = it.y;
+      if (it.on) {
+        for (let pass = 0; pass < 4; pass++) {
+          const hit = placed.find((p) => Math.abs(it.x - p.x) < (it.l.w + p.w) / 2 + 8 && Math.abs(y - p.y) < (it.l.h + p.h) / 2 + 5);
+          if (!hit) break;
+          y = hit.y - (it.l.h + hit.h) / 2 - 6;
+        }
+        placed.push({ x: it.x, y, w: it.l.w, h: it.l.h });
+      }
+      const shift = Math.round(it.y - y);
+      if (shift !== it.l.shift) {
+        it.l.shift = shift;
+        it.l.el.style.translate = shift ? `0 ${-shift}px` : "";
+      }
+    }
+  });
+  return null;
+}
+
 function TreeLabel({
   view,
   model,
@@ -161,8 +214,21 @@ function TreeLabel({
   const setHovered = useTerritoryStore((s) => s.setHovered);
   const introDone = useTerritoryStore((s) => s.introDone);
   const band = view.health.band;
-  const labelRef = useRef<HTMLButtonElement>(null);
+  const labelRef = useRef<HTMLButtonElement | null>(null);
   const base = useMemo(() => accountPosition(view.account.id), [view.account.id]);
+  // Join the declutter pass (see <LabelDeclutter/>). drei mounts the label in
+  // its own root a tick later, so this is a callback ref, not an effect.
+  const entry = useRef<TreeLabelEntry | null>(null);
+  const anchorY = model.shape.crownTop + 3;
+  const setLabel = useCallback(
+    (el: HTMLButtonElement | null) => {
+      labelRef.current = el;
+      if (entry.current) treeLabels.delete(entry.current);
+      entry.current = el ? { el, anchor: base.clone().add(new THREE.Vector3(0, anchorY, 0)), w: 0, h: 0, shift: 0 } : null;
+      if (entry.current) treeLabels.add(entry.current);
+    },
+    [base, anchorY],
+  );
   // On foot, far labels would crowd the horizon: show the giants nearby and
   // the one under the crosshair.
   useFrame(({ camera }) => {
@@ -181,7 +247,7 @@ function TreeLabel({
       style={{ pointerEvents: introDone ? "auto" : "none" }}
     >
       <button
-        ref={labelRef}
+        ref={setLabel}
         type="button"
         className={`tree-label ${hovered ? "is-hovered" : ""} ${quiet ? "is-quiet" : ""} ${introDone ? "is-in" : ""}`}
         onClick={() => {
@@ -252,6 +318,7 @@ export function Forest() {
   useEffect(() => pruneAccountTrees(accounts.map((a) => a.id)), [accounts]);
   return (
     <group key={`${profileId}:${biome}`}>
+      <LabelDeclutter />
       {views.map((v) => (
         <ForestTree key={v.account.id} view={v} />
       ))}

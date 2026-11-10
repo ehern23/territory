@@ -503,6 +503,7 @@ body {
     transition:
       opacity 500ms var(--ease),
       transform 500ms var(--ease),
+      translate 420ms var(--ease),
       background 160ms ease,
       border-color 160ms ease;
     -webkit-tap-highlight-color: transparent;

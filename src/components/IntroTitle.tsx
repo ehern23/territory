@@ -31,7 +31,8 @@ export function IntroTitle() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -6 }}
           transition={{ duration: 1.2, delay: 0.8, ease: [0.2, 0.8, 0.2, 1] }}
-          className="absolute inset-x-0 top-[30%] z-20 flex flex-col items-center text-center pointer-events-none px-6"
+          // Low in the frame: the establishing shot keeps the flagship and the sky above it.
+          className="absolute inset-x-0 bottom-[17%] md:bottom-[11%] z-20 flex flex-col items-center text-center pointer-events-none px-6"
         >
           <span
             className="eyebrow px-3 py-1.5 rounded-full"

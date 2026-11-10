@@ -234,7 +234,7 @@ export function composeSky(cel: Celestial, weather: WeatherParams, out: SkyState
   // The air (see world/AerialEffect). Distance haze softens the ranges but
   // never hides the territory: from the overview, about a kilometre out, well
   // over three quarters of the forest's contrast survives.
-  out.haze = Math.min(0.0007, 0.0003 * (1 + w.haze * 1.5 + w.rain * 0.5) * (1 + out.golden * 0.12));
+  out.haze = Math.min(0.0007, 0.00028 * (1 + w.haze * 1.5 + w.rain * 0.5) * (1 - out.golden * 0.15));
   // Mist pools on the valley floor at first light, lingers thinly through a
   // clear evening and night, and burns off by mid-morning.
   const morning = cel.sun.x > 0 ? 1 : 0.15;

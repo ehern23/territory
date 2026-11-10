@@ -15,8 +15,8 @@ vec3 skyGradient(vec3 d) {
   // With the sun low, only its side of the horizon is warm; the far side
   // cools toward the zenith, with the faint rose of the anti-twilight arch.
   float side = dot(normalize(d.xz + vec2(1e-4)), normalize(sun.xz + vec2(1e-4))) * 0.5 + 0.5;
-  vec3 cool = mix(uHorizon, uZenith, 0.66) * vec3(0.9, 1.0, 1.08) + vec3(0.03, 0.008, 0.02) * lowSun;
-  vec3 horizon = mix(cool, uHorizon, mix(1.0, smoothstep(0.42, 1.0, side), lowSun * lowSun));
+  vec3 cool = mix(uHorizon, uZenith, 0.8) * vec3(0.86, 1.0, 1.12) + vec3(0.03, 0.008, 0.02) * lowSun;
+  vec3 horizon = mix(cool, uHorizon, mix(1.0, smoothstep(0.2, 1.0, side), lowSun * lowSun));
   vec3 col = mix(horizon, uZenith, pow(smoothstep(-0.02, 0.6, h), 0.55));
   // Scattering: a tight warm glow around the sun and a broad wash over its
   // whole side of the sky, both strongest when it is low.

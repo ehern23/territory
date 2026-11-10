@@ -70,10 +70,11 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, const in float depth,
 
   // Aerial perspective toward the sky just above the horizon in this direction.
   vec3 toSky = normalize(vec3(dir.x, max(dir.y, 0.0) * 0.35 + 0.03, dir.z));
-  float haze = 1.0 - exp(-pow(dist * uHaze, 1.5));
+  // Squared falloff: the valley stays clear and the haze gathers on the ranges.
+  float haze = 1.0 - exp(-pow(dist * uHaze, 2.0));
   // Thin haze over nearby forest is far dimmer than the open sky; only the
   // farthest ridges reach the sky's own brightness.
-  vec3 air = skyGradient(toSky) * mix(0.42, 1.0, haze * haze);
+  vec3 air = skyGradient(toSky) * mix(0.5, 1.0, haze);
   col = mix(col, air, haze);
 
   // Valley mist: density falls off exponentially with height, integrated

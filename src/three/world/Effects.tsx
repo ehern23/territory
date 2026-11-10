@@ -23,7 +23,7 @@ export function Effects() {
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
       <HueSaturation saturation={0.05} />
       <BrightnessContrast brightness={0} contrast={0.04} />
-      <Vignette offset={0.32} darkness={0.42} />
+      <Vignette offset={0.3} darkness={0.36} />
     </EffectComposer>
   );
 }
