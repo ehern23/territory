@@ -49,10 +49,20 @@ export function moonIllumination(age: number) {
   return (1 - Math.cos((age / SYNODIC_DAYS) * Math.PI * 2)) / 2;
 }
 
+/**
+ * The valley keeps a perpetual late September. The hour is the seller's own,
+ * but the season is fixed at the equinox: twelve hours of daylight, sunrise
+ * near six and sunset near six, all year. With the real date, a November
+ * visitor opening the territory at 5:30 pm got full dusk under a greeting
+ * about golden light, and a June visitor never saw the evening at all.
+ * Set this to `null` to follow the calendar again.
+ */
+export const SEASON_DAY: number | null = 265;
+
 export function clockFromDate(date: Date, hoursOverride?: number): SkyClock {
   const clockHours = hoursOverride ?? date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
   const solar = (((clockHours - dstOffsetHours(date)) % 24) + 24) % 24;
-  return { dayOfYear: dayOfYear(date), solarHours: solar, moonAge: moonAge(date) };
+  return { dayOfYear: SEASON_DAY ?? dayOfYear(date), solarHours: solar, moonAge: moonAge(date) };
 }
 
 /** Elevation and azimuth (from north, clockwise) in radians. */

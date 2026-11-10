@@ -99,7 +99,7 @@ function KeyLight() {
   );
 }
 
-/** Sky fill, a cool bounce from the open side, haze and the background. */
+/** Sky fill, a cool bounce from the open side and the background. */
 function Fill() {
   const hemi = useRef<THREE.HemisphereLight>(null);
   const bounce = useRef<THREE.DirectionalLight>(null);
@@ -116,12 +116,8 @@ function Fill() {
       b.color.copy(sky.hemiSky);
       b.intensity = 0.26 * sky.hemiIntensity;
     }
-    const fog = scene.fog as THREE.FogExp2 | null;
-    if (fog) {
-      fog.color.copy(sky.fog);
-      fog.density = sky.fogDensity;
-    }
-    if (scene.background instanceof THREE.Color) scene.background.copy(sky.fog);
+    // No scene fog: the atmosphere pass hazes the finished frame (AerialEffect).
+    if (scene.background instanceof THREE.Color) scene.background.copy(sky.horizon);
     scene.environmentIntensity = 0.42 * sky.envIntensity;
     SUN_DIR.copy(sky.lightDir);
   });
@@ -137,7 +133,6 @@ export function Atmosphere() {
   return (
     <>
       <color attach="background" args={[FOG_COLOR]} />
-      <fogExp2 attach="fog" args={[FOG_COLOR, 0.00029]} />
       <SkyController />
       <SkyDome />
       <FloraClock />
