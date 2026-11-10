@@ -18,7 +18,7 @@ import { PerfHud } from "./PerfHud";
 import { useUiStore } from "@/store/useUiStore";
 import { useGlassGlare } from "./glass/Glass";
 import { SellerOnboarding } from "./onboarding/SellerOnboarding";
-import { flushPendingResearch, restoreSeller } from "./onboarding/seller";
+import { applySellerDeepLink, flushPendingResearch, openedFromDeepLink, restoreSeller } from "./onboarding/seller";
 import { hasOnboarded } from "@/store/persistence";
 
 const Scene = dynamic(() => import("@/three/Scene").then((m) => m.Scene), { ssr: false });
@@ -92,17 +92,18 @@ function useSellerLifecycle() {
   const introDone = useTerritoryStore((s) => s.introDone);
 
   useEffect(() => {
-    restoreSeller();
+    // A `?seller=` link wins over the remembered seller for this visit.
+    if (!applySellerDeepLink()) restoreSeller();
     return useTerritoryStore.subscribe((s, prev) => {
       if (s.mode === "forest" && prev.mode !== "forest") flushPendingResearch();
     });
   }, []);
 
   useEffect(() => {
-    if (!introDone || hasOnboarded()) return;
+    if (!introDone || hasOnboarded() || openedFromDeepLink()) return;
     const t = setTimeout(() => {
       const s = useTerritoryStore.getState();
-      if (!s.demo.active && !hasOnboarded()) s.setOnboardingOpen(true);
+      if (!s.demo.active && !hasOnboarded() && !openedFromDeepLink()) s.setOnboardingOpen(true);
     }, 900);
     return () => clearTimeout(t);
   }, [introDone]);
