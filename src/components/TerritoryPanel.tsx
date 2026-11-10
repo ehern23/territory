@@ -53,9 +53,11 @@ export function TerritoryPanel() {
         {visible && !demoActive && !onboardingOpen && (
           <motion.div
             key="territory-sheet"
-            initial={reduce ? false : { y: 40, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 40, opacity: 0 }}
+            // The sheet slides; the glass inside fades itself (GLASS_PRESENCE).
+            variants={{ hidden: { y: 40 }, shown: { y: 0 } }}
+            initial={reduce ? false : "hidden"}
+            animate="shown"
+            exit="hidden"
             transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
             className="absolute inset-x-2 bottom-[max(8px,env(safe-area-inset-bottom))] z-30 flex justify-center pointer-events-none"
           >
@@ -104,10 +106,10 @@ export function TerritoryPanel() {
       {visible && (
         <motion.div
           key="territory-panel"
-          initial={reduce ? false : { opacity: 0, filter: "blur(8px)" }}
-          animate={{ opacity: 1, filter: "blur(0px)" }}
-          exit={{ opacity: 0, filter: "blur(8px)" }}
-          transition={{ duration: 0.4, ease: [0.2, 0.8, 0.2, 1] }}
+          // No filter or opacity here: the glass fades itself (GLASS_PRESENCE).
+          initial={reduce ? false : "hidden"}
+          animate="shown"
+          exit="hidden"
           className="absolute left-4 top-[76px] z-30 max-h-[calc(100%-170px)] flex"
         >
           <GlassMorph

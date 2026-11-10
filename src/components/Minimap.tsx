@@ -138,10 +138,10 @@ export function Minimap() {
       {visible && (
         <motion.div
           key="minimap"
-          initial={{ opacity: 0, filter: "blur(8px)", scale: 0.98 }}
-          animate={{ opacity: 1, filter: "blur(0px)", scale: 1 }}
-          exit={{ opacity: 0, filter: "blur(8px)" }}
-          transition={{ duration: 0.4, ease: [0.2, 0.8, 0.2, 1] }}
+          // No filter or opacity here: the glass fades itself (GLASS_PRESENCE).
+          initial="hidden"
+          animate="shown"
+          exit="hidden"
           className={`absolute bottom-5 z-30 flex ${mode === "account" ? "left-4" : "right-4 justify-end"}`}
         >
           <GlassMorph

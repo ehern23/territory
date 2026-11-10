@@ -80,7 +80,8 @@ export function TopBar() {
           </button>
         )}
         <LensGroup ref={capsuleRef} className="glass glass-pill flex items-center gap-0.5 p-1" radius={999}>
-          {!demoActive && !isCompact && <SellerChip compact={false} />}
+          {/* Inside an account the bar is 430px narrower (the panel) and the sky pill shares it: the seller chip waits in the territory view. */}
+          {!demoActive && !isCompact && mode === "forest" && <SellerChip compact={false} />}
           {mode === "account" && !demoActive && (
             <button type="button" data-lens className="btn btn-sm btn-pill btn-ghost !text-paper" onClick={returnToForest}>
               ← {isCompact ? "Forest" : "Territory"}
