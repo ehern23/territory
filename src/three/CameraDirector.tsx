@@ -21,7 +21,8 @@ import { cameraPose } from "./cameraPose";
  * from behind it, then cranes up and swings round until the whole territory
  * and the ranges behind it are in frame.
  * Afterwards every state change (account, business unit, fruit, a minimap
- * jump, back to the territory) is a single glide. The camera never dips below
+ * jump, back to the territory) is a single flight that eases in and out;
+ * touching the controls takes over at once. The camera never dips below
  * the ground, Q and E turn the view, and when idle in the overview it
  * drifts almost imperceptibly so the forest never looks frozen.
  */
@@ -146,6 +147,7 @@ export function CameraDirector() {
   const demoActive = useTerritoryStore((s) => s.demo.active);
 
   const intro = useRef<{ t: number; hold: number; from: Shot | null; to: Shot } | null>(null);
+  const flight = useRef<Flight | null>(null);
   const lastInput = useRef(performance.now());
   const keys = useRef(new Set<string>());
 
@@ -171,6 +173,13 @@ export function CameraDirector() {
     const mark = () => {
       lastInput.current = performance.now();
       c.smoothTime = USER_SMOOTH;
+      // The hand always wins: a flight in progress stops where it is.
+      const f = flight.current;
+      if (f) {
+        flight.current = null;
+        c.minDistance = f.to.minDistance;
+        c.maxDistance = f.to.maxDistance;
+      }
     };
     c.addEventListener("controlstart", mark);
     return () => c.removeEventListener("controlstart", mark);
@@ -247,6 +256,25 @@ export function CameraDirector() {
       return;
     }
 
+    const f = flight.current;
+    if (f) {
+      f.t = Math.min(1, f.t + dt / f.duration);
+      const k = easeInOut(f.t);
+      const t = tmp.current;
+      t.target.copy(f.from.target).lerp(f.to.target, k);
+      // Distance moves in octaves, so a long zoom keeps an even pace.
+      const distance = Math.exp(THREE.MathUtils.lerp(Math.log(f.from.distance), Math.log(f.to.distance), k));
+      const polar = THREE.MathUtils.lerp(f.from.polar, f.to.polar, k);
+      const azimuth = THREE.MathUtils.lerp(f.from.azimuth ?? 0, f.to.azimuth ?? 0, k);
+      t.fwd.setFromSphericalCoords(distance, polar, azimuth).add(t.target);
+      void c.setLookAt(t.fwd.x, t.fwd.y, t.fwd.z, t.target.x, t.target.y, t.target.z, false);
+      if (f.t >= 1) {
+        flight.current = null;
+        c.minDistance = f.to.minDistance;
+        c.maxDistance = f.to.maxDistance;
+      }
+    }
+
     // Q / E turn the overview.
     if (keys.current.size > 0 && mode === "forest" && !demoActive) {
       const t = tmp.current;
@@ -297,7 +325,7 @@ export function CameraDirector() {
       if (c) {
         c.enabled = true;
         c.maxPolarAngle = MAX_POLAR;
-        applyShot(c, to, true, true);
+        flight.current = startFlight(c, to);
       }
     }
   }, [introDone]);
@@ -308,7 +336,10 @@ export function CameraDirector() {
     if (!c || intro.current) return;
     lastInput.current = performance.now();
     const shot = computeShot({ mode, activeAccountId, focusBusinessUnitId, selectedOpportunityId, aspect, isCompact });
-    applyShot(c, shot, !reducedMotion && !floraDebug.settle, true);
+    if (reducedMotion || floraDebug.settle) {
+      flight.current = null;
+      applyShot(c, shot, false, true);
+    } else flight.current = startFlight(c, shot);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, activeAccountId, focusBusinessUnitId, selectedOpportunityId, cameraNonce, aspect, isCompact, reducedMotion]);
 
@@ -318,12 +349,11 @@ export function CameraDirector() {
     if (!c || !flyTarget || intro.current) return;
     lastInput.current = performance.now();
     const target = new THREE.Vector3(flyTarget.x, terrainHeight(flyTarget.x, flyTarget.z) + 20, flyTarget.z);
-    applyShot(
-      c,
-      { target, distance: 430, polar: 1.15, azimuth: c.azimuthAngle, minDistance: 30, maxDistance: 2600 },
-      !reducedMotion && !floraDebug.settle,
-      true,
-    );
+    const shot: Shot = { target, distance: 430, polar: 1.15, azimuth: c.azimuthAngle, minDistance: 30, maxDistance: 2600 };
+    if (reducedMotion || floraDebug.settle) {
+      flight.current = null;
+      applyShot(c, shot, false, true);
+    } else flight.current = startFlight(c, shot);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flyTarget]);
 
@@ -332,11 +362,44 @@ export function CameraDirector() {
 
 /** Easing after a drag, scroll or pinch, seconds. */
 const USER_SMOOTH = 0.16;
-/** Easing for flights the app makes (to an account, across the map), seconds. */
-const FLIGHT_SMOOTH = 0.9;
+
+interface Flight {
+  t: number;
+  duration: number;
+  from: Shot;
+  to: Shot;
+}
+
+/**
+ * A flight the app makes (to an account, a limb, a fruit, across the map):
+ * from wherever the camera is now to the shot, eased at both ends. The
+ * controls' own damping only eases out, so a flight used to start at full
+ * speed; this one gathers pace, and takes longer the further it has to go.
+ */
+function startFlight(c: CameraControlsImpl, to: Shot): Flight {
+  const from: Shot = {
+    target: c.getTarget(new THREE.Vector3()),
+    distance: Math.max(1, c.distance),
+    polar: c.polarAngle,
+    azimuth: c.azimuthAngle,
+    minDistance: c.minDistance,
+    maxDistance: c.maxDistance,
+  };
+  // Turn the short way round.
+  const wanted = to.azimuth ?? from.azimuth!;
+  const turn = Math.atan2(Math.sin(wanted - from.azimuth!), Math.cos(wanted - from.azimuth!));
+  const dest: Shot = { ...to, azimuth: from.azimuth! + turn };
+  const a = new THREE.Vector3().setFromSphericalCoords(from.distance, from.polar, from.azimuth!).add(from.target);
+  const b = new THREE.Vector3().setFromSphericalCoords(dest.distance, dest.polar, dest.azimuth!).add(dest.target);
+  const travel = a.distanceTo(b) + from.target.distanceTo(dest.target) * 0.5;
+  // Free the limits for the journey; the shot's own apply on arrival.
+  c.minDistance = 1;
+  c.maxDistance = 9000;
+  c.smoothTime = USER_SMOOTH;
+  return { t: 0, duration: THREE.MathUtils.clamp(1.25 + travel / 850, 1.4, 3.0), from, to: dest };
+}
 
 function applyShot(c: CameraControlsImpl, shot: Shot, animate: boolean, setLimits = false) {
-  if (animate) c.smoothTime = FLIGHT_SMOOTH;
   if (setLimits) {
     c.minDistance = shot.minDistance;
     c.maxDistance = shot.maxDistance;

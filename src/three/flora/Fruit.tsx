@@ -110,24 +110,49 @@ function OneFruit({
   const count = Math.max(1, Math.min(4, Math.round(spec.value / 900_000)));
   const radius = 2.1 * (0.95 + 0.35 * Math.sqrt(Math.min(4_000_000, spec.value) / 3_000_000)) * (0.62 + 0.11 * maturityRank(spec.maturity));
   const stemLen = 2.4;
+  // The cluster's size is a lightly under-damped spring: fruit swells a touch
+  // past its size and settles, both when it first sets and each time the deal
+  // matures. Each fruit of a cluster also has its own 0-1 "set" so a second
+  // or third fruit grows in rather than appearing at full size.
   const scaleRef = useRef(0);
+  const velRef = useRef(0);
+  const setRef = useRef<number[]>([]);
+  const stemRef = useRef<THREE.Group>(null);
   const phase = useMemo(() => (hang.x * 13.1 + hang.z * 7.3) % 10, [hang]);
 
   useFrame((_, rawDt) => {
-    const dt = floraDebug.settle ? 10 : Math.min(rawDt, 0.1);
+    const settle = floraDebug.settle;
+    const dt = settle ? 10 : Math.min(rawDt, 0.1);
     const k = 1 - Math.exp(-dt * 1.8);
-    scaleRef.current += (radius - scaleRef.current) * k;
+    if (settle) {
+      scaleRef.current = radius;
+      velRef.current = 0;
+    } else {
+      // Two sub-steps keep the spring stable through a slow frame.
+      const h = dt / 2;
+      for (let i = 0; i < 2; i++) {
+        velRef.current += ((radius - scaleRef.current) * 26 - velRef.current * 6.2) * h;
+        scaleRef.current += velRef.current * h;
+      }
+    }
     material.color.lerp(COLOR[spec.maturity], k);
     material.emissive.lerp(COLOR[spec.maturity], k);
     const targetGlow = GLOW[spec.maturity] * (selected ? 1.5 : 1);
     material.emissiveIntensity += (targetGlow - material.emissiveIntensity) * k;
     const r = Math.max(0.001, scaleRef.current);
+    const stem = Math.min(1, (r / radius) * 1.6);
+    if (stemRef.current) stemRef.current.scale.y = stem;
     fruitRefs.current.forEach((m, i) => {
       if (!m) return;
       const o = CLUSTER[i];
       const shrink = i === 0 ? 1 : 0.86 - i * 0.05;
-      m.scale.setScalar(r * shrink);
-      m.position.set(o[0] * r * 1.05, -stemLen - r + o[1] * r, o[2] * r * 1.05);
+      // Later fruit wait for the ones before them.
+      const before = i === 0 ? 1 : (setRef.current[i - 1] ?? 0);
+      const set = settle ? 1 : (setRef.current[i] ?? 0) + (1 - (setRef.current[i] ?? 0)) * (1 - Math.exp(-dt * 3.2)) * (before > 0.6 ? 1 : 0);
+      setRef.current[i] = set;
+      const grown = set * set * (3 - 2 * set);
+      m.scale.setScalar(Math.max(0.001, r * shrink * grown));
+      m.position.set(o[0] * r * 1.05 * grown, -stemLen * stem - r + o[1] * r * grown, o[2] * r * 1.05 * grown);
     });
     if (group.current) {
       // The cluster hangs and swings gently with the wind.
@@ -155,10 +180,13 @@ function OneFruit({
 
   return (
     <group ref={group} position={hang}>
-      <mesh position={[0, -stemLen / 2, 0]}>
-        <cylinderGeometry args={[0.07, 0.13, stemLen, 6]} />
-        <meshStandardMaterial color="#4f4430" roughness={0.9} />
-      </mesh>
+      {/* Scaled about the twig it hangs from, so the stem grows downward. */}
+      <group ref={stemRef}>
+        <mesh position={[0, -stemLen / 2, 0]}>
+          <cylinderGeometry args={[0.07, 0.13, stemLen, 6]} />
+          <meshStandardMaterial color="#4f4430" roughness={0.9} />
+        </mesh>
+      </group>
       {Array.from({ length: count }, (_, i) => (
         <mesh
           key={i}
