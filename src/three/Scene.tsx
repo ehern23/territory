@@ -21,6 +21,7 @@ import { Forest } from "./Forest";
 import { CameraDirector } from "./CameraDirector";
 import { OptionalScenePart } from "./SceneBoundary";
 import { installSoftShadows } from "./world/softShadows";
+import { createTimerClock } from "./timerClock";
 import { PerfProbe } from "./perf/PerfProbe";
 import { useUiStore } from "@/store/useUiStore";
 
@@ -119,6 +120,8 @@ export function Scene() {
       gl={{ antialias: false, alpha: false, powerPreference: "high-performance", stencil: false, logarithmicDepthBuffer: false }}
       onCreated={(state) => {
         (window as unknown as { __r3f?: unknown }).__r3f = state.get;
+        // Run frames on THREE.Timer rather than R3F's deprecated THREE.Clock.
+        state.set({ clock: createTimerClock() as unknown as THREE.Clock });
       }}
       style={{ touchAction: "none" }}
     >

@@ -253,7 +253,7 @@ export function createFoliageMaterial(
   opts: { translucency?: number; alphaToCoverage?: boolean; lod?: LodFade } = {},
 ) {
   const material = new THREE.MeshStandardMaterial({
-    map: atlas ?? undefined,
+    map: atlas,
     roughness: 0.78,
     metalness: 0,
     side: THREE.DoubleSide,
@@ -315,7 +315,7 @@ export function createFoliageMaterial(
 
   const depth = new THREE.MeshDepthMaterial({
     depthPacking: THREE.RGBADepthPacking,
-    map: atlas ?? undefined,
+    map: atlas,
     alphaTest: 0.5,
     side: THREE.DoubleSide,
   });
@@ -362,10 +362,11 @@ export function createBarkMaterial(
 ) {
   const material = new THREE.MeshStandardMaterial({
     color: new THREE.Color(opts.color ?? "#5b5249"),
-    map: maps?.map,
-    normalMap: maps?.normalMap,
-    roughnessMap: maps?.arm,
-    aoMap: maps?.arm,
+    // null, not undefined: three warns on undefined parameters.
+    map: maps?.map ?? null,
+    normalMap: maps?.normalMap ?? null,
+    roughnessMap: maps?.arm ?? null,
+    aoMap: maps?.arm ?? null,
     aoMapIntensity: 0.35,
     roughness: 0.92,
     metalness: 0,
