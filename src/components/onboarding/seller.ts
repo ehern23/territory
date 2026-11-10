@@ -1,5 +1,5 @@
-import type { AccountSeed, SellerProfile, SellerRole } from "@/domain/profile";
-import { DEFAULT_PROFILE, presetById, profileForCompany } from "@/data/profiles";
+import type { AccountSeed, SellerPreset, SellerProfile, SellerRole } from "@/domain/profile";
+import { DEFAULT_PROFILE, findPreset, presetById, profileForCompany } from "@/data/profiles";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { loadSavedSeller, markOnboarded } from "@/store/persistence";
 
@@ -60,6 +60,44 @@ export function chooseDefault() {
 
 export function closeOnboarding() {
   finishOnboarding();
+}
+
+const ROLES = ["AE", "SDR", "AM"] as const;
+
+/**
+ * A shareable deep link: `?seller=anthropic` (any preset id or alias, any
+ * case), optionally `&role=SDR`. Unknown sellers are ignored.
+ */
+export function sellerFromSearch(search: string): { preset: SellerPreset; role: SellerRole } | null {
+  const q = new URLSearchParams(search);
+  const name = q.get("seller");
+  if (!name) return null;
+  const preset = findPreset(name.replace(/[-_]+/g, " "));
+  if (!preset) return null;
+  const asked = (q.get("role") ?? "").toUpperCase();
+  const role = (ROLES as readonly string[]).includes(asked) ? (asked as SellerRole) : preset.profile.role;
+  return { preset, role };
+}
+
+let deepLinked = false;
+
+/** True when this visit opened on a `?seller=` link (onboarding stays closed). */
+export function openedFromDeepLink() {
+  return deepLinked;
+}
+
+/**
+ * Open straight into the linked seller's territory. Not saved: a shared link
+ * shows that territory without replacing the visitor's own remembered seller.
+ */
+export function applySellerDeepLink(): boolean {
+  if (typeof window === "undefined") return false;
+  const link = sellerFromSearch(window.location.search);
+  if (!link) return false;
+  deepLinked = true;
+  S().loadProfile({ ...link.preset.profile, role: link.role }, null, { persist: false, announce: false });
+  S().setOnboardingOpen(false);
+  return true;
 }
 
 /** Restore the remembered seller on load. Silent: no notice, no re-save. */

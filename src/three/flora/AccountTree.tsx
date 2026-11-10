@@ -6,7 +6,7 @@ import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { useTexture } from "@react-three/drei";
 import { getAccountTree, type AccountTreeModel } from "./accountTrees";
 import { getFoliageAtlas } from "./foliageAtlas";
-import { MAX_LIMBS, createBarkMaterial, createFoliageMaterial, createTreeUniforms, floraDebug } from "./floraMaterials";
+import { MAX_LIMBS, createBarkDepthMaterial, createBarkMaterial, createFoliageMaterial, createTreeUniforms, floraDebug } from "./floraMaterials";
 import { BARK_TEX, configureBarkMaps } from "./barkMaps";
 
 export interface TreeVisualState {
@@ -43,15 +43,17 @@ export function AccountTree({ accountId, position, stateRef, onSelect, onHover, 
   const maps = useTexture(BARK_TEX);
   const uniforms = useMemo(() => createTreeUniforms(stateRef.current.vitality), [stateRef]);
   const bark = useMemo(() => createBarkMaterial(configureBarkMaps(maps), uniforms), [maps, uniforms]);
+  const barkDepth = useMemo(() => createBarkDepthMaterial(uniforms), [uniforms]);
   const foliage = useMemo(() => createFoliageMaterial(getFoliageAtlas(), uniforms), [uniforms]);
 
   useEffect(
     () => () => {
       bark.dispose();
+      barkDepth.dispose();
       foliage.material.dispose();
       foliage.depth.dispose();
     },
-    [bark, foliage],
+    [bark, barkDepth, foliage],
   );
 
   useFrame((_, rawDt) => {
@@ -87,7 +89,7 @@ export function AccountTree({ accountId, position, stateRef, onSelect, onHover, 
 
   return (
     <group position={position}>
-      <mesh geometry={model.geometries.bark} material={bark} castShadow receiveShadow />
+      <mesh geometry={model.geometries.bark} material={bark} customDepthMaterial={barkDepth} castShadow receiveShadow />
       <mesh
         geometry={model.geometries.foliage}
         material={foliage.material}

@@ -7,7 +7,8 @@ import { CameraControls } from "@react-three/drei";
 import CameraControlsImpl from "camera-controls";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
 import { useExploreStore } from "@/store/useExploreStore";
-import { WORLD_CENTER, accountApproachAzimuth, accountPosition, terrainHeight } from "./layout";
+import { WORLD_CENTER, accountApproachAzimuth, accountIds, accountPosition, terrainHeight } from "./layout";
+import { sky } from "./sky/skyState";
 import { getAccountTree } from "./flora/accountTrees";
 import { floraDebug } from "./flora/floraMaterials";
 import { cameraPose } from "./cameraPose";
@@ -15,16 +16,24 @@ import { cameraPose } from "./cameraPose";
 /**
  * Camera direction.
  *
- * Load: one establishing move that starts low over the stream and rises over
- * the canopy until the whole territory and the ranges behind it are in frame.
+ * Load: one establishing move. It opens level with the forest canopy, looking
+ * at the flagship account so it stands against the sky with the light coming
+ * from behind it, then cranes up and swings round until the whole territory
+ * and the ranges behind it are in frame.
  * Afterwards every state change (account, business unit, fruit, a minimap
- * jump, back to the territory) is a single glide. The camera never dips below
+ * jump, back to the territory) is a single flight that eases in and out;
+ * touching the controls takes over at once. The camera never dips below
  * the ground, Q and E turn the view, and when idle in the overview it
  * drifts almost imperceptibly so the forest never looks frozen.
  */
 
 const FOV = 38;
-const INTRO_SECONDS = 9;
+const INTRO_SECONDS = 11.5;
+/** The hero frame looks slightly up at the flagship, past the usual limit. */
+const HERO_POLAR = 1.56;
+const MAX_POLAR = 1.5;
+/** The opening frame is held for a beat while the first shaders compile. */
+const INTRO_HOLD = 0.7;
 const BOUNDS = new THREE.Box3(new THREE.Vector3(-1500, -60, -1750), new THREE.Vector3(1500, 1600, 1350));
 
 interface Shot {
@@ -39,19 +48,86 @@ interface Shot {
 function overviewShot(aspect: number): Shot {
   const portrait = aspect < 0.9;
   // On desktop the territory panel sits on the left: push the territory right.
-  const shift = portrait ? 0 : -150;
+  const shift = portrait ? 0 : -125;
+  // Low enough that the giants stand above the canopy with the ranges and a
+  // strip of sky behind them, high enough that all eight stay apart.
   return {
-    target: new THREE.Vector3(WORLD_CENTER.x + shift, 60, WORLD_CENTER.z - 120),
-    distance: portrait ? 1500 : aspect < 1.3 ? 1300 : 1150,
-    polar: portrait ? 1.12 : 1.26,
-    azimuth: 0.06,
+    target: new THREE.Vector3(WORLD_CENTER.x + shift, portrait ? 70 : 105, WORLD_CENTER.z - (portrait ? 110 : 40)),
+    distance: portrait ? 1560 : aspect < 1.3 ? 1400 : 1290,
+    polar: portrait ? 1.3 : 1.45,
+    azimuth: 0.05,
     minDistance: 30,
     maxDistance: 2600,
   };
 }
 
+/** Pose along the establishing move, 0 (hero frame) to 1 (overview). */
+function introPose(from: Shot, to: Shot, t: number, pos: THREE.Vector3, target: THREE.Vector3) {
+  const k = easeInOut(t);
+  // The rise leads the pull-back, so the camera clears the canopy first.
+  const lift = easeInOut(Math.min(1, t * 1.25));
+  target.copy(from.target).lerp(to.target, k);
+  const distance = THREE.MathUtils.lerp(from.distance, to.distance, k);
+  const polar = THREE.MathUtils.lerp(from.polar, to.polar, lift);
+  const azimuth = THREE.MathUtils.lerp(from.azimuth ?? 0, to.azimuth ?? 0, k);
+  pos.setFromSphericalCoords(distance, polar, azimuth).add(target);
+}
+
+/**
+ * The opening frame: level with the treetops, a few hundred metres from the
+ * flagship, on the far side of it from the light. The sun (or moon) sits just
+ * out of frame behind the tree, so its crown is rim-lit, the haze behind it
+ * glows and the shadows run toward the camera. That makes the side to open
+ * from depend on the hour; it is also kept within a quarter turn of the
+ * overview, and clear of every other giant on the way out.
+ */
+function heroShot(to: Shot): Shot {
+  const ids = accountIds();
+  const flagship = ids.length ? accountPosition(ids[0]) : new THREE.Vector3(WORLD_CENTER.x, 0, WORLD_CENTER.z);
+  const model = ids.length ? getAccountTree(ids[0]) : null;
+  const top = model?.shape.crownTop ?? 130;
+  const target = new THREE.Vector3(flagship.x, flagship.y + top * 0.6, flagship.z);
+  const end = to.azimuth ?? 0;
+  // Opposite the light, turned a little so the light itself stays off screen.
+  const light = sky.lightDir;
+  const flat = Math.hypot(light.x, light.z);
+  const opposite = flat > 0.2 ? Math.atan2(-light.x, -light.z) : end;
+  const giants = ids.slice(1).map((id) => {
+    const p = accountPosition(id);
+    const m = getAccountTree(id);
+    const r = m ? Math.max(m.shape.crownRadii.x, m.shape.crownRadii.z) : 60;
+    return { x: p.x, z: p.z, r: r + 30, top: p.y + (m?.shape.crownTop ?? 130) + 15 };
+  });
+  const pos = new THREE.Vector3();
+  const tmpTarget = new THREE.Vector3();
+  const clear = (shot: Shot) => {
+    for (let i = 0; i <= 48; i++) {
+      introPose(shot, to, i / 48, pos, tmpTarget);
+      if (pos.y < terrainHeight(pos.x, pos.z) + 62 && i < 12) return false;
+      for (const g of giants) if (pos.y < g.top && Math.hypot(pos.x - g.x, pos.z - g.z) < g.r) return false;
+    }
+    return true;
+  };
+  let best: Shot | null = null;
+  let bestScore = Infinity;
+  for (let a = end - 1.3; a <= end + 1.3001; a += 0.05) {
+    for (const lean of [0.5, -0.5]) {
+      let d = a - (opposite + lean);
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      const score = Math.abs(d);
+      if (score >= bestScore) continue;
+      const shot: Shot = { target, distance: 330, polar: HERO_POLAR, azimuth: a, minDistance: 10, maxDistance: 3000 };
+      if (!clear(shot)) continue;
+      best = shot;
+      bestScore = score;
+    }
+  }
+  return best ?? { target, distance: 330, polar: 1.42, azimuth: end + 0.5, minDistance: 10, maxDistance: 3000 };
+}
+
+/** Smootherstep: no velocity or acceleration step at either end. */
 function easeInOut(t: number) {
-  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  return t * t * t * (t * (t * 6 - 15) + 10);
 }
 
 export function CameraDirector() {
@@ -70,7 +146,8 @@ export function CameraDirector() {
   const setIntroDone = useTerritoryStore((s) => s.setIntroDone);
   const demoActive = useTerritoryStore((s) => s.demo.active);
 
-  const intro = useRef<{ t: number; from: Shot; to: Shot } | null>(null);
+  const intro = useRef<{ t: number; hold: number; from: Shot | null; to: Shot } | null>(null);
+  const flight = useRef<Flight | null>(null);
   const lastInput = useRef(performance.now());
   const keys = useRef(new Set<string>());
 
@@ -88,7 +165,7 @@ export function CameraDirector() {
     c.polarRotateSpeed = 0.5;
     c.truckSpeed = 1.6;
     c.minPolarAngle = 0.25;
-    c.maxPolarAngle = 1.5;
+    c.maxPolarAngle = MAX_POLAR;
     c.mouseButtons.right = CameraControlsImpl.ACTION.TRUCK;
     c.touches.two = CameraControlsImpl.ACTION.TOUCH_DOLLY_TRUCK;
     c.setBoundary(BOUNDS);
@@ -96,6 +173,13 @@ export function CameraDirector() {
     const mark = () => {
       lastInput.current = performance.now();
       c.smoothTime = USER_SMOOTH;
+      // The hand always wins: a flight in progress stops where it is.
+      const f = flight.current;
+      if (f) {
+        flight.current = null;
+        c.minDistance = f.to.minDistance;
+        c.maxDistance = f.to.maxDistance;
+      }
     };
     c.addEventListener("controlstart", mark);
     return () => c.removeEventListener("controlstart", mark);
@@ -131,18 +215,11 @@ export function CameraDirector() {
       if (!introDone) setIntroDone();
       return;
     }
-    // Just over the canopy, looking down the stream toward the first giant and
-    // the mountains beyond.
-    const from: Shot = {
-      target: new THREE.Vector3(20, terrainHeight(20, 200) + 70, 200),
-      distance: 300,
-      polar: 1.3,
-      azimuth: 0.25,
-      minDistance: 10,
-      maxDistance: 3000,
-    };
-    applyShot(c, from, false, true);
-    intro.current = { t: 0, from, to };
+    // The hero frame depends on where the light is, which the sky only knows
+    // once it has run a frame: it is chosen on the first frame of the move.
+    applyShot(c, { ...to, distance: to.distance * 0.6 }, false, true);
+    intro.current = { t: 0, hold: INTRO_HOLD, from: null, to };
+    c.maxPolarAngle = HERO_POLAR + 0.02;
     c.enabled = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -163,23 +240,39 @@ export function CameraDirector() {
     cameraPose.yaw = Math.atan2(tmp.current.target.x - camera.position.x, tmp.current.target.z - camera.position.z);
     const run = intro.current;
     if (run) {
-      run.t += dt / INTRO_SECONDS;
-      const k = easeInOut(Math.min(1, run.t));
-      // The rise leads the pull-back, so the camera clears the canopy first.
-      const lift = easeInOut(Math.min(1, run.t * 1.4));
-      const target = run.from.target.clone().lerp(run.to.target, k);
-      const distance = THREE.MathUtils.lerp(run.from.distance, run.to.distance, k);
-      const polar = THREE.MathUtils.lerp(run.from.polar, run.to.polar, lift);
-      const azimuth = THREE.MathUtils.lerp(run.from.azimuth ?? 0, run.to.azimuth ?? 0, k);
-      const pos = new THREE.Vector3().setFromSphericalCoords(distance, polar, azimuth).add(target);
-      void c.setLookAt(pos.x, pos.y, pos.z, target.x, target.y, target.z, false);
+      if (!run.from) run.from = heroShot(run.to);
+      if (run.hold > 0) run.hold -= dt;
+      else run.t += dt / INTRO_SECONDS;
+      const t = tmp.current;
+      introPose(run.from, run.to, Math.min(1, run.t), t.fwd, t.target);
+      void c.setLookAt(t.fwd.x, t.fwd.y, t.fwd.z, t.target.x, t.target.y, t.target.z, false);
       if (run.t >= 1) {
         intro.current = null;
         c.enabled = true;
+        c.maxPolarAngle = MAX_POLAR;
         applyShot(c, run.to, false, true);
         setIntroDone();
       }
       return;
+    }
+
+    const f = flight.current;
+    if (f) {
+      f.t = Math.min(1, f.t + dt / f.duration);
+      const k = easeInOut(f.t);
+      const t = tmp.current;
+      t.target.copy(f.from.target).lerp(f.to.target, k);
+      // Distance moves in octaves, so a long zoom keeps an even pace.
+      const distance = Math.exp(THREE.MathUtils.lerp(Math.log(f.from.distance), Math.log(f.to.distance), k));
+      const polar = THREE.MathUtils.lerp(f.from.polar, f.to.polar, k);
+      const azimuth = THREE.MathUtils.lerp(f.from.azimuth ?? 0, f.to.azimuth ?? 0, k);
+      t.fwd.setFromSphericalCoords(distance, polar, azimuth).add(t.target);
+      void c.setLookAt(t.fwd.x, t.fwd.y, t.fwd.z, t.target.x, t.target.y, t.target.z, false);
+      if (f.t >= 1) {
+        flight.current = null;
+        c.minDistance = f.to.minDistance;
+        c.maxDistance = f.to.maxDistance;
+      }
     }
 
     // Q / E turn the overview.
@@ -231,7 +324,8 @@ export function CameraDirector() {
       intro.current = null;
       if (c) {
         c.enabled = true;
-        applyShot(c, to, true, true);
+        c.maxPolarAngle = MAX_POLAR;
+        flight.current = startFlight(c, to);
       }
     }
   }, [introDone]);
@@ -242,7 +336,10 @@ export function CameraDirector() {
     if (!c || intro.current) return;
     lastInput.current = performance.now();
     const shot = computeShot({ mode, activeAccountId, focusBusinessUnitId, selectedOpportunityId, aspect, isCompact });
-    applyShot(c, shot, !reducedMotion && !floraDebug.settle, true);
+    if (reducedMotion || floraDebug.settle) {
+      flight.current = null;
+      applyShot(c, shot, false, true);
+    } else flight.current = startFlight(c, shot);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, activeAccountId, focusBusinessUnitId, selectedOpportunityId, cameraNonce, aspect, isCompact, reducedMotion]);
 
@@ -252,12 +349,11 @@ export function CameraDirector() {
     if (!c || !flyTarget || intro.current) return;
     lastInput.current = performance.now();
     const target = new THREE.Vector3(flyTarget.x, terrainHeight(flyTarget.x, flyTarget.z) + 20, flyTarget.z);
-    applyShot(
-      c,
-      { target, distance: 430, polar: 1.15, azimuth: c.azimuthAngle, minDistance: 30, maxDistance: 2600 },
-      !reducedMotion && !floraDebug.settle,
-      true,
-    );
+    const shot: Shot = { target, distance: 430, polar: 1.15, azimuth: c.azimuthAngle, minDistance: 30, maxDistance: 2600 };
+    if (reducedMotion || floraDebug.settle) {
+      flight.current = null;
+      applyShot(c, shot, false, true);
+    } else flight.current = startFlight(c, shot);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flyTarget]);
 
@@ -266,11 +362,44 @@ export function CameraDirector() {
 
 /** Easing after a drag, scroll or pinch, seconds. */
 const USER_SMOOTH = 0.16;
-/** Easing for flights the app makes (to an account, across the map), seconds. */
-const FLIGHT_SMOOTH = 0.9;
+
+interface Flight {
+  t: number;
+  duration: number;
+  from: Shot;
+  to: Shot;
+}
+
+/**
+ * A flight the app makes (to an account, a limb, a fruit, across the map):
+ * from wherever the camera is now to the shot, eased at both ends. The
+ * controls' own damping only eases out, so a flight used to start at full
+ * speed; this one gathers pace, and takes longer the further it has to go.
+ */
+function startFlight(c: CameraControlsImpl, to: Shot): Flight {
+  const from: Shot = {
+    target: c.getTarget(new THREE.Vector3()),
+    distance: Math.max(1, c.distance),
+    polar: c.polarAngle,
+    azimuth: c.azimuthAngle,
+    minDistance: c.minDistance,
+    maxDistance: c.maxDistance,
+  };
+  // Turn the short way round.
+  const wanted = to.azimuth ?? from.azimuth!;
+  const turn = Math.atan2(Math.sin(wanted - from.azimuth!), Math.cos(wanted - from.azimuth!));
+  const dest: Shot = { ...to, azimuth: from.azimuth! + turn };
+  const a = new THREE.Vector3().setFromSphericalCoords(from.distance, from.polar, from.azimuth!).add(from.target);
+  const b = new THREE.Vector3().setFromSphericalCoords(dest.distance, dest.polar, dest.azimuth!).add(dest.target);
+  const travel = a.distanceTo(b) + from.target.distanceTo(dest.target) * 0.5;
+  // Free the limits for the journey; the shot's own apply on arrival.
+  c.minDistance = 1;
+  c.maxDistance = 9000;
+  c.smoothTime = USER_SMOOTH;
+  return { t: 0, duration: THREE.MathUtils.clamp(1.25 + travel / 850, 1.4, 3.0), from, to: dest };
+}
 
 function applyShot(c: CameraControlsImpl, shot: Shot, animate: boolean, setLimits = false) {
-  if (animate) c.smoothTime = FLIGHT_SMOOTH;
   if (setLimits) {
     c.minDistance = shot.minDistance;
     c.maxDistance = shot.maxDistance;

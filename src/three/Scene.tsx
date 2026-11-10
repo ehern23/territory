@@ -20,8 +20,13 @@ import { Effects } from "./world/Effects";
 import { Forest } from "./Forest";
 import { CameraDirector } from "./CameraDirector";
 import { OptionalScenePart } from "./SceneBoundary";
+import { installSoftShadows } from "./world/softShadows";
+import { createTimerClock } from "./timerClock";
 import { PerfProbe } from "./perf/PerfProbe";
 import { useUiStore } from "@/store/useUiStore";
+
+// Before anything compiles: wider, smoother PCF shadow filtering.
+installSoftShadows();
 
 /** QA aid: `?off=forest,cover,…` disables scene parts to isolate render cost. */
 const OFF = new Set(
@@ -29,15 +34,40 @@ const OFF = new Set(
 );
 
 /**
- * Frame-rate governor: if the device can't hold its frame rate, step the
- * render resolution down, and as a last resort thin the ground cover. It only
- * ever steps down: changing resolution reallocates every render target, so
- * hunting up and down would itself cause the hitches it is meant to prevent.
+ * How many pixels a frame may shade. The scene is fragment-bound, so cost
+ * follows pixel count, not window size: a fixed device-pixel-ratio cap is too
+ * heavy on a large 2x window and needlessly soft on a small one. With 4x MSAA
+ * on top, 1.5x on a laptop panel is hard to tell from native.
  */
-function Governor() {
-  const setDpr = useThree((s) => s.setDpr);
-  const viewportDpr = useThree((s) => s.viewport.dpr);
+const PIXEL_BUDGET = 3_300_000;
+const PIXEL_BUDGET_TOUCH = 1_150_000;
+
+function budgetDpr(width: number, height: number, touch: boolean) {
+  const device = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
+  const fit = Math.sqrt((touch ? PIXEL_BUDGET_TOUCH : PIXEL_BUDGET) / Math.max(1, width * height));
+  // Never below 1x (text-sharp edges matter more than the last few ms), never above the panel.
+  return Math.max(1, Math.min(device, touch ? 1.5 : 2, Math.round(fit * 20) / 20));
+}
+
+/**
+ * Resolution follows the pixel budget as the window changes size. On top of
+ * that sits the frame-rate governor: if the device still can't hold its frame
+ * rate, the resolution steps down, and as a last resort the ground cover
+ * thins. It only ever steps down: changing resolution reallocates every
+ * render target, so hunting up and down would itself cause the hitches it is
+ * meant to prevent.
+ */
+function Governor({ onDpr }: { onDpr: (dpr: number) => void }) {
+  const width = useThree((s) => s.size.width);
+  const height = useThree((s) => s.size.height);
+  const isTouch = useTerritoryStore((s) => s.isTouch);
   const setLowPower = useTerritoryStore((s) => s.setLowPower);
+  const [scale, setScale] = useState(1);
+  // The Canvas owns the pixel ratio (it re-applies its prop on every render),
+  // so the budget is reported up rather than set on the renderer here.
+  useEffect(() => {
+    onDpr(Math.max(1, budgetDpr(width, height, isTouch) * scale));
+  }, [onDpr, width, height, isTouch, scale]);
   // Judge the device only once loading (shader compiles, impostor captures)
   // is over, or a slow first few seconds would cost resolution for good.
   const [ready, setReady] = useState(false);
@@ -51,8 +81,7 @@ function Governor() {
       ms={500}
       iterations={6}
       onDecline={() => {
-        const next = Math.max(1, Math.round((viewportDpr - 0.25) * 4) / 4);
-        if (next < viewportDpr) setDpr(next);
+        if (budgetDpr(width, height, isTouch) * scale > 1.01) setScale((v) => v * 0.85);
         else setLowPower(true);
       }}
     />
@@ -83,7 +112,7 @@ function Precompile() {
 export function Scene() {
   const biome = useBiomeStore((s) => s.biome);
   const perf = useUiStore((s) => s.perf);
-  const isTouch = useTerritoryStore((s) => s.isTouch);
+  const [dpr, setDpr] = useState(1);
   const setIsTouch = useTerritoryStore((s) => s.setIsTouch);
   const setReducedMotion = useTerritoryStore((s) => s.setReducedMotion);
   const setIsCompact = useTerritoryStore((s) => s.setIsCompact);
@@ -109,16 +138,18 @@ export function Scene() {
   return (
     <Canvas
       className="territory-canvas"
-      shadows={{ type: THREE.PCFSoftShadowMap }}
-      dpr={isTouch ? [1, 1.5] : [1, 2]}
+      shadows={{ type: THREE.PCFShadowMap }}
+      dpr={dpr}
       camera={{ fov: 38, near: 1, far: 9000, position: [-120, 120, 460] }}
       gl={{ antialias: false, alpha: false, powerPreference: "high-performance", stencil: false, logarithmicDepthBuffer: false }}
       onCreated={(state) => {
         (window as unknown as { __r3f?: unknown }).__r3f = state.get;
+        // Run frames on THREE.Timer rather than R3F's deprecated THREE.Clock.
+        state.set({ clock: createTimerClock() as unknown as THREE.Clock });
       }}
       style={{ touchAction: "none" }}
     >
-      <Governor />
+      <Governor onDpr={setDpr} />
       <Precompile />
       {perf && <PerfProbe />}
       <Atmosphere />

@@ -23,26 +23,41 @@ export function TopBar() {
   const [legend, setLegend] = useState(false);
   const capsuleRef = useRef<HTMLDivElement>(null);
   useLiquidGlass(capsuleRef, { radius: 999, strength: 22, blur: 6, saturate: 1.6, bevel: 12 });
+  // On a phone the seller sits under the wordmark (where the desktop tagline
+  // goes), so the capsule holds only icons and the demo, and nothing overlaps
+  // down to 360px.
+  const sellerUnderMark = isCompact && mode === "forest" && !demoActive;
+  const icon = isCompact ? "topbar-icon" : "";
 
   return (
     <header
-      className={`absolute left-4 top-[max(14px,env(safe-area-inset-top))] z-40 flex items-center justify-between gap-3 pointer-events-none ${
-        mode === "account" && !isCompact ? "right-[432px]" : "right-4"
-      }`}
+      className={`absolute top-[max(14px,env(safe-area-inset-top))] z-40 flex items-center justify-between gap-2 sm:gap-3 pointer-events-none ${
+        isCompact ? "left-3 right-3" : "left-4"
+      } ${mode === "account" && !isCompact ? "right-[432px]" : isCompact ? "" : "right-4"}`}
     >
       <div className="flex items-center gap-3 pointer-events-auto min-w-0">
-        <button
-          type="button"
-          onClick={mode === "account" ? returnToForest : undefined}
-          className="flex items-center gap-2.5 min-w-0"
-          aria-label={mode === "account" ? "Back to territory" : "Territory"}
-        >
-          <Mark />
-          <span className="flex flex-col items-start leading-none min-w-0">
-            <span className="wordmark">Territory</span>
-            {!isCompact && mode === "forest" && <span className="text-[11.5px] text-paper-60 mt-1">A living map of a book of business</span>}
-          </span>
-        </button>
+        {sellerUnderMark ? (
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Mark />
+            <span className="flex flex-col items-start leading-none min-w-0">
+              <span className="wordmark">Territory</span>
+              <SellerChip compact variant="subtitle" />
+            </span>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={mode === "account" ? returnToForest : undefined}
+            className="flex items-center gap-2.5 min-w-0"
+            aria-label={mode === "account" ? "Back to territory" : "Territory"}
+          >
+            <Mark />
+            <span className="flex flex-col items-start leading-none min-w-0">
+              <span className={`wordmark ${isCompact ? "max-[379px]:hidden" : ""}`}>Territory</span>
+              {!isCompact && mode === "forest" && <span className="text-[11.5px] text-paper-60 mt-1">A living map of a book of business</span>}
+            </span>
+          </button>
+        )}
         <AnimatePresence>
           {view && !isCompact && (
             <motion.span
@@ -58,24 +73,25 @@ export function TopBar() {
         </AnimatePresence>
       </div>
 
-      <div className="flex items-center gap-1.5 pointer-events-auto relative">
-        {!introDone && (
+      <div className="flex flex-none items-center gap-1.5 pointer-events-auto relative">
+        {!introDone && !isCompact && (
           <button type="button" className="btn btn-ghost btn-sm" onClick={setIntroDone}>
             Skip intro
           </button>
         )}
         <LensGroup ref={capsuleRef} className="glass glass-pill flex items-center gap-0.5 p-1" radius={999}>
-          {!demoActive && !(isCompact && mode === "account") && <SellerChip compact={isCompact} />}
+          {/* Inside an account the bar is 430px narrower (the panel) and the sky pill shares it: the seller chip waits in the territory view. */}
+          {!demoActive && !isCompact && mode === "forest" && <SellerChip compact={false} />}
           {mode === "account" && !demoActive && (
             <button type="button" data-lens className="btn btn-sm btn-pill btn-ghost !text-paper" onClick={returnToForest}>
               ← {isCompact ? "Forest" : "Territory"}
             </button>
           )}
-          {mode === "forest" && <ImmerseToggle />}
+          {mode === "forest" && <ImmerseToggle className={icon} />}
           <button
             type="button"
             data-lens
-            className="btn btn-sm btn-pill btn-ghost !text-paper"
+            className={`btn btn-sm btn-pill btn-ghost !text-paper ${icon}`}
             onClick={() => setLegend((v) => !v)}
             aria-expanded={legend}
             aria-label="How to read the forest"
@@ -84,10 +100,16 @@ export function TopBar() {
           </button>
           {!demoActive && (
             <>
-              <button type="button" data-lens className="btn btn-sm btn-pill btn-ghost !text-paper" onClick={resetDemo} aria-label="Reset demo data">
+              <button
+                type="button"
+                data-lens
+                className={`btn btn-sm btn-pill btn-ghost !text-paper ${icon}`}
+                onClick={resetDemo}
+                aria-label="Reset demo data"
+              >
                 {isCompact ? "↺" : "Reset"}
               </button>
-              <button type="button" data-lens className="btn btn-sm btn-pill btn-primary" onClick={() => applyDemoStep(0)}>
+              <button type="button" data-lens className={`btn btn-sm btn-pill btn-primary ${isCompact ? "!px-3" : ""}`} onClick={() => applyDemoStep(0)}>
                 <span aria-hidden>▶</span> {isCompact ? "Demo" : "Guided demo"}
               </button>
             </>
@@ -95,12 +117,30 @@ export function TopBar() {
         </LensGroup>
         <AnimatePresence>{legend && <Legend onClose={() => setLegend(false)} />}</AnimatePresence>
       </div>
+
+      {/* On a phone, Skip intro waits at the foot of the screen, clear of the bar. */}
+      <AnimatePresence>
+        {!introDone && isCompact && (
+          <motion.button
+            type="button"
+            key="skip-intro"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.3 }}
+            className="glass glass-pill btn btn-sm btn-pill !text-paper fixed left-1/2 -translate-x-1/2 bottom-[calc(env(safe-area-inset-bottom)+22px)] pointer-events-auto px-5"
+            onClick={setIntroDone}
+          >
+            Skip intro
+          </motion.button>
+        )}
+      </AnimatePresence>
     </header>
   );
 }
 
 /** "Selling for Vercel ▾": who the territory is for; reopens onboarding. */
-function SellerChip({ compact }: { compact: boolean }) {
+function SellerChip({ compact, variant = "chip" }: { compact: boolean; variant?: "chip" | "subtitle" }) {
   const profile = useTerritoryStore((s) => s.profile);
   const research = useTerritoryStore((s) => s.research);
   const open = useTerritoryStore((s) => s.onboardingOpen);
@@ -111,6 +151,27 @@ function SellerChip({ compact }: { compact: boolean }) {
     s.setOnboardingOpen(!(open && s.mode === "forest"));
     if (!s.introDone) s.setIntroDone();
   };
+  if (variant === "subtitle") {
+    // Under the wordmark on a phone: "Selling for Vercel ▾", or just "Vercel ▾" when narrow.
+    return (
+      <button
+        type="button"
+        className="seller-subtitle"
+        onClick={toggle}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label={researching ? `Researching ${profile.company}'s ICP. Change seller` : `Selling for ${profile.company}. Change seller`}
+        title={`${profile.product} · ${profile.role}`}
+      >
+        {researching && <span className="research-dot" aria-hidden />}
+        <span className="truncate">
+          <span className="text-paper-60 max-[379px]:hidden">{researching ? "Researching " : "Selling for "}</span>
+          {profile.company}
+        </span>
+        <span aria-hidden className="text-paper-40 text-[9px]">▾</span>
+      </button>
+    );
+  }
   return (
     <button
       type="button"
@@ -160,14 +221,14 @@ function Mark() {
 }
 
 /** Fold every panel away for the forest alone, or bring them back. H does the same. */
-function ImmerseToggle() {
+function ImmerseToggle({ className = "" }: { className?: string }) {
   const immersive = useUiStore(isImmersive);
   const toggle = useUiStore((s) => s.toggleImmersive);
   return (
     <button
       type="button"
       data-lens
-      className="btn btn-sm btn-pill btn-ghost !text-paper !px-2.5"
+      className={`btn btn-sm btn-pill btn-ghost !text-paper !px-2.5 ${className}`}
       onClick={toggle}
       aria-pressed={immersive}
       aria-label={immersive ? "Show panels (H)" : "Hide panels for the forest alone (H)"}

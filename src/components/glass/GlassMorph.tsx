@@ -14,6 +14,18 @@ import { useLiquidGlass } from "./Glass";
 
 const SPRING = { type: "spring" as const, stiffness: 420, damping: 30, mass: 0.85 };
 
+/**
+ * Entrance and exit, driven by the parent's variant labels ("hidden" /
+ * "shown"). The fade is on the glass itself on purpose. A filter or opacity
+ * on an ancestor makes that ancestor the backdrop root: the glass then has
+ * nothing behind it to bend or blur and renders as flat tinted plastic (a
+ * wrapper animating to `filter: blur(0px)` did exactly that, for good).
+ */
+export const GLASS_PRESENCE = {
+  hidden: { opacity: 0, scale: 0.985, transition: { duration: 0.3, ease: [0.2, 0.8, 0.2, 1] as const } },
+  shown: { opacity: 1, scale: 1, transition: { duration: 0.4, ease: [0.2, 0.8, 0.2, 1] as const } },
+};
+
 export function GlassMorph({
   open,
   className,
@@ -75,6 +87,7 @@ export function GlassMorph({
     <Tag
       ref={setRefs}
       layout
+      variants={GLASS_PRESENCE}
       transition={{ layout: transition }}
       style={{ borderRadius: open ? radius : 999 }}
       className={`glass glass-morph ${className} ${open ? panelClassName : `glass-pill ${bubbleClassName}`}`}

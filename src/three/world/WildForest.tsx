@@ -9,9 +9,10 @@ import { seededRng } from "@/lib/random";
 import { buildTreeGeometries, type TreeGeometries } from "../flora/treeMeshes";
 import { getFoliageAtlas } from "../flora/foliageAtlas";
 import { getNeedleAtlas } from "./atlases";
-import { createBarkMaterial, createFoliageMaterial, createTreeUniforms, floraGlobals, type LodFade } from "../flora/floraMaterials";
+import { createBarkDepthMaterial, createBarkMaterial, createFoliageMaterial, createTreeUniforms, floraGlobals, type LodFade } from "../flora/floraMaterials";
 import { BARK_TEX, configureBarkMaps } from "../flora/barkMaps";
-import { groundCover, mountainFactor, terrainHeight } from "../layout";
+import { accountIds, accountPosition, groundCover, mountainFactor, terrainHeight } from "../layout";
+import { getAccountTree } from "../flora/accountTrees";
 import { BIOMES, speciesIndex, type Biome } from "../biomes/biomes";
 import { useBiomeStore } from "@/store/useBiomeStore";
 import { skyUniforms } from "../sky/skyState";
@@ -30,6 +31,8 @@ import { setWildTrunks } from "./treeIndex";
  */
 
 const VIEWS = 8;
+/** Account giants that shade the far canopy (the territory has eight glades). */
+const GIANTS = 8;
 const LOD: LodFade = { near: 150, far: 195 };
 const LOD_TOUCH: LodFade = { near: 95, far: 130 };
 
@@ -113,6 +116,8 @@ function makeTree(rng: Rng, biome: Biome, x: number, y: number, z: number, speci
 interface SpeciesAssets {
   geometries: TreeGeometries;
   bark: THREE.Material;
+  /** Shadow depth for the bark, swaying with it. */
+  barkDepth: THREE.Material;
   foliage: { material: THREE.Material; depth: THREE.Material };
   /** Captures without LOD dithering. */
   captureBark: THREE.Material;
@@ -126,9 +131,10 @@ interface SpeciesAssets {
 
 function useSpeciesAssets(lod: LodFade, biome: Biome) {
   const maps = useTexture(BARK_TEX);
-  return useMemo(() => {
+  const assets = useMemo(() => {
     configureBarkMaps(maps);
     const uniforms = createTreeUniforms(0.86);
+    const barkDepth = createBarkDepthMaterial(uniforms);
     const leaf = getFoliageAtlas();
     const needle = getNeedleAtlas();
     // One bark pair per bark colour: the shared grey-brown, birch, pine.
@@ -164,6 +170,7 @@ function useSpeciesAssets(lod: LodFade, biome: Biome) {
       return {
         geometries,
         bark: bark.lod,
+        barkDepth,
         foliage: needles ? needleLod : leafLod,
         captureBark: bark.cap,
         captureFoliage: needles ? needleCap.material : leafCap.material,
@@ -173,6 +180,22 @@ function useSpeciesAssets(lod: LodFade, biome: Biome) {
       };
     });
   }, [maps, lod, biome]);
+  // Free the old species' GPU geometry and programs when the forest changes
+  // (switching biome on a phone otherwise only ever adds memory). Textures
+  // are shared caches and stay.
+  useEffect(
+    () => () => {
+      const materials = new Set<THREE.Material>();
+      for (const a of assets) {
+        a.geometries.bark.dispose();
+        a.geometries.foliage.dispose();
+        for (const m of [a.bark, a.barkDepth, a.foliage.material, a.foliage.depth, a.captureBark, a.captureFoliage]) materials.add(m);
+      }
+      materials.forEach((m) => m.dispose());
+    },
+    [assets],
+  );
+  return assets;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -190,6 +213,7 @@ function NearForest({ trees, assets, lod, shadows }: { trees: TreeInstance[]; as
         const bark = new THREE.InstancedMesh(a.geometries.bark, a.bark, capacity);
         const leaves = new THREE.InstancedMesh(a.geometries.foliage, a.foliage.material, capacity);
         leaves.customDepthMaterial = a.foliage.depth;
+        bark.customDepthMaterial = a.barkDepth;
         for (const m of [bark, leaves]) {
           m.count = 0;
           m.castShadow = shadows;
@@ -320,9 +344,6 @@ function captureAtlas(gl: THREE.WebGLRenderer, assets: SpeciesAssets[], cell: nu
 
   const prev = {
     target: gl.getRenderTarget(),
-    viewport: gl.getViewport(new THREE.Vector4()),
-    scissor: gl.getScissor(new THREE.Vector4()),
-    scissorTest: gl.getScissorTest(),
     clear: gl.getClearColor(new THREE.Color()),
     alpha: gl.getClearAlpha(),
     autoClear: gl.autoClear,
@@ -330,13 +351,17 @@ function captureAtlas(gl: THREE.WebGLRenderer, assets: SpeciesAssets[], cell: nu
   };
   gl.shadowMap.enabled = false;
   gl.autoClear = false;
-  gl.setRenderTarget(rt);
   // Clear to foliage green with zero alpha so mip edges never darken.
   gl.setClearColor(new THREE.Color(0.16, 0.24, 0.1), 0);
-  gl.setScissorTest(false);
+  rt.scissorTest = false;
+  gl.setRenderTarget(rt);
   gl.clear(true, true, true);
-  gl.setScissorTest(true);
 
+  // Cells are addressed through the target's own viewport and scissor, which
+  // are in texels. The renderer's setViewport() scales by the device pixel
+  // ratio, so on a 2x screen it drew each tree four cells large and every
+  // impostor showed a slab of someone else's crown.
+  rt.scissorTest = true;
   assets.forEach((a, s) => {
     holder.clear();
     const bark = new THREE.Mesh(a.geometries.bark, a.captureBark);
@@ -352,17 +377,18 @@ function captureAtlas(gl: THREE.WebGLRenderer, assets: SpeciesAssets[], cell: nu
     for (let v = 0; v < VIEWS; v++) {
       holder.rotation.y = -(v / VIEWS) * Math.PI * 2;
       holder.updateMatrixWorld(true);
-      gl.setViewport(v * cell, s * cell, cell, cell);
-      gl.setScissor(v * cell, s * cell, cell, cell);
+      rt.viewport.set(v * cell, s * cell, cell, cell);
+      rt.scissor.set(v * cell, s * cell, cell, cell);
+      gl.setRenderTarget(rt);
       gl.clear(true, true, false);
       gl.render(scene, cam);
     }
   });
+  rt.viewport.set(0, 0, W, H);
+  rt.scissor.set(0, 0, W, H);
+  rt.scissorTest = false;
 
   gl.setRenderTarget(prev.target);
-  gl.setViewport(prev.viewport);
-  gl.setScissor(prev.scissor);
-  gl.setScissorTest(prev.scissorTest);
   gl.setClearColor(prev.clear, prev.alpha);
   gl.autoClear = prev.autoClear;
   gl.shadowMap.enabled = prev.shadows;
@@ -387,8 +413,11 @@ const IMPOSTOR_VERT = /* glsl */ `
   varying float vBlend;
   varying vec3 vTint;
   varying float vDist;
-  varying float vLight;
+  varying vec3 vLightB;
+  varying float vShadow;
+  varying vec2 vCell;
   uniform vec2 uLod;
+  uniform vec4 uGiant[GIANTS];
   void main() {
     vec3 toCam = cameraPosition - aPos;
     vDist = length(toCam);
@@ -411,8 +440,23 @@ const IMPOSTOR_VERT = /* glsl */ `
     float sway = sin(uTime * 0.9 + aPos.x * 0.05 + aPos.z * 0.03);
     wp.xz += uWind.xz * sway * position.y * position.y * 0.6;
     vTint = aTint;
-    // Sun behind the viewer lights the visible side; against the sun it darkens.
-    vLight = 0.82 + 0.26 * dot(normalize(uSun.xz + vec2(0.0001)), d) * (1.0 - abs(uSun.y) * 0.6);
+    vCell = cellUv;
+    // The light in the card's own frame (right, up, toward the viewer), so the
+    // fragment shader can shade the crown as the rounded volume it stands for.
+    vLightB = vec3(dot(uSun, right), dot(uSun, up), dot(uSun, fwd));
+    // The account giants throw long, soft shadows over the canopy. They are
+    // far outside the shadow map from the overview, so each crown is treated
+    // as a sphere and tested against the ray to the light.
+    vec3 mid = aPos + vec3(0.0, aSize * 0.62, 0.0);
+    float shadow = 0.0;
+    for (int i = 0; i < GIANTS; i++) {
+      vec3 toCrown = uGiant[i].xyz - mid;
+      float along = dot(toCrown, uSun);
+      float off = length(toCrown - uSun * along);
+      float r = uGiant[i].w;
+      shadow = max(shadow, (1.0 - smoothstep(r * 0.55, r * 1.25, off)) * smoothstep(r * 0.6, r * 1.6, along));
+    }
+    vShadow = shadow;
     vec4 mvPosition = viewMatrix * vec4(wp, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     #include <fog_vertex>
@@ -425,13 +469,16 @@ const IMPOSTOR_FRAG = /* glsl */ `
   uniform sampler2D uAtlas;
   uniform vec2 uAtlasSize;
   uniform vec2 uLod;
-  uniform vec3 uShade;
+  uniform vec3 uShadeAmbient;
+  uniform vec3 uShadeDirect;
   varying vec2 vUv0;
   varying vec2 vUv1;
   varying float vBlend;
   varying vec3 vTint;
   varying float vDist;
-  varying float vLight;
+  varying vec3 vLightB;
+  varying float vShadow;
+  varying vec2 vCell;
   void main() {
     float fadeNear = 1.0 - smoothstep(uLod.x, uLod.y, vDist);
     #ifndef ALPHA_TO_COVERAGE
@@ -441,6 +488,10 @@ const IMPOSTOR_FRAG = /* glsl */ `
     vec4 a = texture2D(uAtlas, vUv0);
     vec4 b = texture2D(uAtlas, vUv1);
     vec4 c = mix(a, b, vBlend);
+    // Filtering reaches into the neighbouring cell at a card's rim (the trunk
+    // of the species above drew a dark dash over every distant treetop).
+    vec2 rim = min(vCell, 1.0 - vCell);
+    c.a *= smoothstep(0.0, 0.035, min(rim.x, rim.y));
     vec2 tc = vUv0 * uAtlasSize;
     float lod = max(0.0, 0.5 * log2(max(dot(dFdx(tc), dFdx(tc)), dot(dFdy(tc), dFdy(tc)))));
     c.a *= 1.0 + lod * 0.35;
@@ -453,8 +504,15 @@ const IMPOSTOR_FRAG = /* glsl */ `
       float alpha = 1.0;
     #endif
     // The atlas was cleared to foliage green, so edge texels need no unpremultiply.
-    // The atlas was captured in midday light; the sky's shade relights it.
-    vec3 col = c.rgb * vTint * vLight * uShade;
+    // The atlas was captured in flat midday light. Relight it: each crown is
+    // shaded as a dome, lit on the side the light comes from and from above
+    // by the sky, so a low sun rakes across the whole canopy.
+    vec2 p = vec2(vCell.x - 0.5, vCell.y - 0.58) * vec2(2.3, 2.1);
+    vec3 n = normalize(vec3(p, sqrt(max(0.08, 1.0 - dot(p, p)))));
+    float direct = clamp(dot(n, normalize(vLightB)) * 0.62 + 0.42, 0.0, 1.0);
+    direct *= 1.0 - 0.9 * vShadow;
+    float skyFill = 0.62 + 0.5 * vCell.y;
+    vec3 col = c.rgb * vTint * (uShadeAmbient * skyFill + uShadeDirect * direct * 1.75);
     gl_FragColor = vec4(col, alpha);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
@@ -466,6 +524,22 @@ function ImpostorField({ trees, assets, lod }: { trees: TreeInstance[]; assets: 
   const gl = useThree((s) => s.gl);
   const isTouch = useTerritoryStore((s) => s.isTouch);
   const [mesh, setMesh] = useState<THREE.Mesh | null>(null);
+  // Crown spheres of the account giants (centre, radius), for their shadows.
+  const giants = useMemo(() => Array.from({ length: GIANTS }, () => new THREE.Vector4(0, -1e5, 0, 1)), []);
+  useFrame(() => {
+    const ids = accountIds();
+    for (let i = 0; i < GIANTS; i++) {
+      const model = i < ids.length ? getAccountTree(ids[i]) : null;
+      if (!model) {
+        giants[i].set(0, -1e5, 0, 1);
+        continue;
+      }
+      const base = accountPosition(ids[i]);
+      const { crownTop, crownRadii } = model.shape;
+      const r = Math.max(crownRadii.x, crownRadii.z);
+      giants[i].set(base.x, base.y + crownTop - r * 0.8, base.z, r * 0.9);
+    }
+  });
 
   useEffect(() => {
     // Keep the atlas within 4096 px on either side.
@@ -514,8 +588,11 @@ function ImpostorField({ trees, assets, lod }: { trees: TreeInstance[]; assets: 
         uTime: floraGlobals.uTime,
         uWind: floraGlobals.uWind,
         uSun: skyUniforms.uLightDir,
-        uShade: skyUniforms.uShade,
+        uShadeAmbient: skyUniforms.uShadeAmbient,
+        uShadeDirect: skyUniforms.uShadeDirect,
+        uGiant: { value: giants },
       },
+      defines: { GIANTS },
       fog: true,
     });
     const m = new THREE.Mesh(geo, material);
@@ -528,7 +605,7 @@ function ImpostorField({ trees, assets, lod }: { trees: TreeInstance[]; assets: 
       material.dispose();
       quad.dispose();
     };
-  }, [gl, assets, trees, isTouch, lod]);
+  }, [gl, assets, trees, isTouch, lod, giants]);
 
   return mesh ? <primitive object={mesh} /> : null;
 }

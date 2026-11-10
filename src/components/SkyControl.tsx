@@ -111,7 +111,7 @@ export function SkyControl() {
     };
   }, [open]);
 
-  const shift = mode === "account" && !isCompact ? "-translate-x-[216px]" : "";
+  const shift = mode === "account" && !isCompact ? "-translate-x-[262px]" : "";
 
   return (
     <AnimatePresence>

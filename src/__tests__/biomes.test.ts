@@ -35,13 +35,28 @@ describe("sky", () => {
   it("puts the sun up at noon and down at midnight, rising in the east", () => {
     const d = new Date(2026, 5, 21, 12, 0, 0);
     const noon = celestial(clockFromDate(d, 12 + (d.getTimezoneOffset() !== new Date(2026, 0, 1).getTimezoneOffset() ? 1 : 0)));
-    expect(noon.sun.y).toBeGreaterThan(0.8);
+    // The valley keeps a perpetual equinox (celestial.SEASON_DAY): at 38°N the
+    // noon sun stands 52° up whatever the calendar says.
+    expect(noon.sun.y).toBeGreaterThan(0.75);
+    expect(noon.sun.y).toBeLessThan(0.82);
     const midnight = celestial(clockFromDate(d, 0));
     expect(midnight.sun.y).toBeLessThan(0);
     const morning = celestial(clockFromDate(d, 7));
     expect(morning.sun.x).toBeGreaterThan(0);
     const evening = celestial(clockFromDate(d, 19));
     expect(evening.sun.x).toBeLessThan(0);
+  });
+
+  it("keeps the evening gold in every season", () => {
+    const DEG = Math.PI / 180;
+    for (const month of [0, 3, 5, 8, 10]) {
+      const d = new Date(2026, month, 15, 12, 0, 0);
+      const dst = d.getTimezoneOffset() !== new Date(2026, 0, 1).getTimezoneOffset() ? 1 : 0;
+      // 5:30 pm solar time: the sun is low but still up.
+      const el = celestial(clockFromDate(d, 17.5 + dst)).sunElevation / DEG;
+      expect(el).toBeGreaterThan(2);
+      expect(el).toBeLessThan(10);
+    }
   });
 
   it("moon phase runs from new to full", () => {

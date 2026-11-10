@@ -134,7 +134,8 @@ function pebbleGeometry() {
 
 function coverMaterial(map: THREE.Texture | null, color: string, opts: { alpha?: boolean; roughness?: number } = {}) {
   return new THREE.MeshStandardMaterial({
-    map: map ?? undefined,
+    // null, not undefined: three warns on undefined parameters.
+    map,
     color: new THREE.Color(color),
     alphaTest: opts.alpha === false ? 0 : 0.5,
     side: opts.alpha === false ? THREE.FrontSide : THREE.DoubleSide,

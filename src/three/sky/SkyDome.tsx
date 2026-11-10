@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { floraGlobals } from "../flora/floraMaterials";
 import { skyUniforms } from "./skyState";
+import { SKY_GRADIENT_GLSL } from "./skyGlsl";
 
 /**
  * The sky: a gradient from horizon to zenith that runs through the whole
@@ -37,6 +38,8 @@ const frag = /* glsl */ `
   uniform float uFlash;
   uniform float uTime;
   varying vec3 vDir;
+
+  ${SKY_GRADIENT_GLSL}
 
   float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
   float hash3(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
@@ -115,15 +118,10 @@ const frag = /* glsl */ `
     float h = d.y;
     float sunDot = max(dot(d, normalize(uSunDir)), 0.0);
     float moonDot = max(dot(d, normalize(uMoonDir)), 0.0);
-    vec3 col = mix(uHorizon, uZenith, pow(smoothstep(-0.02, 0.6, h), 0.55));
-
-    // Scattering: a broad warm glow around the sun, strongest near the horizon.
+    vec3 col = skyGradient(d);
     float lowSun = 1.0 - smoothstep(-0.1, 0.5, uSunDir.y);
-    col += uSunGlow * pow(sunDot, 4.0) * (0.25 + 0.75 * lowSun) * (1.0 - smoothstep(0.0, 0.7, h)) * 0.9;
+    // The sun's own halo.
     col += uSunGlow * pow(sunDot, 60.0) * 0.7;
-    // Twilight band: the horizon away from the sun picks up pink and blue.
-    float twilight = smoothstep(-0.3, -0.02, uSunDir.y) * (1.0 - smoothstep(0.02, 0.2, uSunDir.y));
-    col += vec3(0.32, 0.16, 0.26) * twilight * (1.0 - smoothstep(0.0, 0.35, h)) * (1.0 - sunDot) * 0.5;
 
     float clear = 1.0 - uCloudCover * 0.9;
     if (h > 0.0) {

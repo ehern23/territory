@@ -143,7 +143,7 @@ export function getRockTextures() {
     tex.generateMipmaps = true;
     tex.minFilter = THREE.LinearMipmapLinearFilter;
     tex.magFilter = THREE.LinearFilter;
-    tex.anisotropy = 8;
+    tex.anisotropy = 4;
     if (srgb) tex.colorSpace = THREE.SRGBColorSpace;
     tex.needsUpdate = true;
     return tex;

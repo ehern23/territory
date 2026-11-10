@@ -1,26 +1,46 @@
 "use client";
 
-import { Bloom, BrightnessContrast, EffectComposer, HueSaturation, N8AO, ToneMapping, Vignette } from "@react-three/postprocessing";
-import { ToneMappingMode } from "postprocessing";
+import { useEffect, useMemo } from "react";
+import { useThree } from "@react-three/fiber";
+import { Bloom, BrightnessContrast, EffectComposer, HueSaturation, ToneMapping, Vignette } from "@react-three/postprocessing";
+import { EffectPass, FXAAEffect, ToneMappingMode } from "postprocessing";
 import { useTerritoryStore } from "@/store/useTerritoryStore";
+import { Aerial } from "./AerialEffect";
 
 /**
- * Restrained grade: ambient occlusion grounds trunks, a soft bloom lets the
- * sun and ripe fruit breathe, filmic tone mapping keeps highlights soft.
- * Touch devices skip AO and MSAA to protect frame rate.
+ * The air first (see AerialEffect), then a restrained grade: a soft bloom
+ * lets the sun, the water and ripe fruit breathe, and filmic tone mapping
+ * keeps highlights soft. Touch devices skip MSAA to protect frame rate and
+ * smooth edges with FXAA instead.
+ *
+ * There is no screen-space ambient occlusion. Measured on a 2x display it was
+ * a third of the frame, and over dense foliage it mostly added murk; crowns
+ * get their depth from baked leaf shading and the soft shadow map instead.
  */
-const NO_AO = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("noao");
-
 export function Effects() {
   const isTouch = useTerritoryStore((s) => s.isTouch);
   return (
     <EffectComposer multisampling={isTouch ? 0 : 4} enableNormalPass={false}>
-      {isTouch || NO_AO ? <></> : <N8AO aoRadius={4} intensity={1.4} distanceFalloff={1} quality="medium" halfRes />}
+      <Aerial />
       <Bloom luminanceThreshold={0.9} luminanceSmoothing={0.2} intensity={0.4} mipmapBlur />
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
       <HueSaturation saturation={0.05} />
       <BrightnessContrast brightness={0} contrast={0.04} />
-      <Vignette offset={0.32} darkness={0.42} />
+      <Vignette offset={0.3} darkness={0.36} />
+      {isTouch ? <Antialias /> : <></>}
     </EffectComposer>
   );
+}
+
+/**
+ * FXAA over the finished, tone-mapped frame, as a pass of its own: without
+ * MSAA, leaf cut-outs stair-step, and this rounds them off for a fraction of
+ * a millisecond. (Merged into the main pass it would read the raw scene and
+ * drop the effects before it.)
+ */
+function Antialias() {
+  const camera = useThree((s) => s.camera);
+  const pass = useMemo(() => new EffectPass(camera, new FXAAEffect()), [camera]);
+  useEffect(() => () => pass.dispose(), [pass]);
+  return <primitive object={pass} dispose={null} />;
 }
