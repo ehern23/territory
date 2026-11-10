@@ -11,6 +11,7 @@ import { SUN_DIR, WORLD_CENTER } from "../layout";
 import { SkyDome } from "../sky/SkyDome";
 import { SkyController } from "../sky/SkyController";
 import { sky } from "../sky/skyState";
+import { penumbraMetres, shadowRadiusTexels } from "./softShadows";
 
 /**
  * Light and air. The SkyController moves the sun and moon on the seller's
@@ -74,6 +75,8 @@ function KeyLight() {
     l.color.copy(sky.lightColor);
     l.intensity = sky.lightIntensity;
     l.castShadow = sky.lightIntensity > 0.05;
+    // Soft edges of a constant width in metres, whatever the map resolution.
+    l.shadow.radius = shadowRadiusTexels(penumbraMetres(sky.weather.cover, sky.sunElevationDeg, sky.night), extent * 2, size);
   });
   const size = isTouch ? 2048 : 4096;
   const extent = isTouch ? 160 : 230;

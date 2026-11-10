@@ -411,6 +411,27 @@ export function createBarkMaterial(
   return material;
 }
 
+const BARK_DEPTH_VERTEX = /* glsl */ `
+#include <begin_vertex>
+transformed += floraToLocal(floraWind(floraWorld(position), aBark.x));
+`;
+
+/**
+ * Shadow depth for bark: the same wind sway as the bark itself, so trunk and
+ * limb shadows move with the tree instead of staying put.
+ */
+export function createBarkDepthMaterial(tree: TreeUniforms) {
+  const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+  depth.onBeforeCompile = (shader) => {
+    bindUniforms(shader, tree);
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", `#include <common>\n${COMMON_VERTEX}\nattribute vec2 aBark;`)
+      .replace("#include <begin_vertex>", BARK_DEPTH_VERTEX);
+  };
+  depth.customProgramCacheKey = () => "flora-bark-depth-v1";
+  return depth;
+}
+
 /** Keep the view-space sun direction current for translucency. */
 export function updateSunView(sunWorld: THREE.Vector3, camera: THREE.Camera) {
   floraGlobals.uSunView.value.copy(sunWorld).transformDirection(camera.matrixWorldInverse);

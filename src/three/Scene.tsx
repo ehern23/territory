@@ -20,8 +20,12 @@ import { Effects } from "./world/Effects";
 import { Forest } from "./Forest";
 import { CameraDirector } from "./CameraDirector";
 import { OptionalScenePart } from "./SceneBoundary";
+import { installSoftShadows } from "./world/softShadows";
 import { PerfProbe } from "./perf/PerfProbe";
 import { useUiStore } from "@/store/useUiStore";
+
+// Before anything compiles: wider, smoother PCF shadow filtering.
+installSoftShadows();
 
 /** QA aid: `?off=forest,cover,…` disables scene parts to isolate render cost. */
 const OFF = new Set(
@@ -109,7 +113,7 @@ export function Scene() {
   return (
     <Canvas
       className="territory-canvas"
-      shadows={{ type: THREE.PCFSoftShadowMap }}
+      shadows={{ type: THREE.PCFShadowMap }}
       dpr={isTouch ? [1, 1.5] : [1, 2]}
       camera={{ fov: 38, near: 1, far: 9000, position: [-120, 120, 460] }}
       gl={{ antialias: false, alpha: false, powerPreference: "high-performance", stencil: false, logarithmicDepthBuffer: false }}

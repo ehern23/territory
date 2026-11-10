@@ -9,7 +9,7 @@ import { seededRng } from "@/lib/random";
 import { buildTreeGeometries, type TreeGeometries } from "../flora/treeMeshes";
 import { getFoliageAtlas } from "../flora/foliageAtlas";
 import { getNeedleAtlas } from "./atlases";
-import { createBarkMaterial, createFoliageMaterial, createTreeUniforms, floraGlobals, type LodFade } from "../flora/floraMaterials";
+import { createBarkDepthMaterial, createBarkMaterial, createFoliageMaterial, createTreeUniforms, floraGlobals, type LodFade } from "../flora/floraMaterials";
 import { BARK_TEX, configureBarkMaps } from "../flora/barkMaps";
 import { groundCover, mountainFactor, terrainHeight } from "../layout";
 import { BIOMES, speciesIndex, type Biome } from "../biomes/biomes";
@@ -113,6 +113,8 @@ function makeTree(rng: Rng, biome: Biome, x: number, y: number, z: number, speci
 interface SpeciesAssets {
   geometries: TreeGeometries;
   bark: THREE.Material;
+  /** Shadow depth for the bark, swaying with it. */
+  barkDepth: THREE.Material;
   foliage: { material: THREE.Material; depth: THREE.Material };
   /** Captures without LOD dithering. */
   captureBark: THREE.Material;
@@ -129,6 +131,7 @@ function useSpeciesAssets(lod: LodFade, biome: Biome) {
   return useMemo(() => {
     configureBarkMaps(maps);
     const uniforms = createTreeUniforms(0.86);
+    const barkDepth = createBarkDepthMaterial(uniforms);
     const leaf = getFoliageAtlas();
     const needle = getNeedleAtlas();
     // One bark pair per bark colour: the shared grey-brown, birch, pine.
@@ -164,6 +167,7 @@ function useSpeciesAssets(lod: LodFade, biome: Biome) {
       return {
         geometries,
         bark: bark.lod,
+        barkDepth,
         foliage: needles ? needleLod : leafLod,
         captureBark: bark.cap,
         captureFoliage: needles ? needleCap.material : leafCap.material,
@@ -190,6 +194,7 @@ function NearForest({ trees, assets, lod, shadows }: { trees: TreeInstance[]; as
         const bark = new THREE.InstancedMesh(a.geometries.bark, a.bark, capacity);
         const leaves = new THREE.InstancedMesh(a.geometries.foliage, a.foliage.material, capacity);
         leaves.customDepthMaterial = a.foliage.depth;
+        bark.customDepthMaterial = a.barkDepth;
         for (const m of [bark, leaves]) {
           m.count = 0;
           m.castShadow = shadows;
